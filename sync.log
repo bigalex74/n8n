@@ -48,3 +48,22 @@
 🔑 Exporting credentials metadata...
 📤 Committing and pushing following the rules...
 Переключились на новую ветку «sync-20260329-000136»
+[sync-20260329-000136 ed84ccd] Auto-backup: 2026-03-29 00:00:01
+ 3 files changed, 52 insertions(+), 2 deletions(-)
+ create mode 100644 sync.log
+remote: 
+remote: Create a pull request for 'sync-20260329-000136' on GitHub by visiting:        
+remote:      https://github.com/bigalex74/n8n/pull/new/sync-20260329-000136        
+remote: 
+To github.com:bigalex74/n8n.git
+ * [new branch]      sync-20260329-000136 -> sync-20260329-000136
+error: Ваши локальные изменения в указанных файлах будут перезаписаны при переключении на состояние:
+	sync.log
+Сделайте коммит или спрячьте ваши изменения перед переключением веток.
+Прерываю
+Уже актуально.
+Everything up-to-date
+error: cannot delete branch 'sync-20260329-000136' used by worktree at '/home/user/n8n-backups'
+To github.com:bigalex74/n8n.git
+ - [deleted]         sync-20260329-000136
+✅ Sync completed successfully!

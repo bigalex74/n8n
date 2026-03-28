@@ -1,50 +1,59 @@
 #!/bin/bash
-# 🚀 n8n Git Sync Script
+# 🚀 Advanced bigalexn8n Git Sync Script
 
 REPO_DIR="/home/user/n8n-backups"
 N8N_CONTAINER="n8n-docker-n8n-1"
+DB_CONTAINER="n8n-docker-db-1"
 DATE=$(date +"%Y-%m-%d %H:%M:%S")
 
-echo "--- Starting n8n Sync: $DATE ---"
+# Входные параметры для коммита
+BRIEF_DESC=${1:-"Scheduled auto-backup"}
+DETAILED_POINTS=${2:-"- Automatic synchronization of workflows and system data"}
 
-# 1. Переход в папку репозитория
 cd "$REPO_DIR" || exit 1
 
-# 2. Очистка старых JSON перед новым экспортом (чтобы ловить удаления)
+# 1. Инкремент номера ветки
+LAST_NUM=$(cat .last_branch_number)
+NEW_NUM=$((LAST_NUM + 1))
+echo "$NEW_NUM" > .last_branch_number
+BRANCH_NAME="bigalexn8n-$NEW_NUM"
+
+echo "--- Starting Sync: $BRANCH_NAME ($DATE) ---"
+
+# 2. Экспорт n8n данных (Workflows & Credentials)
 rm -rf workflows/*.json
-rm -rf credentials/*.json
-mkdir -p workflows credentials
-
-# 3. Полный экспорт всех воркфлоу одним файлом
-echo "📦 Exporting all workflows to full_backup.json..."
-docker exec "$N8N_CONTAINER" n8n export:workflow --all > full_backup.json
-
-# 4. Экспорт по отдельности для отслеживания истории изменений (diff)
-echo "📁 Exporting individual workflows..."
-# Получаем список ID и имен: ID|NAME
-# n8n list:workflow выводит строки вида: ID|NAME
 docker exec "$N8N_CONTAINER" n8n list:workflow | while read -r line; do
     WF_ID=$(echo "$line" | cut -d'|' -f1)
-    WF_NAME=$(echo "$line" | cut -d'|' -f2 | tr ' /' '__') # заменяем пробелы и слеши для имени файла
-    
+    WF_NAME=$(echo "$line" | cut -d'|' -f2 | tr ' /' '__')
     if [ -n "$WF_ID" ] && [ -n "$WF_NAME" ]; then
-        echo "   - Exporting: $WF_NAME ($WF_ID)"
         docker exec "$N8N_CONTAINER" n8n export:workflow --id="$WF_ID" > "workflows/${WF_NAME}.json"
     fi
 done
-
-# 5. Экспорт структуры учетных данных (без самих секретов)
-echo "🔑 Exporting credentials metadata..."
 docker exec "$N8N_CONTAINER" n8n export:credentials --all --decrypted=false > credentials/all_credentials_meta.json
 
-# 6. Git commit & push following the rules
-echo "📤 Committing and pushing following the rules..."
-BRANCH_NAME="sync-$(date +%Y%m%d-%H%M%S)"
+# 3. Бэкап критических системных таблиц БД
+echo "💾 Backing up critical system tables..."
+TABLES=("workflow_entity" "credentials_entity" "user" "project" "tag" "workflow_tag_mapping")
+for table in "${TABLES[@]}"; do
+    docker exec "$DB_CONTAINER" pg_dump -U n8n_user -d n8n_database -t "$table" --data-only --inserts > "system_db_backups/${table}.sql"
+done
+
+# 4. Бэкап AI Assets (Skills & Rules)
+echo "🧠 Backing up AI assets..."
+cp -r /home/user/.gemini/skills/* ai_assets/skills/ 2>/dev/null || true
+cp /home/user/.gemini/GEMINI.md ai_assets/ 2>/dev/null || true
+cp /home/user/n8n-docker/SCHEMA.md ai_assets/ 2>/dev/null || true
+
+# 5. Git workflow
 git checkout -b "$BRANCH_NAME"
 git add .
-git commit -m "Auto-backup: $DATE" || { echo "No changes to commit."; git checkout master; git branch -d "$BRANCH_NAME"; exit 0; }
 
-# Пуш новой ветки
+# Формирование сообщения коммита по стандарту
+COMMIT_MSG="$BRANCH_NAME: $BRIEF_DESC
+
+$DETAILED_POINTS"
+
+git commit -m "$COMMIT_MSG"
 git push origin "$BRANCH_NAME"
 
 # Слияние в мастер
@@ -52,8 +61,4 @@ git checkout master
 git merge "$BRANCH_NAME"
 git push origin master
 
-# Удаление временной ветки
-git branch -d "$BRANCH_NAME"
-git push origin --delete "$BRANCH_NAME" || echo "Remote branch already gone"
-
-echo "✅ Sync completed successfully!"
+echo "✅ Sync $BRANCH_NAME completed!"
