@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict N8YxWg6KpPfJ13qfMd0K4Zv81M2kCU7IX7VPHPZY18ofkAI9pWcvmNVEIWSDcDs
+\restrict V6dpCKRwiOw0ynTNtG0URZzEiFllBDfVO7H6g72wVZYn2MmEYfpi3Qyhx7OYu3P
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -37,5 +37,5 @@ INSERT INTO public.credentials_entity VALUES ('n8n account', 'U2FsdGVkX19cfZZ6+/
 -- PostgreSQL database dump complete
 --
 
-\unrestrict N8YxWg6KpPfJ13qfMd0K4Zv81M2kCU7IX7VPHPZY18ofkAI9pWcvmNVEIWSDcDs
+\unrestrict V6dpCKRwiOw0ynTNtG0URZzEiFllBDfVO7H6g72wVZYn2MmEYfpi3Qyhx7OYu3P
 
