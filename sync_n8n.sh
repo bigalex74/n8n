@@ -37,10 +37,23 @@ done
 echo "🔑 Exporting credentials metadata..."
 docker exec "$N8N_CONTAINER" n8n export:credentials --all --decrypted=false > credentials/all_credentials_meta.json
 
-# 6. Git commit & push
-echo "📤 Committing and pushing to Git..."
+# 6. Git commit & push following the rules
+echo "📤 Committing and pushing following the rules..."
+BRANCH_NAME="sync-$(date +%Y%m%d-%H%M%S)"
+git checkout -b "$BRANCH_NAME"
 git add .
-git commit -m "Auto-backup: $DATE" || echo "No changes to commit."
+git commit -m "Auto-backup: $DATE" || { echo "No changes to commit."; git checkout master; git branch -d "$BRANCH_NAME"; exit 0; }
+
+# Пуш новой ветки
+git push origin "$BRANCH_NAME"
+
+# Слияние в мастер
+git checkout master
+git merge "$BRANCH_NAME"
 git push origin master
+
+# Удаление временной ветки
+git branch -d "$BRANCH_NAME"
+git push origin --delete "$BRANCH_NAME" || echo "Remote branch already gone"
 
 echo "✅ Sync completed successfully!"
