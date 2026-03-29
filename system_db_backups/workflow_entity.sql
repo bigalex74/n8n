@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict zHXDZTk4t9Y1ibNV1f2QBoNDMqCmj32D0IigxbMKTFPV1jyGK3grhQPLXEnNxs8
+\restrict 92ClDoTdP6Bk18T3uoTsFCxjE1zrItLBw0MBTNyVf5zh9RJlR7MRJRWQwpaAUQf
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -71,5 +71,5 @@ INSERT INTO public.workflow_entity VALUES ('🔄 Telegram Polling (n8n)', false,
 -- PostgreSQL database dump complete
 --
 
-\unrestrict zHXDZTk4t9Y1ibNV1f2QBoNDMqCmj32D0IigxbMKTFPV1jyGK3grhQPLXEnNxs8
+\unrestrict 92ClDoTdP6Bk18T3uoTsFCxjE1zrItLBw0MBTNyVf5zh9RJlR7MRJRWQwpaAUQf
 
