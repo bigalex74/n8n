@@ -67,3 +67,9 @@ error: cannot delete branch 'sync-20260329-000136' used by worktree at '/home/us
 To github.com:bigalex74/n8n.git
  - [deleted]         sync-20260329-000136
 ✅ Sync completed successfully!
+--- Starting Sync: bigalexn8n-6 (2026-03-29 04:00:01) ---
+💾 Backing up critical system tables...
+pg_dump: error: no matching tables were found
+pg_dump: error: no matching tables were found
+🧠 Backing up AI assets...
+Переключились на новую ветку «bigalexn8n-6»
