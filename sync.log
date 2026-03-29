@@ -109,3 +109,9 @@ error: Ваши локальные изменения в указанных фа
 Уже актуально.
 Everything up-to-date
 ✅ Sync bigalexn8n-10 completed!
+--- Starting Sync: bigalexn8n-13 (2026-03-29 12:00:01) ---
+💾 Backing up critical system tables...
+pg_dump: error: no matching tables were found
+pg_dump: error: no matching tables were found
+🧠 Backing up AI assets...
+Переключились на новую ветку «bigalexn8n-13»
