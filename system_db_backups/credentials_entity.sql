@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict uix7xHXEBRc10a1UWhgElVetrNtTiycKQEdXWyaNBiOd7ZQbTqeVsZTVSzu3Z8Y
+\restrict FTfxRGKtlkhkRhNDyqjjTVzFAEbFfcFPtR6IkaWBIoht4EKF1HOqBNWwkgCAAFT
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -39,5 +39,5 @@ INSERT INTO public.credentials_entity VALUES ('LightRag', 'U2FsdGVkX1+6Gk5zg/8q/
 -- PostgreSQL database dump complete
 --
 
-\unrestrict uix7xHXEBRc10a1UWhgElVetrNtTiycKQEdXWyaNBiOd7ZQbTqeVsZTVSzu3Z8Y
+\unrestrict FTfxRGKtlkhkRhNDyqjjTVzFAEbFfcFPtR6IkaWBIoht4EKF1HOqBNWwkgCAAFT
 
