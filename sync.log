@@ -434,3 +434,26 @@ pg_dump: error: no matching tables were found
 pg_dump: error: no matching tables were found
 🧠 Backing up AI assets...
 Переключились на новую ветку «bigalexn8n-28»
+[bigalexn8n-28 7c066b0] bigalexn8n-28: Scheduled auto-backup
+ 10 files changed, 25 insertions(+), 14 deletions(-)
+ create mode 100644 workflows/My_workflow_2.json
+ create mode 100644 workflows/sub_lightrag_api.json
+remote: 
+remote: Create a pull request for 'bigalexn8n-28' on GitHub by visiting:        
+remote:      https://github.com/bigalex74/n8n/pull/new/bigalexn8n-28        
+remote: 
+To github.com:bigalex74/n8n.git
+ * [new branch]      bigalexn8n-28 -> bigalexn8n-28
+error: Ваши локальные изменения в указанных файлах будут перезаписаны при переключении на состояние:
+	sync.log
+Сделайте коммит или спрячьте ваши изменения перед переключением веток.
+Прерываю
+Уже актуально.
+Everything up-to-date
+✅ Sync bigalexn8n-28 completed!
+--- Starting Sync: bigalexn8n-29 (2026-04-01 12:00:01) ---
+💾 Backing up critical system tables...
+pg_dump: error: no matching tables were found
+pg_dump: error: no matching tables were found
+🧠 Backing up AI assets...
+Переключились на новую ветку «bigalexn8n-29»
