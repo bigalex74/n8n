@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict hCT1zmXm49DlbacPWB5QtkStaik2ZhOR6dbw4THLjU47FwkpRrYKDGjE4rw8UDD
+\restrict bt0XQaBHnQLzKVRtS1bznOVxqkby2Gr6lni3uYWk1HtbgWczvpnvmIIuwAKGonv
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -32,11 +32,12 @@ INSERT INTO public.credentials_entity VALUES ('Postgres account', 'U2FsdGVkX19/3
 INSERT INTO public.credentials_entity VALUES ('n8n account', 'U2FsdGVkX19cfZZ6+/chwEqQ6Ca3RTOrhbza+UrZaSNb1mhd1uh43VLrc64sihLpuSPimDDF+2/FpGlM53rW7pbfygea748c1XGJ7A3gKuFX/Q4+WV3pTiyVnGdhvM2q1eNwwIgsfuKFU/2yV2/W3bgoc2wrBAeBwuFgzgIJumGZPaeXVZPwbx08YHAnE3B7q0jS4lVTb11s9tRMMfMQ9lx4IuoYZw6lzeTWKUaA7HPsurS5R1nwnpgG0GlR+gSaHA2g3D5muGv7KnI/sfh5YQniOo7WmUoR7ORrPVUlbQMmIMb2fD2hJLSoKx9VHAVk/rqTbqNMMm1LgiT8j40vYzh5gi6jwCNwVrBc6F8lkrZOCYCstdg9C0hRjV0BrE0hw4CoF2L/bwKpH54Xr905XwenW8wX6R1yD8+8aN0d3YyEcbOO81xHuh+sD6GfTKgORv5a4HOww7/Sf7JWChDy7Q==', 'n8nApi', '2026-03-22 06:38:57.353+00', '2026-03-25 11:58:41.001+00', 'VP4X78ps0YqOb1RP', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Aihubmix', 'U2FsdGVkX1+Fgd478Rp9k1Bd5MutyFpFKIrcGn+7E9pijhIRM7ceIgbBugUe9x7PyKa6N4SsGRvaxicgCJxKJctNmMyzevMNMFEhIX0nIetx/fMqzRWntZ5MnYsyALB7Yx2k3Wqbd95Up2w597zDLR6pDKha7jIWAo5w1i6O2Q4=', 'openAiApi', '2026-03-29 16:14:37.538+00', '2026-03-29 16:17:41.482+00', 'pr0cxHPL3Uk4gtSf', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Google Drive account', 'U2FsdGVkX1+49QxztDfcpBqlfr8m4M/UTBRAmkF0bTNHZl2E/OW7n75PbJezzB+se6dBZc6KIJTYxj/oHy6JGt/1noeC2LxgVV1U000WlHgWgNR5RzWiVeyI/+mj3mIzDQP5iPEpwhmd9fwkyJqSzEbefe8GVYPDEDjpAjUauhYWa0KG7yxcWKxYngoXNQ7t09uHXrf4SXrBqL3BQOegkWo3BQ9cwbNl1eGzyivTQgP+iK9mxcrjAc4SigIYNZtmPnJvo+dftKXHC+BzM+qRrJDFq4uyN3d4xOHA+a9QVqJQqHtfq9H/ey1PrGC+uNmhrEqRAjr8cDC8sBwVw+jZDmy+QgYa3FX9D0K6gOd38+jMyqnN9zBfLEX9jG3b+tT2Z349HLMUkYj/TninlhG8ou7/aXfEsaaFkBQ1EWTpzcm7If4WTd4a6eQCsmLNNQWZVIsNEPErV3dD+6l0kKOeqfEsiZM6szwaUUvIgtSFmR6M6tPYR5b3qvAqmeTVFKSMOry05wlBn2t+Z7FFzCV/yJ4OFF2/eABJYoYfs7WiwWG74fIdR54ObSAe8K3hHCuHqCCO/882iLRrF+b4dz75/fM7YZm9oVdfSfsML5KOmflpm5TQuJbn7jP/YdXLmrGxXLMm+ycptJKs14jizi40I+WHSB24RN9qyYDl5PUTn3lmq8n6jnOECUQMTxZtAlsRaEW86I31e+jQcd5zHFpTe+9uQ6uCL3YTe7iMEEwkMxFNXY/QplEDuZHiL36pA8HRPaLMEgBceC9lyruJbn0NJH2Z5eiMIX8KalQnsxBYsZg1X9HgO87lEyn6vcXRakzppIdA8wWnf2AYjqukQob2SwdfyCFJOMag8tzXINKFmWiuITP0ijl1uGIvFhbTu5qLnPIhJViR023eD++7JZfGVvf5LHFxTpEfSXZki6lX0CSRlXYNPV/Pfl4BQv91+5zhlHKGYOCtM4D+I4OTEB6yiJ2K+OtGcIoa9SQdTeWW+p6b83Q26u37sHBQg1bUljdlcYbrwIToZ6F4Qs86KA1SIC/v3RSZXvCzRAMozXp+tcbXlyk/s9lf5R2PZtHnGYs/pyAJ6eEf1CiKr/DAIcjk7ibuWWqjunXFqfMgnh7PwjlO1DQtZGW6FLLdIjNbDKcdTO1+nl/zzOmpY4fJ2ZpgjnTtp8y1ThKQzagAFFPEsID4kj2jvCYthrbYGzL+PaWUre1F8E+ckVjAZq/i8HbfzV16feCitJdIUPO+VTeg8zee0LXwLukSxrFSiS9VJNKYsrpy+xONxvmcr458bOM+kA==', 'googleDriveOAuth2Api', '2026-02-11 06:20:44.587+00', '2026-03-29 20:04:13.309+00', 'OfjqR7v8bwrPeQgK', false, false, false, false, NULL);
+INSERT INTO public.credentials_entity VALUES ('LightRag', 'U2FsdGVkX1+6Gk5zg/8q/RIZ7UIKhUVgkByiS7FWo2aJTY0ET7+ljRl92KzVB/8dGk1KfuymH5ihITvE659s/A==', 'httpHeaderAuth', '2026-03-31 19:06:49.623+00', '2026-03-31 19:07:09.4+00', '04F0dXlIVNesjJse', false, false, false, false, NULL);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict hCT1zmXm49DlbacPWB5QtkStaik2ZhOR6dbw4THLjU47FwkpRrYKDGjE4rw8UDD
+\unrestrict bt0XQaBHnQLzKVRtS1bznOVxqkby2Gr6lni3uYWk1HtbgWczvpnvmIIuwAKGonv
 
