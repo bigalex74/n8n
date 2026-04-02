@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict hsgqtSCkLu2OQVI9sM6dd2wIJmuyWBKGcEqPs95Gr1qPdd8Fv9geYmbW60HP4FC
+\restrict 4o1gajab4td4uTZ8P8XHb9bqgVMfZ2QsHSl5IRT07HQcVcgsHBebDrkUmSkeJh2
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -39,5 +39,5 @@ INSERT INTO public.credentials_entity VALUES ('Google Drive account', 'U2FsdGVkX
 -- PostgreSQL database dump complete
 --
 
-\unrestrict hsgqtSCkLu2OQVI9sM6dd2wIJmuyWBKGcEqPs95Gr1qPdd8Fv9geYmbW60HP4FC
+\unrestrict 4o1gajab4td4uTZ8P8XHb9bqgVMfZ2QsHSl5IRT07HQcVcgsHBebDrkUmSkeJh2
 
