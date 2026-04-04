@@ -838,3 +838,27 @@ pg_dump: error: no matching tables were found
 pg_dump: error: no matching tables were found
 🧠 Backing up AI assets...
 Переключились на новую ветку «bigalexn8n-47»
+[bigalexn8n-47 d64cd61] bigalexn8n-47: Scheduled auto-backup
+ 13 files changed, 45 insertions(+), 19 deletions(-)
+ create mode 100644 "workflows/\320\220\320\275\320\276\321\202\320\260\321\206\320\270\321\217.json"
+ create mode 100644 "workflows/\320\237\320\265\321\200\320\265\320\262\320\265\320\264\320\265\320\275\320\275\321\213\320\271_\321\204\320\260\320\271\320\273_\320\262_Telegram.json"
+ delete mode 100644 "workflows/\320\244\320\270\320\275\320\270\321\210.json"
+remote: 
+remote: Create a pull request for 'bigalexn8n-47' on GitHub by visiting:        
+remote:      https://github.com/bigalex74/n8n/pull/new/bigalexn8n-47        
+remote: 
+To github.com:bigalex74/n8n.git
+ * [new branch]      bigalexn8n-47 -> bigalexn8n-47
+error: Ваши локальные изменения в указанных файлах будут перезаписаны при переключении на состояние:
+	sync.log
+Сделайте коммит или спрячьте ваши изменения перед переключением веток.
+Прерываю
+Уже актуально.
+Everything up-to-date
+✅ Sync bigalexn8n-47 completed!
+--- Starting Sync: bigalexn8n-48 (2026-04-04 16:00:01) ---
+💾 Backing up critical system tables...
+pg_dump: error: no matching tables were found
+pg_dump: error: no matching tables were found
+🧠 Backing up AI assets...
+Переключились на новую ветку «bigalexn8n-48»
