@@ -990,3 +990,24 @@ pg_dump: error: no matching tables were found
 pg_dump: error: no matching tables were found
 🧠 Backing up AI assets...
 Переключились на новую ветку «bigalexn8n-54»
+[bigalexn8n-54 1667918] bigalexn8n-54: Scheduled auto-backup
+ 12 files changed, 42 insertions(+), 21 deletions(-)
+remote: 
+remote: Create a pull request for 'bigalexn8n-54' on GitHub by visiting:        
+remote:      https://github.com/bigalex74/n8n/pull/new/bigalexn8n-54        
+remote: 
+To github.com:bigalex74/n8n.git
+ * [new branch]      bigalexn8n-54 -> bigalexn8n-54
+error: Ваши локальные изменения в указанных файлах будут перезаписаны при переключении на состояние:
+	sync.log
+Сделайте коммит или спрячьте ваши изменения перед переключением веток.
+Прерываю
+Уже актуально.
+Everything up-to-date
+✅ Sync bigalexn8n-54 completed!
+--- Starting Sync: bigalexn8n-55 (2026-04-05 20:00:01) ---
+💾 Backing up critical system tables...
+pg_dump: error: no matching tables were found
+pg_dump: error: no matching tables were found
+🧠 Backing up AI assets...
+Переключились на новую ветку «bigalexn8n-55»
