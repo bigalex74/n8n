@@ -1156,3 +1156,18 @@ Everything up-to-date
 🧠 Backing up AI assets...
 🌿 Committing to Git...
 Переключились на новую ветку «bigalexn8n-64»
+[bigalexn8n-64 50dcc92] bigalexn8n-64: Scheduled auto-backup
+ 13 files changed, 41 insertions(+), 19 deletions(-)
+remote: 
+remote: Create a pull request for 'bigalexn8n-64' on GitHub by visiting:        
+remote:      https://github.com/bigalex74/n8n/pull/new/bigalexn8n-64        
+remote: 
+To github.com:bigalex74/n8n.git
+ * [new branch]      bigalexn8n-64 -> bigalexn8n-64
+error: Ваши локальные изменения в указанных файлах будут перезаписаны при переключении на состояние:
+	sync.log
+Сделайте коммит или спрячьте ваши изменения перед переключением веток.
+Прерываю
+Уже актуально.
+--- Starting Sync: bigalexn8n-65 (2026-04-06 22:41:55) ---
+📦 Exporting workflows...

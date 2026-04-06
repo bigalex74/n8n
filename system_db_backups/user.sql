@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict s1AQ9dEvgpjVEeHouRo7bnW7aI7CsG5BPGY1V87Tq20seWGlZPgMvXZSD7PPP6l
+\restrict WSlj3WcRc5gAllO2bgdIX3olH0TSf7pNGtmeExieoQ6tFydEyMtLwACuVddjAF7
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -29,5 +29,5 @@ INSERT INTO public."user" VALUES ('72a067d6-c26f-4653-90ff-323299f21ddd', 'alexe
 -- PostgreSQL database dump complete
 --
 
-\unrestrict s1AQ9dEvgpjVEeHouRo7bnW7aI7CsG5BPGY1V87Tq20seWGlZPgMvXZSD7PPP6l
+\unrestrict WSlj3WcRc5gAllO2bgdIX3olH0TSf7pNGtmeExieoQ6tFydEyMtLwACuVddjAF7
 
