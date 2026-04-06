@@ -1,0 +1,100 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=n8n_user
+      - POSTGRES_PASSWORD=n8n_db_password
+      - POSTGRES_DB=n8n_database
+    ports:
+      - 5432:5432
+    restart: always
+    volumes:
+      - db_storage:/var/lib/postgresql/data
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    network_mode: host
+    depends_on:
+      - db
+    environment:
+      - N8N_ENCRYPTION_KEY=InqHY6REAuKYfnqDgmmcZGuSnLZJFl90
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=127.0.0.1
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n_database
+      - DB_POSTGRESDB_USER=n8n_user
+      - DB_POSTGRESDB_PASSWORD=n8n_db_password
+      - N8N_HOST=bigalexn8n.ru
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      - N8N_EDITOR_BASE_URL=https://bigalexn8n.ru
+      - WEBHOOK_URL=https://bigalexn8n.ru/
+      - GENERIC_TIMEZONE=Europe/Moscow
+      - N8N_TRUST_PROXY=true
+      - N8N_PROXY_HOPS=1
+      - HTTP_PROXY=http://127.0.0.1:10808
+      - HTTPS_PROXY=http://127.0.0.1:10808
+      - NO_PROXY=localhost,127.0.0.1,::1,192.168.1.124,bigalexn8n.ru,www.bigalexn8n.ru
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+    restart: always
+    volumes:
+      - n8n_storage:/home/node/.n8n
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    depends_on:
+      - db
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=alexei.bigalex@yandex.ru
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+      - PGADMIN_CONFIG_ENFORCE_CSRF=False
+    ports:
+      - 127.0.0.1:5055:80
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)'
+    restart: always
+    ports:
+      - 9100:9100
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - /home/user/n8n-docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/console_templates'
+    restart: always
+    ports:
+      - 9090:9090
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://n8n_user:n8n_db_password@db:5432/n8n_database?sslmode=disable
+    restart: always
+    ports:
+      - 9187:9187
+
+volumes:
+  db_storage:
+  n8n_storage:
+  prometheus_data:

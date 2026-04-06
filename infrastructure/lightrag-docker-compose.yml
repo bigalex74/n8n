@@ -1,0 +1,92 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    network_mode: host
+    environment:
+      - OLLAMA_NUM_THREAD=8
+    volumes:
+      - ollama_storage:/root/.ollama
+    restart: always
+
+  lightrag:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    container_name: lightrag
+    network_mode: host
+    environment:
+      - LLM_BINDING=openai
+      - LLM_MODEL=openai/gpt-4o-mini
+      - LLM_BINDING_HOST=https://polza.ai/api/v1
+      - LLM_BINDING_API_KEY=pza_PV5t0y6PTuE8GLcZ-jgvlpNDLlZm0mUT
+      - OPENAI_API_KEY=pza_PV5t0y6PTuE8GLcZ-jgvlpNDLlZm0mUT
+      - OPENAI_BASE_URL=https://polza.ai/api/v1
+      - EMBEDDING_BINDING=ollama
+      - EMBEDDING_MODEL=nomic-embed-text
+      - EMBEDDING_BINDING_HOST=http://127.0.0.1:11434
+      - EMBEDDING_DIM=768
+      - CHUNK_SIZE=800
+      - CHUNK_OVERLAP_SIZE=100
+      - MAX_ASYNC=8
+      - MAX_PARALLEL_INSERT=4
+      - SUMMARY_LANGUAGE=Russian
+    volumes:
+      - /home/user/lightrag/inputs:/app/inputs
+      - /home/user/lightrag/outputs:/app/outputs
+      - /home/user/lightrag/dict:/app/dict
+    restart: always
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: always
+    environment:
+      - OLLAMA_BASE_URL=http://127.0.0.1:11434
+      - WEBUI_SECRET_KEY=bigalex_secret_key_2026
+      - PORT=3001
+    network_mode: host
+    volumes:
+      - open-webui-data:/app/backend/data
+
+  sd-webui:
+    build:
+      context: /home/user/fastsd-cpu
+      dockerfile: Dockerfile
+    container_name: sd-webui
+    restart: always
+    network_mode: host
+    volumes:
+      - sd-data:/app/models
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+  crontab-ui:
+    image: alseambusher/crontab-ui:latest
+    container_name: crontab-ui
+    restart: always
+    ports:
+      - "8001:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/user/n8n-docker:/home/user/n8n-docker
+      - /home/user/n8n-backups:/home/user/n8n-backups
+      - crontab_data:/crontab-ui/crontabs
+
+volumes:
+  ollama_storage:
+  open-webui-data:
+  sd-data:
+  portainer_data:
+  crontab_data:
