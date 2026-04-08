@@ -62,3 +62,8 @@ cron.bigalexn8n.ru {
 www.bigalexn8n.ru {
     redir https://bigalexn8n.ru{uri} permanent
 }
+
+apps.bigalexn8n.ru {
+    tls alexei.bigalex@yandex.ru
+    reverse_proxy 127.0.0.1:8000
+}
