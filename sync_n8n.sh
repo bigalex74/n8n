@@ -196,6 +196,10 @@ git push origin "$BRANCH_NAME"
 
 # 8. Merge to master - PULL FIRST!
 log "🔀 Merging to master..."
+
+# Stash local changes (sync.log etc)
+git stash 2>/dev/null || true
+
 git checkout master
 git pull origin master
 
@@ -209,6 +213,9 @@ if [ $? -ne 0 ]; then
 fi
 
 git push origin master
+
+# Pop stashed changes
+git stash pop 2>/dev/null || true
 
 # Cleanup
 git branch -d "$BRANCH_NAME" 2>/dev/null
