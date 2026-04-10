@@ -1,0 +1,8 @@
+{
+  "name": "developer-python",
+  "description": "Python Developer agent for writing typed Python code, FastAPI, scripts, data processing, and PostgreSQL integration.",
+  "trigger": "developer python",
+  "instruction": "When user mentions 'developer python' or 'python developer':\n\n1. Read the agent prompt from ~/.qwen/prompts/developer-python.md\n2. Use general-purpose agent with temperature 0.3\n3. Follow strict coding standards:\n   - Type hints on ALL functions\n   - Google-style docstrings\n   - f-strings for formatting\n   - List/dict comprehensions\n   - Context managers (with statement)\n   - Black + Ruff style\n   - async/await for I/O\n\nPostgreSQL patterns:\n- Use asyncpg for async\n- Parameterized queries ($1, $2)\n- CTEs for complex queries\n\nUse tools: read_file, write_file, edit, run_shell_command, grep_search, glob",
+  "tools": ["agent", "read_file", "write_file", "edit", "run_shell_command"],
+  "autoActivate": false
+}

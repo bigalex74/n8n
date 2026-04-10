@@ -31,6 +31,11 @@
     }
   },
   "agents": {
+    "prime": {
+      "promptFile": ".qwen/prompts/prime.md",
+      "type": "general-purpose",
+      "temperature": 0.4
+    },
     "architect": {
       "promptFile": ".qwen/prompts/architect.md",
       "type": "general-purpose",

@@ -1,0 +1,8 @@
+{
+  "name": "architect",
+  "description": "System Architect agent for designing system architecture, creating ADRs, component diagrams, and decomposing complex tasks. Use when you need architectural decisions, technical specs, or system design.",
+  "trigger": "architect",
+  "instruction": "When user mentions 'architect' or asks for system design/architecture/ADR:\n\n1. Read the agent prompt from ~/.qwen/prompts/architect.md\n2. Use general-purpose agent with that prompt\n3. Output should include:\n   - Architecture Decision Record (ADR)\n   - Mermaid diagrams (component, data flow)\n   - Risk assessment\n   - Dependencies matrix\n\nn8n Best Practices:\n- Sub-workflows at >10-15 nodes\n- Naming: [Project] [Function] - [Env]\n- Global Error Handler with Error Trigger\n- Retry on Fail with Exponential Backoff\n- Credentials via n8n Credential Manager\n- Environment variables: {{ $env[\"VAR\"] }}\n\nStack: n8n, JS, Python, SQL, Bash, LightRAG, Ollama, PostgreSQL",
+  "tools": ["agent", "read_file", "write_file", "glob", "grep_search"],
+  "autoActivate": false
+}

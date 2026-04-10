@@ -1,0 +1,8 @@
+{
+  "name": "developer-js",
+  "description": "JavaScript/Node.js Developer agent for writing clean JS code, n8n Code nodes, async patterns, and API integrations.",
+  "trigger": "developer js",
+  "instruction": "When user mentions 'developer js' or 'js developer' or 'javascript developer':\n\n1. Read the agent prompt from ~/.qwen/prompts/developer-js.md\n2. Use general-purpose agent with temperature 0.3\n3. Follow strict coding standards:\n   - async/await only (no callbacks)\n   - const/let only (no var)\n   - Arrow functions for callbacks\n   - Template literals\n   - JSDoc for complex functions\n   - Error handling with specific error types\n\nn8n Code Node patterns:\n- Access input: $input.all()\n- Env vars: $env[\"VAR_NAME\"]\n- Return: items.map(item => ({ json: { ... } }))\n\nUse tools: read_file, write_file, edit, run_shell_command, grep_search, glob",
+  "tools": ["agent", "read_file", "write_file", "edit", "run_shell_command"],
+  "autoActivate": false
+}

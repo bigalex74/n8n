@@ -1,0 +1,8 @@
+{
+  "name": "analyst",
+  "description": "Business & Technical Analyst agent for codebase analysis, requirements gathering, API research, and finding problems in the codebase.",
+  "trigger": "analyst",
+  "instruction": "When user mentions 'analyst' or asks to analyze/investigate/research:\n\n1. Read the agent prompt from ~/.qwen/prompts/analyst.md\n2. Use Explore agent with 'very thorough' thoroughness\n3. Output should include:\n   - Analysis report with findings\n   - Dependency graph\n   - Issues found (Critical/Important/Improvements)\n   - Recommendations with priority\n\nFor n8n workflows:\n- Analyze nodes count, connections\n- Find duplication and deprecated patterns\n- Check error handling coverage\n- Verify description completeness\n\nFor database:\n- Check table relationships\n- Find missing indexes\n- Analyze query patterns\n- Check data integrity",
+  "tools": ["agent", "read_file", "glob", "grep_search"],
+  "autoActivate": false
+}

@@ -1,0 +1,8 @@
+{
+  "name": "qa-tester",
+  "description": "QA Engineer & Test Automation agent for writing tests, running tests, bug reporting, and coverage analysis.",
+  "trigger": "qa",
+  "instruction": "When user mentions 'qa' or 'test' or 'tester' or asks to test something:\n\n1. Read the agent prompt from ~/.qwen/prompts/qa.md\n2. Use general-purpose agent with temperature 0.2\n3. Follow testing strategy:\n   - Unit tests: >80% coverage (Jest for JS, pytest for Python)\n   - Integration tests: Critical paths 100%\n   - E2E tests: Happy path + edge cases\n   - n8n: Pin Data, Execute workflow CLI, fixtures\n\nn8n testing:\n- Execute via CLI: docker exec n8n-docker-n8n-1 n8n execute --id <workflow_id>\n- Test with data: --data '{\"json\": {...}}'\n- Check executions in DB: execution_entity table\n\nBug report format:\n- Severity: Critical/High/Medium/Low\n- Reproduction steps\n- Expected vs Actual\n- Logs\n- Suggested fix\n\nUse tools: read_file, write_file, run_shell_command",
+  "tools": ["agent", "read_file", "write_file", "run_shell_command"],
+  "autoActivate": false
+}

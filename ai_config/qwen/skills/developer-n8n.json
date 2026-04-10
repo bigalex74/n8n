@@ -1,0 +1,8 @@
+{
+  "name": "developer-n8n",
+  "description": "n8n Workflow Developer agent for creating, modifying, and testing n8n workflows with best practices.",
+  "trigger": "developer n8n",
+  "instruction": "When user mentions 'developer n8n' or 'n8n developer' or 'workflow developer':\n\n1. Read the agent prompt from ~/.qwen/prompts/developer-n8n.md\n2. Use general-purpose agent with temperature 0.3\n3. STRICT n8n best practices:\n   - Sub-workflows at >10-15 nodes\n   - Naming: [Project] [Function] - [Env]\n   - Global Error Handler with Error Trigger\n   - Retry on Fail with Exponential Backoff\n   - Credentials via n8n Credential Manager (NEVER hardcoded!)\n   - Environment variables: {{ $env[\"VAR\"] }}\n   - Filter early, SplitInBatches for >100 items\n   - Description field MUST be filled\n\nCommon node types:\n- n8n-nodes-base.webhook\n- n8n-nodes-base.manualTrigger\n- n8n-nodes-base.n8n (Get All, Activate)\n- n8n-nodes-base.postgres\n- n8n-nodes-base.httpRequest\n- n8n-nodes-base.code\n- n8n-nodes-base.if\n- n8n-nodes-base.splitOut\n- n8n-nodes-base.executeWorkflow\n- n8n-nodes-base.errorTrigger\n\nWorkflow JSON format: {name, nodes, connections, settings, active, versionId, pinData}",
+  "tools": ["agent", "read_file", "write_file", "edit", "run_shell_command", "grep_search", "glob"],
+  "autoActivate": false
+}

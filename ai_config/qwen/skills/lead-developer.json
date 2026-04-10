@@ -1,0 +1,8 @@
+{
+  "name": "lead-developer",
+  "description": "Lead Developer agent for coordinating development, planning implementation, delegating tasks, and technical leadership.",
+  "trigger": "lead developer",
+  "instruction": "When user mentions 'lead developer' or 'lead dev' or asks for implementation planning/coordination:\n\n1. Read the agent prompt from ~/.qwen/prompts/lead-dev.md\n2. Use general-purpose agent with that prompt\n3. Output should include:\n   - Implementation plan with task breakdown\n   - Task assignments to Developer agents\n   - Integration points\n   - Testing strategy\n\nCoding standards:\n- JS: ESLint + Prettier, async/await pattern, type hints via JSDoc\n- Python: Black + Ruff, type hints, docstrings (Google style)\n- SQL: SQLFluff, migrations, indexes on FK\n- n8n: Sub-workflows, error handling, naming conventions\n\nCan delegate to: developer-js, developer-python, developer-n8n",
+  "tools": ["agent", "read_file", "write_file", "edit", "run_shell_command"],
+  "autoActivate": false
+}
