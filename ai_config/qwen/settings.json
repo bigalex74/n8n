@@ -28,6 +28,82 @@
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user"]
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
+    },
+    "postgresql": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://n8n_user:n8n_db_password@127.0.0.1:5432/n8n_database"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "sentry": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sentry"],
+      "env": {
+        "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}",
+        "SENTRY_ORG": "bigalex",
+        "SENTRY_PROJECT": "n8n-translation"
+      }
+    },
+    "docker": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-docker"]
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "/home/user/n8n-docker/n8n.db"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    },
+    "firecrawl": {
+      "command": "npx",
+      "args": ["-y", "@mendable/firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
+      }
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+    },
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "@linear/mcp"],
+      "env": {
+        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
+      }
+    },
+    "google-workspace": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-google-workspace"]
+    },
+    "e2b-sandbox": {
+      "command": "npx",
+      "args": ["-y", "@e2b/mcp"],
+      "env": {
+        "E2B_API_KEY": "${E2B_API_KEY}"
+      }
     }
   },
   "agents": {
@@ -85,6 +161,56 @@
       "promptFile": ".qwen/prompts/researcher.md",
       "type": "general-purpose",
       "temperature": 0.3
+    },
+    "frontend-developer": {
+      "promptFile": ".qwen/prompts/frontend-developer.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "backend-developer": {
+      "promptFile": ".qwen/prompts/backend-developer.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "devops-engineer": {
+      "promptFile": ".qwen/prompts/devops-engineer.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "security-auditor": {
+      "promptFile": ".qwen/prompts/security-auditor.md",
+      "type": "general-purpose",
+      "temperature": 0.2
+    },
+    "database-expert": {
+      "promptFile": ".qwen/prompts/database-expert.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "api-designer": {
+      "promptFile": ".qwen/prompts/api-designer.md",
+      "type": "general-purpose",
+      "temperature": 0.5
+    },
+    "performance-engineer": {
+      "promptFile": ".qwen/prompts/performance-engineer.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "data-engineer": {
+      "promptFile": ".qwen/prompts/data-engineer.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "release-manager": {
+      "promptFile": ".qwen/prompts/release-manager.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "incident-responder": {
+      "promptFile": ".qwen/prompts/incident-responder.md",
+      "type": "general-purpose",
+      "temperature": 0.2
     }
   },
   "rules": [

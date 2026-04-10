@@ -1,0 +1,8 @@
+{
+  "name": "security-audit-skill",
+  "description": "Security audit skill for finding vulnerabilities, OWASP issues, and hardcoded secrets in code.",
+  "trigger": "security audit",
+  "instruction": "When user mentions 'security audit' or 'audit security':\n\n1. Scan for hardcoded secrets (API keys, tokens, passwords)\n2. Check for SQL injection vulnerabilities (string concatenation in queries)\n3. Verify input validation on all endpoints\n4. Check for proper error handling (no sensitive info in error messages)\n5. Verify credentials are not hardcoded\n6. Check for proper authentication/authorization\n7. Review OWASP Top 10 compliance\n\nOutput:\n- Critical issues (MUST FIX)\n- High priority issues\n- Recommendations\n- Compliance checklist",
+  "tools": ["read_file", "grep_search", "run_shell_command"],
+  "autoActivate": false
+}

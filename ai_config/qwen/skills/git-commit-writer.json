@@ -1,0 +1,8 @@
+{
+  "name": "git-commit-writer",
+  "description": "Automated Git commit helper with conventional commits, smart commit messages, and branch management.",
+  "trigger": "git commit",
+  "instruction": "When user asks to commit changes or mentions git commit:\n\n1. Run `git status` to see changes\n2. Stage files logically (related changes together)\n3. Generate conventional commit message:\n   - feat: new feature\n   - fix: bug fix\n   - docs: documentation\n   - refactor: code refactoring\n   - test: adding tests\n   - chore: maintenance\n4. Run `git commit -m \"type: message\"`\n5. If branch doesn't exist, create with `git checkout -b branch-name`\n\nRules:\n- Use conventional commits format\n- Keep messages under 72 chars\n- Separate subject from body with blank line\n- Use imperative mood (\"Add\" not \"Added\")",
+  "tools": ["run_shell_command", "read_file"],
+  "autoActivate": false
+}

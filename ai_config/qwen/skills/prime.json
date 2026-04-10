@@ -11,7 +11,9 @@
     "run_shell_command",
     "grep_search",
     "glob",
-    "skill"
+    "skill",
+    "web_search",
+    "web_fetch"
   ],
-  "autoActivate": false
+  "autoActivate": true
 }
