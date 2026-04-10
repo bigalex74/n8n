@@ -1,0 +1,40 @@
+{
+  "name": "telegram-app-developer",
+  "description": "Professional Telegram Application Development - Build production-ready Telegram bots, Mini Apps, and integrations with best practices, testing, security, and modern architecture patterns.",
+  "version": "1.0.0",
+  "category": "development",
+  "triggers": [
+    "telegram bot",
+    "telegram app",
+    "telegram mini app",
+    "telegram web app",
+    "botfather",
+    "telegram api",
+    "inline mode",
+    "telegram payment",
+    "telegram webhook",
+    "aiogram",
+    "python-telegram-bot",
+    "telegram keyboard",
+    "telegram inline query"
+  ],
+  "rules": {
+    "alwaysApply": [
+      "При разработке Telegram-приложений ВСЕГДА следовать лучшим практикам безопасности",
+      "ВСЕГДА использовать FSM для управления состояниями диалогов",
+      "ВСЕГДА валидировать пользовательский ввод",
+      "ВСЕГДА обрабатывать ошибки gracefully с глобальным error handler",
+      "ВСЕГДА логировать критические ошибки с exc_info=True",
+      "НИКОГДА не хардкодить токены - использовать environment variables",
+      "ВСЕГДА тестировать перед выдачей результата (E2E или unit tests)",
+      "ВСЕГДА использовать HTTPS для webhook и Web Apps"
+    ],
+    "onRequest": "Когда пользователь просит создать Telegram-приложение, применять все лучшие практики из knowledge base"
+  },
+  "knowledgeBase": {
+    "api": "core.telegram.org/bots/api",
+    "miniApps": "core.telegram.org/bots/webapps",
+    "testing": "Реальный API > моки для E2E тестов",
+    "security": "secret_token + HTTPS + input validation"
+  }
+}

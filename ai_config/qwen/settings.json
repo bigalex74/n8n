@@ -1,0 +1,88 @@
+{
+  "security": {
+    "auth": {
+      "selectedType": "qwen-oauth"
+    }
+  },
+  "model": {
+    "name": "coder-model",
+    "maxTokens": 32768,
+    "generationConfig": {
+      "timeout": 300
+    }
+  },
+  "tools": {
+    "maxToolResponses": 50,
+    "approvalMode": "auto"
+  },
+  "reasoning": {
+    "enabled": true,
+    "showThoughts": true,
+    "chainOfThought": true
+  },
+  "performance": {
+    "enableCaching": true,
+    "parallelToolCalls": true
+  },
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  },
+  "agents": {
+    "architect": {
+      "promptFile": ".qwen/prompts/architect.md",
+      "type": "general-purpose",
+      "temperature": 0.7
+    },
+    "analyst": {
+      "promptFile": ".qwen/prompts/analyst.md",
+      "type": "Explore",
+      "thoroughness": "very thorough"
+    },
+    "lead-developer": {
+      "promptFile": ".qwen/prompts/lead-dev.md",
+      "type": "general-purpose",
+      "temperature": 0.5
+    },
+    "developer-js": {
+      "promptFile": ".qwen/prompts/developer-js.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "developer-python": {
+      "promptFile": ".qwen/prompts/developer-python.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "developer-n8n": {
+      "promptFile": ".qwen/prompts/developer-n8n.md",
+      "type": "general-purpose",
+      "temperature": 0.3
+    },
+    "qa": {
+      "promptFile": ".qwen/prompts/qa.md",
+      "type": "general-purpose",
+      "temperature": 0.2
+    },
+    "reviewer": {
+      "promptFile": ".qwen/prompts/reviewer.md",
+      "type": "general-purpose",
+      "temperature": 0.2
+    },
+    "tech-writer": {
+      "promptFile": ".qwen/prompts/tech-writer.md",
+      "type": "general-purpose",
+      "temperature": 0.5
+    }
+  },
+  "rules": [
+    "output-language: Russian",
+    "development-rules"
+  ],
+  "$version": 3,
+  "ui": {
+    "feedbackLastShownTimestamp": 1774455707883
+  }
+}

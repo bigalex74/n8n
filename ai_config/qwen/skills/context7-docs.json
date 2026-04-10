@@ -1,0 +1,8 @@
+{
+  "name": "context7-docs",
+  "description": "Use Context7 MCP to fetch up-to-date, version-specific documentation and code examples for any library. Automatically activate when user asks about library/API documentation, code generation, setup or configuration.",
+  "trigger": "use context7",
+  "instruction": "When user includes 'use context7' in their prompt:\n1. Identify the library/framework mentioned\n2. Use resolve-library-id tool to get the Context7 ID\n3. Use query-docs tool to fetch relevant documentation\n4. Generate code/answer using the fetched documentation\n\nIf library is specified as /owner/repo format, skip resolve-library-id and use query-docs directly.\nAlways respect version constraints mentioned in the query.\n\nExample triggers:\n- 'Create a Next.js 15 middleware. use context7'\n- 'How to configure Prisma 6 with PostgreSQL? use context7'\n- 'use library /supabase/supabase for API and docs'",
+  "tools": ["resolve-library-id", "query-docs"],
+  "autoActivate": true
+}
