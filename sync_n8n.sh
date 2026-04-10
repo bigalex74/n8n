@@ -113,7 +113,16 @@ git push origin "$BRANCH_NAME"
 log "🔀 Merging to master..."
 git checkout master
 git pull origin master
-git merge "$BRANCH_NAME" --no-ff -m "Merge branch '$BRANCH_NAME'"
+
+# Resolve conflicts by taking ours (latest backup data)
+git merge "$BRANCH_NAME" --no-ff -m "Merge branch '$BRANCH_NAME'" 2>/dev/null
+if [ $? -ne 0 ]; then
+    log "⚠️ Merge conflicts detected, resolving..."
+    git checkout --ours .
+    git add .
+    git commit -m "Merge branch '$BRANCH_NAME' (resolved conflicts)" 2>/dev/null || true
+fi
+
 git push origin master
 
 # Cleanup
