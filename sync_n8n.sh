@@ -1,6 +1,6 @@
 #!/bin/bash
-# 🚀 bigalexn8n Git Sync Script - FIXED VERSION
-# Fixes: proper error handling, read from file not pipe, pull before merge
+# 🚀 bigalexn8n Git Sync Script - FULL BACKUP
+# Backs up: workflows, DB, infra, AI agents/skills/rules, docs, apps
 
 REPO_DIR="/home/user/n8n-backups"
 N8N_CONTAINER="n8n-docker-n8n-1"
@@ -41,7 +41,7 @@ echo "$NEW_NUM" > .last_branch_number
 BRANCH_NAME="bigalexn8n-$NEW_NUM"
 log "📦 Branch: $BRANCH_NAME"
 
-# 2. Export workflows - READ FROM FILE not pipe
+# 2. Export workflows
 log "📦 Exporting workflows..."
 rm -rf workflows/*.json
 docker exec "$N8N_CONTAINER" n8n list:workflow > /tmp/wf_list.txt 2>/dev/null
@@ -58,7 +58,6 @@ if [ -s /tmp/wf_list.txt ]; then
 else
     log "⚠️ Failed to list workflows"
 fi
-
 docker exec "$N8N_CONTAINER" n8n export:credentials --all --decrypted=false > credentials/all_credentials_meta.json 2>/dev/null || true
 
 # 3. DB backup
@@ -75,19 +74,100 @@ mkdir -p infrastructure
 cp /home/user/n8n-docker/docker-compose.yml infrastructure/n8n-docker-compose.yml
 cp /home/user/lightrag/docker-compose.yml infrastructure/lightrag-docker-compose.yml
 cp /etc/caddy/Caddyfile infrastructure/Caddyfile 2>/dev/null || true
+cp /home/user/n8n-docker/prometheus/prometheus.yml infrastructure/prometheus.yml 2>/dev/null || true
+cp /home/user/n8n-docker/.env infrastructure/n8n-env 2>/dev/null || true
 
-# 5. Tools
+# 5. Tools & scripts
 log "🛠️ Backing up tools..."
 mkdir -p tools
 cp /home/user/*.js tools/ 2>/dev/null || true
 cp /home/user/*.sql tools/ 2>/dev/null || true
+cp /home/user/n8n-docker/*.sh tools/ 2>/dev/null || true
+cp /home/user/n8n-docker/*.py tools/ 2>/dev/null || true
+cp /home/user/n8n-docker/import_activate_translation_fixed.py tools/ 2>/dev/null || true
+cp /home/user/n8n-docker/e2e_test_activate.py tools/ 2>/dev/null || true
+cp /home/user/n8n-docker/e2e_test_v6.py tools/ 2>/dev/null || true
+cp /home/user/n8n-docker/import_v3.py tools/ 2>/dev/null || true
+cp /home/user/n8n-docker/import_v4.py tools/ 2>/dev/null || true
+cp /home/user/n8n-docker/import_activate_translation.py tools/ 2>/dev/null || true
 
-# 6. AI assets
-log "🧠 Backing up AI assets..."
-mkdir -p ai_assets/skills
-cp -r /home/user/.gemini/skills/* ai_assets/skills/ 2>/dev/null || true
-cp /home/user/.gemini/GEMINI.md ai_assets/ 2>/dev/null || true
-cp /home/user/n8n-docker/SCHEMA.md ai_assets/ 2>/dev/null || true
+# 6. AI Agent Configuration (PROMPTS, RULES, SKILLS, SETTINGS)
+log "🤖 Backing up AI Agent configuration..."
+mkdir -p ai_config
+
+# Qwen settings & rules
+mkdir -p ai_config/qwen
+cp /home/user/.qwen/settings.json ai_config/qwen/ 2>/dev/null || true
+cp /home/user/.qwen/output-language.md ai_config/qwen/ 2>/dev/null || true
+cp /home/user/.qwen/QWEN.md ai_config/qwen/ 2>/dev/null || true
+
+# Agent prompts (9 prompts)
+mkdir -p ai_config/qwen/prompts
+cp /home/user/.qwen/prompts/*.md ai_config/qwen/prompts/ 2>/dev/null || true
+
+# Development rules
+mkdir -p ai_config/qwen/rules
+cp /home/user/.qwen/rules/*.md ai_config/qwen/rules/ 2>/dev/null || true
+
+# Skills
+mkdir -p ai_config/qwen/skills
+cp /home/user/.qwen/skills/*.json ai_config/qwen/skills/ 2>/dev/null || true
+cp /home/user/.qwen/CONTEXT7_GUIDE.md ai_config/qwen/ 2>/dev/null || true
+cp /home/user/.qwen/TELEGRAM_DEVELOPER_GUIDE.md ai_config/qwen/ 2>/dev/null || true
+cp /home/user/.qwen/TELEGRAM_RESOURCES.md ai_config/qwen/ 2>/dev/null || true
+
+# Gemini skills (legacy)
+mkdir -p ai_config/gemini
+cp -r /home/user/.gemini/skills ai_config/gemini/ 2>/dev/null || true
+cp /home/user/.gemini/GEMINI.md ai_config/gemini/ 2>/dev/null || true
+cp /home/user/n8n-expert.skill ai_config/gemini/ 2>/dev/null || true
+
+# 7. Documentation
+log "📚 Backing up documentation..."
+mkdir -p docs
+
+# n8n-docker documentation (25+ files)
+cp /home/user/n8n-docker/*.md docs/ 2>/dev/null || true
+
+# Root level documentation
+cp /home/user/LIGHTRAG_INTEGRATION_DOC.md docs/ 2>/dev/null || true
+cp /home/user/REFACTORING_SUMMARY.md docs/ 2>/dev/null || true
+cp /home/user/SEND_MESSAGE_WORKFLOW.md docs/ 2>/dev/null || true
+cp /home/user/TESTING_GUIDE.md docs/ 2>/dev/null || true
+cp /home/user/ACTIVATE_TRANSLATION_WORKFLOWS.json docs/ 2>/dev/null || true
+
+# Workflow JSON files (working copies)
+mkdir -p docs/workflow_jsons
+cp /home/user/*.json docs/workflow_jsons/ 2>/dev/null || true
+cp /home/user/main_workflow_*.json docs/workflow_jsons/ 2>/dev/null || true
+cp /home/user/sub_workflow_*.json docs/workflow_jsons/ 2>/dev/null || true
+cp /home/user/Send_Message_*.json docs/workflow_jsons/ 2>/dev/null || true
+cp /home/user/Translate_Chunk_*.json docs/workflow_jsons/ 2>/dev/null || true
+cp /home/user/sm_task_*.json docs/workflow_jsons/ 2>/dev/null || true
+
+# 8. Telegram Apps source code
+log "📱 Backing up telegram-apps..."
+mkdir -p telegram-apps
+cp /home/user/telegram-apps/*.py telegram-apps/ 2>/dev/null || true
+cp /home/user/telegram-apps/Dockerfile telegram-apps/ 2>/dev/null || true
+cp /home/user/telegram-apps/main.py telegram-apps/ 2>/dev/null || true
+cp /home/user/telegram-apps/telegram_polling.py telegram-apps/ 2>/dev/null || true
+cp /home/user/telegram-apps/test_api.py telegram-apps/ 2>/dev/null || true
+cp /home/user/telegram-apps/Caddyfile_tmp telegram-apps/ 2>/dev/null || true
+cp -r /home/user/telegram-apps/static telegram-apps/ 2>/dev/null || true
+cp -r /home/user/telegram-apps/tests telegram-apps/ 2>/dev/null || true
+cp -r /home/user/telegram-apps/docs telegram-apps/ 2>/dev/null || true
+
+# 9. LightRAG configuration
+log "🧠 Backing up lightrag config..."
+mkdir -p lightrag-config
+cp /home/user/lightrag/src/Dockerfile lightrag-config/ 2>/dev/null || true
+cp /home/user/lightrag/src/pyproject.toml lightrag-config/ 2>/dev/null || true
+
+# 10. n8n expert skill references
+log "📖 Backing up n8n expert skill..."
+mkdir -p n8n-expert-skill
+cp -r /home/user/.gemini/skills/n8n-expert n8n-expert-skill/ 2>/dev/null || true
 
 # 7. Git commit
 log "🌿 Committing..."
@@ -105,12 +185,21 @@ fi
 
 git commit -m "$BRANCH_NAME: Scheduled auto-backup
 
-- Automatic synchronization of workflows, system data and infrastructure"
+- Workflows, credentials, system tables
+- Infrastructure (docker-compose, Caddy, prometheus)
+- AI Agent config (prompts, rules, skills, settings)
+- Full documentation
+- Telegram apps source
+- Tools and scripts"
 
 git push origin "$BRANCH_NAME"
 
 # 8. Merge to master - PULL FIRST!
 log "🔀 Merging to master..."
+
+# Stash local changes (sync.log etc)
+git stash 2>/dev/null || true
+
 git checkout master
 git pull origin master
 
@@ -125,10 +214,25 @@ fi
 
 git push origin master
 
+# Pop stashed changes
+git stash pop 2>/dev/null || true
+
 # Cleanup
 git branch -d "$BRANCH_NAME" 2>/dev/null
 rm -f /tmp/wf_list.txt
 
-log "✅ Sync $BRANCH_NAME completed successfully!"
+# Summary
+WF_COUNT=$(ls workflows/*.json 2>/dev/null | wc -l)
+DOC_COUNT=$(ls docs/*.md 2>/dev/null | wc -l)
+AI_FILES=$(find ai_config -type f 2>/dev/null | wc -l)
+APP_FILES=$(find telegram-apps -type f 2>/dev/null | wc -l)
+
+log "✅ Sync $BRANCH_NAME completed!"
+log "📊 Summary: $WF_COUNT workflows, $DOC_COUNT docs, $AI_FILES AI config files, $APP_FILES app files"
 notify "✅ Backup $BRANCH_NAME completed
-Time: $DATE"
+
+📦 Workflows: $WF_COUNT
+📚 Docs: $DOC_COUNT
+🤖 AI config: $AI_FILES files
+📱 Apps: $APP_FILES files
+⏰ Time: $DATE"

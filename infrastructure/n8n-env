@@ -1,0 +1,19 @@
+# Переменные окружения для n8n
+DOMAIN_NAME=bigalexn8n.ru
+SSL_EMAIL=alexei.bigalex@yandex.ru
+
+# PostgreSQL
+POSTGRES_USER=n8n_user
+POSTGRES_PASSWORD=n8n_db_password
+POSTGRES_DB=n8n_database
+
+# Оптимизация
+GENERIC_TIMEZONE=Europe/Moscow
+EXECUTIONS_DATA_PRUNE=true
+EXECUTIONS_DATA_MAX_AGE=168
+EXECUTIONS_DATA_PRUNE_MAX_COUNT=50000
+N8N_LOG_LEVEL=info
+
+# MCP & Community
+N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
+N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
