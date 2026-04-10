@@ -80,6 +80,11 @@
       "promptFile": ".qwen/prompts/tech-writer.md",
       "type": "general-purpose",
       "temperature": 0.5
+    },
+    "researcher": {
+      "promptFile": ".qwen/prompts/researcher.md",
+      "type": "general-purpose",
+      "temperature": 0.3
     }
   },
   "rules": [
