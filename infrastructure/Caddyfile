@@ -38,7 +38,7 @@ ollama.bigalexn8n.ru {
 
 ai.bigalexn8n.ru {
     tls alexei.bigalex@yandex.ru
-    reverse_proxy 127.0.0.1:3001
+    reverse_proxy 127.0.0.1:8080
 }
 
 draw.bigalexn8n.ru {
