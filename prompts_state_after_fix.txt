@@ -1,0 +1,15 @@
+            name            |        task_type        | prompt_len | is_active |                              description                              
+----------------------------+-------------------------+------------+-----------+-----------------------------------------------------------------------
+ BP Analysis                | analysis                |       2276 | t         | Промпт структурного анализа текста (поиск глав)
+ BP Arc Boundary            | arc_boundary            |         88 | t         | Определение границ арки — продолжается или начинается новая
+ BP Arc Start Summary       | arc_start_summary       |         44 | t         | Создание стартового Summary для новой арки
+ BP BL                      | translate_bl            |       1217 | t         | 
+ BP Chapter Summary         | chapter_summary         |         77 | t         | Summary главы — финальная суммаризация после всех чанков
+ BP Chapter Summary Rolling | chapter_summary_rolling |         73 | t         | Rolling summary чанка — накапливает контекст внутри главы
+ BP Cover Art               | cover                   |        794 | t         | Промпт генерации обложки (арт-директор)
+ BP Default                 | translate               |       2754 | t         | 
+ BP Summary Arc Rolling     | summary_arc_rolling     |         87 | t         | Rolling summary арки — обновляет контекст арки при каждом новом чанке
+ PP BL                      | post_edit_bl            |        116 | t         | 
+ PP Default                 | post_edit               |       6642 | t         | 
+(11 rows)
+
