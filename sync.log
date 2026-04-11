@@ -1264,3 +1264,30 @@ To add an exception for this directory, call:
 	git config --global --add safe.directory /home/user/n8n-backups
 2026-04-11 12:00:01 - ❌ Cannot pull from remote
 2026-04-11 12:00:01 - ❌ Cannot pull from remote
+2026-04-11 16:00:01 - --- Starting Sync (2026-04-11 16:00:01) ---
+2026-04-11 16:00:01 - --- Starting Sync (2026-04-11 16:00:01) ---
+2026-04-11 16:00:01 - 🔄 Syncing with remote...
+2026-04-11 16:00:01 - 🔄 Syncing with remote...
+fatal: detected dubious ownership in repository at '/home/user/n8n-backups'
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory /home/user/n8n-backups
+2026-04-11 16:00:01 - ❌ Cannot pull from remote
+2026-04-11 16:00:01 - ❌ Cannot pull from remote
+2026-04-11 20:00:01 - --- Starting Sync (2026-04-11 20:00:01) ---
+2026-04-11 20:00:01 - --- Starting Sync (2026-04-11 20:00:01) ---
+2026-04-11 20:00:01 - 🔄 Syncing with remote...
+2026-04-11 20:00:01 - 🔄 Syncing with remote...
+fatal: detected dubious ownership in repository at '/home/user/n8n-backups'
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory /home/user/n8n-backups
+2026-04-11 20:00:01 - ❌ Cannot pull from remote
+2026-04-11 20:00:01 - ❌ Cannot pull from remote
+2026-04-11 20:58:59 - --- Starting Sync (2026-04-11 20:58:59) ---
+2026-04-11 20:58:59 - 🔄 Syncing with remote...
+2026-04-11 20:58:59 - ❌ Cannot pull from remote
+2026-04-12 00:00:01 - --- Starting Sync (2026-04-12 00:00:01) ---
+2026-04-12 00:00:01 - 🔄 Syncing with remote...
+fatal: не найден git репозиторий (или один из родительских каталогов): .git
+2026-04-12 00:00:01 - ❌ Cannot pull from remote

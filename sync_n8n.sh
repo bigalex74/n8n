@@ -2,7 +2,23 @@
 # 🚀 bigalexn8n Git Sync Script - FULL BACKUP
 # Backs up: workflows, DB, infra, AI agents/skills/rules, docs, apps
 
-REPO_DIR="/home/user/n8n-backups"
+# Ensure git is available (when running inside Alpine container)
+if ! command -v git &> /dev/null; then
+    apk add --no-cache git bash 2>/dev/null || true
+    git config --global --add safe.directory /home/user/n8n-backups 2>/dev/null || true
+    git config --global --add safe.directory /home/user/n8n-docker 2>/dev/null || true
+    git config --global user.email "bigalex@backup" 2>/dev/null || true
+    git config --global user.name "backup-bot" 2>/dev/null || true
+fi
+
+# Use HTTPS instead of SSH (no SSH keys needed in container)
+cd "$REPO_DIR" || exit 1
+CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null)
+if echo "$CURRENT_REMOTE" | grep -q "git@"; then
+    git remote set-url origin https://github.com/bigalex74/n8n.git
+fi
+
+cd "$REPO_DIR" || exit 1
 N8N_CONTAINER="n8n-docker-n8n-1"
 DB_CONTAINER="n8n-docker-db-1"
 DATE=$(date +"%Y-%m-%d %H:%M:%S")
