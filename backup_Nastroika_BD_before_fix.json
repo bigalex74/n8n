@@ -1,0 +1,244 @@
+[
+  {
+    "parameters": {
+      "operation": "executeQuery",
+      "query": "CREATE TABLE IF NOT EXISTS document_jobs (\n id SERIAL PRIMARY KEY,\n file_id TEXT,\n file_name TEXT,\n status TEXT DEFAULT 'pending',\n -- pending | processing | paused_user | paused_balance | failed | completed \n translated_file TEXT,\n glossary_file TEXT,\n web_view_link TEXT,\n web_chapters_link TEXT,\n web_raw_link TEXT,\n billing_polza TEXT,\n billing_neuro TEXT,\n created_at TIMESTAMP DEFAULT NOW(),\n updated_at TIMESTAMP DEFAULT NOW(),\n finished_at TIMESTAMP);\n\n-- Таблица summary арок\nCREATE TABLE IF NOT EXISTS document_arcs (\n  id SERIAL PRIMARY KEY,\n  job_id INT REFERENCES document_jobs(id) ON DELETE CASCADE,\n  arc_number INT,\n  start_chapter INT,\n  end_chapter INT,\n  summary JSON,\n  reason TEXT,\n  updated_at TIMESTAMP DEFAULT NOW()\n);\n\n-- таблица с данными о текущем переводе\nCREATE TABLE IF NOT EXISTS job_current (\n  id SERIAL PRIMARY KEY,\n  job_id INT REFERENCES document_jobs(id) ON DELETE CASCADE,\n  current_arc INT REFERENCES document_arcs(id) ON DELETE CASCADE,\n  count_done_chunks INT DEFAULT 1,\n  error_text TEXT,\n  count_error_chunks INT DEFAULT 0,\n  created_at TIMESTAMP DEFAULT NOW()\n);\nTRUNCATE TABLE job_current RESTART IDENTITY CASCADE;\n\n-- Таблица логирования\nCREATE TABLE IF NOT EXISTS document_log (\n  id SERIAL PRIMARY KEY,\n  job_id INT REFERENCES document_jobs(id) ON DELETE CASCADE,\n  date_time TIMESTAMP DEFAULT NOW(),\n  node TEXT,\n  type TEXT,\n  log TEXT\n);\n\n-- Таблица глав\nCREATE TABLE IF NOT EXISTS document_chapters (\n  id SERIAL PRIMARY KEY,\n  job_id INT REFERENCES document_jobs(id) ON DELETE CASCADE,\n  chapter_number INT,\n  summary JSON,\n  roller_summary JSON,\n  arc_id INT REFERENCES document_arcs(id) ON DELETE CASCADE,\n  line_start INT,\n  line_finish INT,\n  status TEXT,\n  updated_at TIMESTAMP DEFAULT NOW()\n);\n\n-- Таблица персонажей\nCREATE TABLE IF NOT EXISTS document_characters (\n  id SERIAL PRIMARY KEY,\n  job_id INT REFERENCES document_jobs(id) ON DELETE CASCADE,\n  name_original TEXT,\n  name_translated TEXT,\n  description TEXT,\n  first_appearance INT,\n  last_seen INT,\n  status TEXT,\n  updated_at TIMESTAMP DEFAULT NOW()\n);\n\n-- Таблица чанков (фрагментов), для одного прохода переводчиком\nCREATE TABLE IF NOT EXISTS document_chunks (\n  id SERIAL PRIMARY KEY,\n  job_id INT REFERENCES document_jobs(id) ON DELETE CASCADE,\n  chapter INT REFERENCES document_chapters(id) ON DELETE CASCADE,\n  chunk_index INT,\n  chunk_text TEXT,\n  prev_line TEXT,\n  result_text TEXT,\n  raw_translate_text TEXT,\n  status TEXT DEFAULT 'pending',\n  -- pending | processing | done | error \n  error_text TEXT,\n  updated_at TIMESTAMP DEFAULT NOW()\n);\nCREATE INDEX ON document_chunks (job_id, chunk_index, status);\n\n-- Таблица с глоссарием\nCREATE TABLE IF NOT EXISTS document_glossary (\n id SERIAL PRIMARY KEY,\n job_id INT REFERENCES document_jobs(id) ON DELETE CASCADE,\n name TEXT,\n translate TEXT,\n gender TEXT,\n updated_at TIMESTAMP DEFAULT NOW()\n);\n\n-- Таблица с чатами в боте в Телеге \nDROP TABLE IF EXISTS telegram_chats CASCADE;\nCREATE TABLE IF NOT EXISTS telegram_chats (\n  id SERIAL PRIMARY KEY,\n  chat TEXT\n);\nCREATE INDEX ON telegram_chats (chat);\n\n-- Таблица с последними отправленными сообщениями в Телегу\nDROP TABLE IF EXISTS telegram_message CASCADE;\nCREATE TABLE IF NOT EXISTS telegram_message (\n  id SERIAL PRIMARY KEY,\n  chat_id INT REFERENCES telegram_chats(id) ON DELETE CASCADE,\n  message_id TEXT,\n  delete_id TEXT\n);\n\n-- таблица с шаблонами для формирования сообщений в Телегу\nCREATE TABLE IF NOT EXISTS telegram_send_message (\n  id SERIAL PRIMARY KEY,\n   -- create_job\n  template TEXT,\n  params TEXT,\n  created_at TIMESTAMP DEFAULT NOW(),\n  sended_at TIMESTAMP\n);\n\n-- Таблица с документами из LightRAG\nDROP TABLE IF EXISTS lightrag_docs CASCADE;\nCREATE TABLE IF NOT EXISTS lightrag_docs (\n    id SERIAL PRIMARY KEY,\n    doc_id TEXT,\n    meta_data TEXT\n);\n\n-- Временная таблица для определения границ глав\nDROP TABLE IF EXISTS temp_table CASCADE;\nCREATE TABLE IF NOT EXISTS temp_table (\n  id SERIAL PRIMARY KEY,\n  chapter JSON,\n  glossary JSON\n);\n  \n-- ID чатов бота мой и Юлин\nINSERT INTO telegram_chats (chat) VALUES ('{{ $('Start Workflow').first().json.chat_id }}');\nINSERT INTO telegram_message(chat_id) SELECT id FROM telegram_chats;\n\n-- ==========================================\n-- FIX: Таблицы промптов (отсутствовали в оригинальном SQL)\n-- ==========================================\n\n-- Таблица с промптами для перевода\nCREATE TABLE IF NOT EXISTS translate_prompts (\n  id SERIAL PRIMARY KEY,\n  name TEXT,\n  prompt TEXT,\n  task_type VARCHAR(50),\n  description TEXT,\n  placeholders JSONB DEFAULT '[]'::jsonb,\n  is_active BOOLEAN DEFAULT true,\n  created_at TIMESTAMP DEFAULT NOW(),\n  updated_at TIMESTAMP DEFAULT NOW()\n);\n\n-- История версий промптов\nCREATE TABLE IF NOT EXISTS translate_prompts_history (\n  id SERIAL PRIMARY KEY,\n  prompt_id INT REFERENCES translate_prompts(id) ON DELETE CASCADE,\n  name TEXT NOT NULL,\n  prompt TEXT NOT NULL,\n  version_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\n-- Индекс\nCREATE INDEX IF NOT EXISTS idx_prompts_task ON translate_prompts(task_type, is_active);\n\n-- ALTER TABLE для существующих инстансов\nALTER TABLE translate_prompts ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);\nALTER TABLE translate_prompts ADD COLUMN IF NOT EXISTS description TEXT;\nALTER TABLE translate_prompts ADD COLUMN IF NOT EXISTS placeholders JSONB DEFAULT '[]'::jsonb;\nALTER TABLE translate_prompts ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;\nALTER TABLE translate_prompts ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();\nALTER TABLE translate_prompts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();\n",
+      "options": {}
+    },
+    "type": "n8n-nodes-base.postgres",
+    "typeVersion": 2.6,
+    "position": [
+      32,
+      -48
+    ],
+    "id": "3b6d2a60-80a2-4150-a39d-5451362e66b2",
+    "name": "Создание сущностей в БД",
+    "alwaysOutputData": true,
+    "executeOnce": true,
+    "retryOnFail": true,
+    "credentials": {
+      "postgres": {
+        "id": "iGih4QSBWfmpkdGY",
+        "name": "Postgres account"
+      }
+    }
+  },
+  {
+    "parameters": {
+      "operation": "executeQuery",
+      "query": "INSERT INTO document_jobs\n  (\n  file_name, \n  glossary_file, \n  created_at\n  ) \n  VALUES \n  (\n  '{{ $('Start Workflow').first().json.translate_file }}',\n  '{{ $('Start Workflow').first().json.glossary_file }}', \n  now()\n  ) \n  RETURNING id;\n",
+      "options": {}
+    },
+    "type": "n8n-nodes-base.postgres",
+    "typeVersion": 2.6,
+    "position": [
+      240,
+      -48
+    ],
+    "id": "e3be4093-7558-495c-91b6-78be808950e0",
+    "name": "Добавим новую работу в бд",
+    "credentials": {
+      "postgres": {
+        "id": "iGih4QSBWfmpkdGY",
+        "name": "Postgres account"
+      }
+    }
+  },
+  {
+    "parameters": {
+      "workflowInputs": {
+        "values": [
+          {
+            "name": "chat_id"
+          },
+          {
+            "name": "translate_file"
+          },
+          {
+            "name": "glossary_file"
+          },
+          {
+            "name": "prompt_file"
+          },
+          {
+            "name": "glossary_make ",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+      -512,
+      -32
+    ],
+    "id": "295ca773-8c39-4256-8e35-5473df1eb7e2",
+    "name": "Start Workflow"
+  },
+  {
+    "parameters": {
+      "operation": "executeQuery",
+      "query": "-- выбранный перевод назначаем текущим. Ограничение - только один перевод за раз\nINSERT INTO job_current (job_id) VALUES ({{ $json.id }});",
+      "options": {}
+    },
+    "type": "n8n-nodes-base.postgres",
+    "typeVersion": 2.6,
+    "position": [
+      432,
+      -48
+    ],
+    "id": "4e982b3e-c0db-4ca2-8803-1bde3c8cf029",
+    "name": "Созданный перевод назначаем текущим",
+    "alwaysOutputData": true,
+    "executeOnce": true,
+    "retryOnFail": true,
+    "credentials": {
+      "postgres": {
+        "id": "iGih4QSBWfmpkdGY",
+        "name": "Postgres account"
+      }
+    }
+  },
+  {
+    "parameters": {
+      "assignments": {
+        "assignments": [
+          {
+            "id": "179d7010-da18-4200-bbe0-4120d986cfbc",
+            "name": "job_id",
+            "value": "={{ $('Добавим новую работу в бд').first().json.id }}",
+            "type": "number"
+          }
+        ]
+      },
+      "options": {}
+    },
+    "type": "n8n-nodes-base.set",
+    "typeVersion": 3.4,
+    "position": [
+      608,
+      -48
+    ],
+    "id": "94e1ea07-22b6-4e76-8806-91c2b17af131",
+    "name": "Return"
+  },
+  {
+    "parameters": {
+      "conditions": {
+        "options": {
+          "caseSensitive": true,
+          "leftValue": "",
+          "typeValidation": "strict",
+          "version": 3
+        },
+        "conditions": [
+          {
+            "id": "f45b3c3d-496e-4a15-9ebb-7cfc9c4371d7",
+            "leftValue": "={{ $('Start Workflow').all() }}",
+            "rightValue": "",
+            "operator": {
+              "type": "array",
+              "operation": "notEmpty",
+              "singleValue": true
+            }
+          }
+        ],
+        "combinator": "and"
+      },
+      "options": {}
+    },
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.3,
+    "position": [
+      -336,
+      -32
+    ],
+    "id": "1148984d-a094-4287-8414-89359c497a08",
+    "name": "Валидация входных параметров"
+  },
+  {
+    "parameters": {
+      "errorMessage": "Инициализаци БД! Ошибка валидации входных параметров"
+    },
+    "type": "n8n-nodes-base.stopAndError",
+    "typeVersion": 1,
+    "position": [
+      -112,
+      144
+    ],
+    "id": "b002173c-33ac-4887-ab6f-276cc829d940",
+    "name": "Stop and Error"
+  },
+  {
+    "parameters": {
+      "workflowId": {
+        "__rl": true,
+        "value": "AW58nseQdLtJn5ZO",
+        "mode": "list",
+        "cachedResultUrl": "/workflow/AW58nseQdLtJn5ZO",
+        "cachedResultName": "sub_lightrag_api"
+      },
+      "workflowInputs": {
+        "mappingMode": "defineBelow",
+        "value": {
+          "action": "clear"
+        },
+        "matchingColumns": [],
+        "schema": [
+          {
+            "id": "action",
+            "displayName": "action",
+            "required": false,
+            "defaultMatch": false,
+            "display": true,
+            "canBeUsedToMatch": true,
+            "type": "string",
+            "removed": false
+          },
+          {
+            "id": "text",
+            "displayName": "text",
+            "required": false,
+            "defaultMatch": false,
+            "display": true,
+            "canBeUsedToMatch": true,
+            "type": "string",
+            "removed": true
+          },
+          {
+            "id": "texts",
+            "displayName": "texts",
+            "required": false,
+            "defaultMatch": false,
+            "display": true,
+            "canBeUsedToMatch": true,
+            "type": "array",
+            "removed": true
+          },
+          {
+            "id": "meta_data",
+            "displayName": "meta_data",
+            "required": false,
+            "defaultMatch": false,
+            "display": true,
+            "canBeUsedToMatch": true,
+            "type": "string",
+            "removed": true
+          }
+        ],
+        "attemptToConvertTypes": false,
+        "convertFieldsToString": true
+      },
+      "options": {}
+    },
+    "type": "n8n-nodes-base.executeWorkflow",
+    "typeVersion": 1.3,
+    "position": [
+      -144,
+      -48
+    ],
+    "id": "5de97d58-3961-488c-89d4-b62733721eb6",
+    "name": "clear LightRAG"
+  }
+]

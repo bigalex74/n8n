@@ -1254,3 +1254,13 @@ error: Ваши локальные изменения в указанных фа
 2026-04-11 08:37:40 - 🔀 Merging to master...
 2026-04-11 08:37:40 - ✅ Sync bigalexn8n-72 completed!
 2026-04-11 08:37:40 - 📊 Summary: 56 workflows, 30 docs, 58 AI config files, 632 app files
+2026-04-11 12:00:01 - --- Starting Sync (2026-04-11 12:00:01) ---
+2026-04-11 12:00:01 - --- Starting Sync (2026-04-11 12:00:01) ---
+2026-04-11 12:00:01 - 🔄 Syncing with remote...
+2026-04-11 12:00:01 - 🔄 Syncing with remote...
+fatal: detected dubious ownership in repository at '/home/user/n8n-backups'
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory /home/user/n8n-backups
+2026-04-11 12:00:01 - ❌ Cannot pull from remote
+2026-04-11 12:00:01 - ❌ Cannot pull from remote
