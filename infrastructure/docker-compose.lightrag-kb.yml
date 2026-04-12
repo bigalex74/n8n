@@ -3,12 +3,29 @@ services:
     image: lightrag-lightrag
     container_name: lightrag-kb
     restart: always
-    ports:
-      - "9622:9621"
+    network_mode: host
     environment:
       - WORKING_DIR=/app/data/rag_storage
       - INPUT_DIR=/app/data/inputs
       - UV_SYSTEM_PYTHON=1
+      - PORT=9622
+      - LLM_BINDING=openai
+      - LLM_MODEL=openai/gpt-4o-mini
+      - LLM_BINDING_HOST=https://polza.ai/api/v1
+      - LLM_BINDING_API_KEY=pza_PV5t0y6PTuE8GLcZ-jgvlpNDLlZm0mUT
+      - OPENAI_API_KEY=pza_PV5t0y6PTuE8GLcZ-jgvlpNDLlZm0mUT
+      - OPENAI_BASE_URL=https://polza.ai/api/v1
+      - EMBEDDING_BINDING=ollama
+      - EMBEDDING_MODEL=nomic-embed-text
+      - EMBEDDING_BINDING_HOST=http://127.0.0.1:11434
+      - EMBEDDING_DIM=768
+      - EMBEDDING_TIMEOUT=180
+      - LLM_TIMEOUT=300
+      - CHUNK_SIZE=800
+      - CHUNK_OVERLAP_SIZE=100
+      - MAX_ASYNC=8
+      - MAX_PARALLEL_INSERT=4
+      - SUMMARY_LANGUAGE=Russian
     volumes:
       - /home/user/lightrag-kb/rag_storage:/app/data/rag_storage
       - /home/user/lightrag-kb/inputs:/app/data/inputs
