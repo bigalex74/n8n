@@ -249,14 +249,12 @@ const server = http.createServer(async (req, res) => {
 
   // ---- Static files ----
 
-  // Admin panel requires auth
-  if (pathname.startsWith('/admin')) {
-    if (!checkAuth(req, res)) return;
-  }
+  // Admin panel — serve without Basic Auth (frontend handles sessionStorage auth)
+  // API write operations still require Basic Auth (checkAuth calls above)
 
   // Serve files
   let filePath;
-  if (pathname === '/admin') {
+  if (pathname === '/admin' || pathname.startsWith('/admin')) {
     filePath = path.join(PORTAL_DIR, 'admin.html');
   } else if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(PORTAL_DIR, 'index.html');

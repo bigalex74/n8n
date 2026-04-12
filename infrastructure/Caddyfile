@@ -5,7 +5,36 @@
 
 bigalexn8n.ru {
     tls alexei.bigalex@yandex.ru
-    reverse_proxy 127.0.0.1:5678
+
+    # Portal (infrastructure dashboard)
+    handle /portal/* {
+        uri strip_prefix /portal
+        root * /home/user/n8n-docker/portal
+        try_files {path} /index.html
+        file_server
+        encode zstd gzip
+    }
+
+    # Portal API server
+    handle /portal-api/* {
+        uri strip_prefix /portal-api
+        reverse_proxy 127.0.0.1:3080
+    }
+
+    # Исключение для Telegram webhook (без аутентификации)
+    @telegram_webhook {
+        path /webhook/telegram*
+        path /webhook/*
+    }
+
+    handle @telegram_webhook {
+        reverse_proxy 127.0.0.1:5678
+    }
+
+    # Все остальные запросы проксируем на n8n
+    handle {
+        reverse_proxy 127.0.0.1:5678
+    }
 }
 
 grafana.bigalexn8n.ru {
@@ -59,6 +88,35 @@ cron.bigalexn8n.ru {
     reverse_proxy 127.0.0.1:8001
 }
 
+firecrawl.bigalexn8n.ru {
+    tls alexei.bigalex@yandex.ru
+
+    # Главная страница → редирект на админку
+    redir / /admin/30ca580d45d754fa7f22780c3ff69aa9/queues
+
+    # Админ-панель очередей (защищена basicauth)
+    @firecrawl_admin path /admin/*
+    handle @firecrawl_admin {
+        basicauth {
+            bigalex $2a$14$3xGvIHCMQyjQkc03Da8hReYsv8pQJfV3NMHIsrgKLu0gu4D82QqGu
+        }
+        reverse_proxy 127.0.0.1:3002
+    }
+
+    # API без аутентификации (для MCP и n8n)
+    handle {
+        reverse_proxy 127.0.0.1:3002
+    }
+}
+
+search.bigalexn8n.ru {
+    tls alexei.bigalex@yandex.ru
+    basicauth {
+        bigalex $2a$14$3xGvIHCMQyjQkc03Da8hReYsv8pQJfV3NMHIsrgKLu0gu4D82QqGu
+    }
+    reverse_proxy 127.0.0.1:8888
+}
+
 www.bigalexn8n.ru {
     redir https://bigalexn8n.ru{uri} permanent
 }
@@ -66,4 +124,31 @@ www.bigalexn8n.ru {
 apps.bigalexn8n.ru {
     tls alexei.bigalex@yandex.ru
     reverse_proxy 127.0.0.1:8000
+}
+
+portal.bigalexn8n.ru {
+    tls alexei.bigalex@yandex.ru
+
+    # Admin panel — proxied to API server (handles auth + dynamic content)
+    handle /admin* {
+        reverse_proxy 127.0.0.1:3080
+    }
+
+    # API (both /api/* and /portal-api/* for frontend compatibility)
+    handle /api/* {
+        reverse_proxy 127.0.0.1:3080
+    }
+
+    handle /portal-api/* {
+        uri strip_prefix /portal-api
+        reverse_proxy 127.0.0.1:3080
+    }
+
+    # Static files (index.html etc)
+    handle {
+        root * /home/user/n8n-docker/portal
+        try_files {path} /index.html
+        file_server
+        encode zstd gzip
+    }
 }
