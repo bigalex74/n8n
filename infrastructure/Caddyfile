@@ -52,9 +52,16 @@ prometheus.bigalexn8n.ru {
     reverse_proxy 127.0.0.1:9090
 }
 
+# LightRAG — Book Translation
 lightrag.bigalexn8n.ru {
     tls alexei.bigalex@yandex.ru
     reverse_proxy 127.0.0.1:9621
+}
+
+# LightRAG — Knowledge Base (AI)
+kb.bigalexn8n.ru {
+    tls alexei.bigalex@yandex.ru
+    reverse_proxy 127.0.0.1:9622
 }
 
 ollama.bigalexn8n.ru {

@@ -1,0 +1,16 @@
+services:
+  lightrag-kb:
+    image: lightrag-lightrag
+    container_name: lightrag-kb
+    restart: always
+    ports:
+      - "9622:9621"
+    environment:
+      - WORKING_DIR=/app/data/rag_storage
+      - INPUT_DIR=/app/data/inputs
+      - UV_SYSTEM_PYTHON=1
+    volumes:
+      - /home/user/lightrag-kb/rag_storage:/app/data/rag_storage
+      - /home/user/lightrag-kb/inputs:/app/data/inputs
+      - /home/user/lightrag-kb/outputs:/app/outputs
+      - /home/user/lightrag-kb/dict:/app/dict

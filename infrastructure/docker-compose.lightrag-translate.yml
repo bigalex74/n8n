@@ -1,0 +1,16 @@
+services:
+  lightrag-translate:
+    image: lightrag-lightrag
+    container_name: lightrag-translate
+    restart: always
+    ports:
+      - "9621:9621"
+    environment:
+      - WORKING_DIR=/app/data/rag_storage
+      - INPUT_DIR=/app/data/inputs
+      - UV_SYSTEM_PYTHON=1
+    volumes:
+      - /home/user/lightrag/rag_storage:/app/data/rag_storage
+      - /home/user/lightrag/inputs:/app/data/inputs
+      - /home/user/lightrag/outputs:/app/outputs
+      - /home/user/lightrag/dict:/app/dict
