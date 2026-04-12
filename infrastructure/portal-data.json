@@ -144,14 +144,25 @@
     },
     {
       "id": "lightrag",
-      "name": "LightRAG",
+      "name": "LightRAG Translate",
       "domain": "lightrag.bigalexn8n.ru",
       "url": "https://lightrag.bigalexn8n.ru",
       "port": 9621,
       "auth": "none",
       "icon": "📚",
       "category": "data",
-      "desc": "RAG-система — AI knowledge base с retrieval"
+      "desc": "RAG-система — AI knowledge base с retrieval (перевод документов)"
+    },
+    {
+      "id": "lightrag-kb",
+      "name": "LightRAG KB",
+      "domain": "kb.bigalexn8n.ru",
+      "url": "https://kb.bigalexn8n.ru",
+      "port": 9622,
+      "auth": "none",
+      "icon": "🧠",
+      "category": "data",
+      "desc": "База знаний Qwen Code — контекст проекта, архитектура, MCP конфиги"
     },
     {
       "id": "searxng",
