@@ -207,7 +207,7 @@ const server = http.createServer(async (req, res) => {
         if (tool === 'qwen') {
           fullCommand = `cd /home/user && qwen --output-format text --approval-mode yolo "${command.replace(/"/g, '\\"')}"`;
         } else if (tool === 'gemini') {
-          fullCommand = `cd /home/user && gemini -p "${command.replace(/"/g, '\\"')}"`;
+          fullCommand = `echo "${command.replace(/"/g, '\\"')}" | gemini`;
         } else if (tool === 'shell') {
           fullCommand = command;
         } else {
