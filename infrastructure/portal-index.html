@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infrastructure Dashboard — bigalexn8n.ru</title>
+  <meta name="description" content="Unified infrastructure dashboard for bigalexn8n.ru server">
+  <style>
+    /* ========== CSS CUSTOM PROPERTIES ========== */
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --bg-card: #1c2128;
+      --bg-card-hover: #242b33;
+      --border-color: #30363d;
+      --border-hover: #58a6ff;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-purple: #bc8cff;
+      --accent-red: #f85149;
+      --accent-cyan: #39d2c0;
+      --accent-pink: #f778ba;
+      --gradient-hero: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+      --shadow-card-hover: 0 4px 16px rgba(88,166,255,0.15), 0 8px 24px rgba(0,0,0,0.3);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+      --font-mono: 'SFMono-Regular', 'Cascadia Code', Consolas, 'Liberation Mono', Menlo, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    }
+
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 80px;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+
+    /* ========== SCROLLBAR ========== */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ========== ANIMATED BACKGROUND ========== */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background-image:
+        radial-gradient(circle at 25% 25%, rgba(88,166,255,0.03) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(188,140,255,0.03) 0%, transparent 50%);
+    }
+
+    .bg-grid::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(rgba(48,54,61,0.3) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(48,54,61,0.3) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, black 20%, transparent 70%);
+    }
+
+    /* ========== HEADER / NAV ========== */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: rgba(13,17,23,0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      transition: var(--transition-normal);
+    }
+
+    .nav.scrolled {
+      background: rgba(13,17,23,0.95);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+
+    .nav-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .nav-brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: var(--transition-fast);
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .nav-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+      padding: 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    .nav-toggle:hover { background: var(--bg-tertiary); }
+
+    /* ========== HERO ========== */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 100px 24px 60px;
+      position: relative;
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 100px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .hero-badge .pulse {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(63,185,80,0.4); }
+      50% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(63,185,80,0); }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 7vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-blue) 50%, var(--accent-purple) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--text-secondary);
+      max-width: 640px;
+      margin-bottom: 40px;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 48px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: var(--radius-md);
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: var(--transition-normal);
+      font-family: var(--font-sans);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-blue), #4c8ce6);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(88,166,255,0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(88,166,255,0.4);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--text-muted);
+      transform: translateY(-2px);
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent-blue);
+      font-family: var(--font-mono);
+    }
+
+    .hero-stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ========== SECTIONS ========== */
+    .section {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 80px 24px;
+    }
+
+    .section-header {
+      margin-bottom: 48px;
+    }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .section-label-icon {
+      font-size: 1rem;
+    }
+
+    .section-title {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 800;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+
+    .section-desc {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      max-width: 640px;
+      line-height: 1.7;
+    }
+
+    /* ========== SERVICE CATEGORY ========== */
+    .category {
+      margin-bottom: 56px;
+    }
+
+    .category:last-child { margin-bottom: 0; }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .category-icon {
+      font-size: 1.5rem;
+    }
+
+    .category-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .category-count {
+      font-size: 0.75rem;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      padding: 2px 10px;
+      border-radius: 100px;
+      font-weight: 600;
+    }
+
+    /* ========== SERVICE GRID ========== */
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    /* ========== SERVICE CARD ========== */
+    .service-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      transition: var(--transition-normal);
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .service-card:visited { color: inherit; }
+
+    .service-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .service-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--card-accent, var(--accent-blue)) 0%, transparent 60%);
+      opacity: 0;
+      transition: var(--transition-normal);
+      pointer-events: none;
+    }
+
+    .service-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--text-muted);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .service-card:hover::before { opacity: 0.05; }
+
+    .service-card::after {
+      content: '↗';
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      font-size: 1rem;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: var(--transition-fast);
+      pointer-events: none;
+    }
+
+    .service-card:hover::after { opacity: 1; color: var(--accent-blue); }
+
+    .service-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .service-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+
+    .service-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      background: var(--bg-tertiary);
+      border-radius: 100px;
+    }
+
+    .service-status.online {
+      color: var(--accent-green);
+      background: rgba(63,185,80,0.1);
+    }
+
+    .service-status.offline {
+      color: var(--accent-red);
+      background: rgba(248,81,73,0.1);
+    }
+
+    .service-status.checking {
+      color: var(--accent-orange);
+      background: rgba(210,153,34,0.1);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .service-status.online .status-dot {
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .service-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .service-domain {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--accent-blue);
+      font-size: 0.85rem;
+      text-decoration: none;
+      font-weight: 500;
+      padding: 2px 0;
+      transition: var(--transition-fast);
+      word-break: break-all;
+    }
+
+    .service-domain:hover {
+      color: #79c0ff;
+    }
+
+    .service-domain .ext-link {
+      font-size: 0.7rem;
+      opacity: 0;
+      transition: var(--transition-fast);
+    }
+
+    .service-domain:hover .ext-link { opacity: 1; }
+
+    .service-desc {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+
+    .service-meta {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    .badge-port {
+      background: rgba(88,166,255,0.1);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88,166,255,0.2);
+    }
+
+    .badge-auth-free {
+      background: rgba(63,185,80,0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(63,185,80,0.2);
+    }
+
+    .badge-auth-protected {
+      background: rgba(210,153,34,0.1);
+      color: var(--accent-orange);
+      border: 1px solid rgba(210,153,34,0.2);
+    }
+
+    /* ========== INFRA STRUCTURE ========== */
+    .infra-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .infra-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      transition: var(--transition-normal);
+    }
+
+    .infra-card:hover {
+      border-color: var(--text-muted);
+      background: var(--bg-card-hover);
+    }
+
+    .infra-card-icon {
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+    }
+
+    .infra-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .infra-card-value {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    /* ========== ROADMAP ========== */
+    .roadmap-timeline {
+      position: relative;
+      padding-left: 32px;
+    }
+
+    .roadmap-timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      background: var(--border-color);
+    }
+
+    .roadmap-item {
+      position: relative;
+      padding-bottom: 32px;
+      opacity: 0;
+      transform: translateX(-16px);
+    }
+
+    .roadmap-item.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .roadmap-item:last-child { padding-bottom: 0; }
+
+    .roadmap-dot {
+      position: absolute;
+      left: -32px;
+      top: 6px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 3px solid var(--bg-primary);
+      z-index: 1;
+    }
+
+    .roadmap-dot.planned {
+      background: var(--bg-tertiary);
+      border-color: var(--text-muted);
+    }
+
+    .roadmap-dot.active {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 4px rgba(88,166,255,0.2);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .roadmap-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      transition: var(--transition-normal);
+    }
+
+    .roadmap-card:hover {
+      border-color: var(--text-muted);
+      background: var(--bg-card-hover);
+    }
+
+    .roadmap-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .roadmap-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .roadmap-tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 100px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .roadmap-tag.planned {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+    }
+
+    .roadmap-tag.active {
+      background: rgba(88,166,255,0.15);
+      color: var(--accent-blue);
+    }
+
+    .roadmap-card-desc {
+      font-size: 0.825rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ========== HEALTH CHECK SECTION ========== */
+    .health-check {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    .health-check-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .health-check-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .health-check-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .health-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      transition: var(--transition-fast);
+    }
+
+    .health-item:hover { border-color: var(--text-muted); }
+
+    .health-item-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .health-item-info {
+      text-align: left;
+      min-width: 0;
+    }
+
+    .health-item-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .health-item-status {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .health-item-status.online { color: var(--accent-green); }
+    .health-item-status.offline { color: var(--accent-red); }
+    .health-item-status.checking { color: var(--accent-orange); }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--bg-tertiary);
+      border-top-color: var(--accent-orange);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ========== FOOTER ========== */
+    .footer {
+      border-top: 1px solid var(--border-color);
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    .footer-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .footer-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer-text a {
+      color: var(--accent-blue);
+      text-decoration: none;
+    }
+
+    .footer-text a:hover { text-decoration: underline; }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 64px;
+        left: 0;
+        right: 0;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+        padding: 12px;
+        gap: 2px;
+      }
+      .nav-toggle { display: block; }
+      .service-grid { grid-template-columns: 1fr; }
+      .infra-grid { grid-template-columns: 1fr; }
+      .hero-stats { gap: 24px; }
+      .health-check-grid { grid-template-columns: 1fr 1fr; }
+      .section { padding: 60px 16px; }
+    }
+
+    @media (max-width: 480px) {
+      .hero { padding: 80px 16px 40px; min-height: auto; }
+      .hero h1 { font-size: 2rem; }
+      .hero-subtitle { font-size: 0.95rem; }
+      .hero-actions { flex-direction: column; align-items: stretch; }
+      .btn { justify-content: center; }
+      .health-check-grid { grid-template-columns: 1fr; }
+      .service-card { padding: 18px; }
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-in {
+      animation: fadeInUp 0.5s ease-out forwards;
+    }
+
+    /* Stagger children */
+    .service-card:nth-child(1) { transition-delay: 0ms; }
+    .service-card:nth-child(2) { transition-delay: 60ms; }
+    .service-card:nth-child(3) { transition-delay: 120ms; }
+    .service-card:nth-child(4) { transition-delay: 180ms; }
+    .service-card:nth-child(5) { transition-delay: 240ms; }
+    .service-card:nth-child(6) { transition-delay: 300ms; }
+
+    .roadmap-item:nth-child(1) { transition-delay: 0ms; }
+    .roadmap-item:nth-child(2) { transition-delay: 80ms; }
+    .roadmap-item:nth-child(3) { transition-delay: 160ms; }
+    .roadmap-item:nth-child(4) { transition-delay: 240ms; }
+    .roadmap-item:nth-child(5) { transition-delay: 320ms; }
+    .roadmap-item:nth-child(6) { transition-delay: 400ms; }
+    .roadmap-item:nth-child(7) { transition-delay: 480ms; }
+    .roadmap-item:nth-child(8) { transition-delay: 560ms; }
+
+    /* ========== SKIP NAV (a11y) ========== */
+    .skip-link {
+      position: absolute;
+      top: -100%;
+      left: 16px;
+      background: var(--accent-blue);
+      color: #000;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      z-index: 9999;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .skip-link:focus { top: 16px; }
+
+    /* ========== BACK TO TOP ========== */
+    .back-to-top {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: var(--transition-normal);
+      z-index: 999;
+      font-size: 1.2rem;
+    }
+    .back-to-top.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .back-to-top:hover {
+      background: var(--accent-blue);
+      color: #000;
+      border-color: var(--accent-blue);
+    }
+
+    /* ========== LOGIN FORM ========== */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: var(--bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .login-overlay.hidden {
+      display: none;
+    }
+
+    .login-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      padding: 40px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: var(--shadow-card);
+    }
+
+    .login-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+
+    .login-card h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .login-card p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .login-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 1rem;
+      font-family: var(--font-sans);
+      margin-bottom: 16px;
+      transition: var(--transition-fast);
+    }
+
+    .login-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+    }
+
+    .login-input.error {
+      border-color: var(--accent-red);
+      box-shadow: 0 0 0 3px rgba(248,81,73,0.15);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--accent-blue), #4c8ce6);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      transition: var(--transition-normal);
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(88,166,255,0.4);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .login-error {
+      color: var(--accent-red);
+      font-size: 0.85rem;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .login-error.visible {
+      display: block;
+    }
+
+    .login-footer {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 20px;
+    }
+
+    /* Profile menu */
+    .profile-menu {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-left: 8px;
+      position: relative;
+    }
+
+    .profile-menu.visible {
+      display: inline-flex;
+    }
+
+    .profile-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      font-family: var(--font-sans);
+    }
+
+    .profile-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--text-muted);
+    }
+
+    .profile-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card-hover);
+      min-width: 180px;
+      display: none;
+      z-index: 10001;
+      overflow: hidden;
+    }
+
+    .profile-dropdown.open {
+      display: block;
+    }
+
+    .profile-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-sans);
+    }
+
+    .profile-dropdown-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .profile-dropdown-item.danger {
+      color: var(--accent-red);
+    }
+
+    /* Change password modal */
+    .pw-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10002;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pw-modal-overlay.open {
+      display: flex;
+    }
+
+    .pw-modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .pw-modal h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    .pw-modal input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-family: var(--font-sans);
+      margin-bottom: 12px;
+    }
+
+    .pw-modal input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .pw-modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .pw-error {
+      color: var(--accent-red);
+      font-size: 0.85rem;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .pw-error.visible {
+      display: block;
+    }
+
+    .pw-success {
+      color: var(--accent-green);
+      font-size: 0.85rem;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .pw-success.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Overlay -->
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-icon">&#x1F680;</div>
+      <h2>Infrastructure Dashboard</h2>
+      <p>bigalexn8n.ru &mdash; войдите для доступа</p>
+      <input type="text" class="login-input" id="loginUsername" placeholder="Username" autocomplete="username" value="bigalex">
+      <input type="password" class="login-input" id="loginPassword" placeholder="Password" autocomplete="current-password">
+      <button class="login-btn" id="loginBtn" type="button">Войти</button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-footer">Сессия сохраняется 30 дней</div>
+    </div>
+  </div>
+
+  <!-- Background grid effect -->
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- Skip to content (a11y) -->
+  <a href="#services" class="skip-link">Перейти к сервисам</a>
+
+  <!-- Navigation -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="nav-inner">
+      <a href="#" class="nav-brand">
+        <span class="nav-brand-icon">&#x1F680;</span>
+        <span>Infrastructure</span>
+      </a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#services">Сервисы</a></li>
+        <li><a href="#infrastructure">Инфраструктура</a></li>
+        <li><a href="#health">Статус</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
+        <li><a href="/admin" class="admin-link" style="color:var(--accent-purple);font-weight:600;">⚙️ Админ</a></li>
+      </ul>
+      <div class="profile-menu" id="profileMenu">
+        <button class="profile-btn" id="profileBtn" type="button">
+          <span>&#x1F464;</span>
+          <span id="profileName">bigalex</span>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown">
+          <button class="profile-dropdown-item" id="changePwBtn" type="button">&#x1F511; Сменить пароль</button>
+          <button class="profile-dropdown-item danger" id="logoutBtn" type="button">&#x1F6AA; Выйти</button>
+        </div>
+      </div>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-badge">
+      <span class="pulse"></span>
+      Все системы работают
+    </div>
+    <h1>Infrastructure<br>Dashboard</h1>
+    <p class="hero-subtitle">
+      Единый портал для управления домашним сервером, мониторинга сервисов
+      и планирования развития инфраструктуры
+    </p>
+    <div class="hero-actions">
+      <a href="#services" class="btn btn-primary">
+        <span>&#x26A1;</span> Обзор сервисов
+      </a>
+      <a href="#health" class="btn btn-secondary" id="heroHealthBtn">
+        <span>&#x1F50D;</span> Проверить статус
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-value" id="statTotal">14</div>
+        <div class="hero-stat-label">Сервисов</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value" id="statOnline">--</div>
+        <div class="hero-stat-label">Онлайн</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">99.9%</div>
+        <div class="hero-stat-label">Uptime</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">5</div>
+        <div class="hero-stat-label">Категорий</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Services Section -->
+  <main>
+    <section class="section" id="services">
+      <div class="section-header">
+        <div class="section-label">
+          <span class="section-label-icon">&#x1F4E6;</span>
+          Каталог
+        </div>
+        <h2 class="section-title">Все сервисы</h2>
+        <p class="section-desc">
+          14 сервисов в 5 категориях — от workflow-автоматизации до инструментов разработки
+        </p>
+      </div>
+
+      <!-- Services loaded dynamically from API -->
+      <div id="servicesContainer"></div>
+    </section>
+
+    <!-- Infrastructure Section -->
+    <section class="section" id="infrastructure">
+      <div class="section-header">
+        <div class="section-label">
+          <span class="section-label-icon">&#x1F5A5;&#xFE0F;</span>
+          Техническая информация
+        </div>
+        <h2 class="section-title">Инфраструктура</h2>
+        <p class="section-desc">
+          Компоненты сервера, стек технологий и ключевые параметры
+        </p>
+      </div>
+      <div class="infra-grid">
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x1F5A5;&#xFE0F;</div>
+          <div class="infra-card-title">Хост</div>
+          <div class="infra-card-value">Dell (Linux)</div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x1F310;</div>
+          <div class="infra-card-title">Домен</div>
+          <div class="infra-card-value">bigalexn8n.ru (Cloudflare)</div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x26A1;</div>
+          <div class="infra-card-title">Reverse Proxy</div>
+          <div class="infra-card-value">Caddy v2.11.2 (systemd)</div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x1F4E6;</div>
+          <div class="infra-card-title">Container Runtime</div>
+          <div class="infra-card-value">Docker Compose</div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x1F408;</div>
+          <div class="infra-card-title">Database</div>
+          <div class="infra-card-value">PostgreSQL 16 (Alpine) :5432</div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x1F4CA;</div>
+          <div class="infra-card-title">Monitoring Stack</div>
+          <div class="infra-card-value">Prometheus + Grafana + node-exporter + postgres-exporter</div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x1F9E0;</div>
+          <div class="infra-card-title">AI Stack</div>
+          <div class="infra-card-value">Ollama + Open WebUI + LightRAG</div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x1F4BE;</div>
+          <div class="infra-card-title">Бэкапы</div>
+          <div class="infra-card-value">Crontab-UI &#x2192; Git (bigalex74/n8n) каждые 4ч</div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-card-icon">&#x1F512;</div>
+          <div class="infra-card-title">SSL</div>
+          <div class="infra-card-value">Let's Encrypt (Caddy auto)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Health Check Section -->
+    <section class="section" id="health">
+      <div class="health-check">
+        <div class="health-check-title">&#x1F4E1; Проверка статуса сервисов</div>
+        <div class="health-check-desc">Нажмите кнопку для проверки доступности всех доменов</div>
+        <button class="btn btn-primary" id="healthCheckBtn" type="button">
+          <span>&#x1F504;</span> Проверить все
+        </button>
+        <div class="health-check-grid" id="healthGrid"></div>
+      </div>
+    </section>
+
+    <!-- Roadmap Section -->
+    <section class="section" id="roadmap">
+      <div class="section-header">
+        <div class="section-label">
+          <span class="section-label-icon">&#x1F5FA;&#xFE0F;</span>
+          Планы
+        </div>
+        <h2 class="section-title">Roadmap</h2>
+        <p class="section-desc">
+          Приоритетные задачи по развитию инфраструктуры
+        </p>
+      </div>
+      <div class="roadmap-timeline" role="list">
+        <div class="roadmap-item" role="listitem">
+          <div class="roadmap-dot active"></div>
+          <div class="roadmap-card">
+            <div class="roadmap-card-header">
+              <span class="roadmap-card-title">Qwen Code MCP интеграция</span>
+              <span class="roadmap-tag active">В работе</span>
+            </div>
+            <p class="roadmap-card-desc">n8n-mcp + grafana-mcp для AI-управления инфраструктурой через Qwen Code</p>
+          </div>
+        </div>
+
+        <div class="roadmap-item" role="listitem">
+          <div class="roadmap-dot planned"></div>
+          <div class="roadmap-card">
+            <div class="roadmap-card-header">
+              <span class="roadmap-card-title">Telegram-бот v2</span>
+              <span class="roadmap-tag planned">Планируется</span>
+            </div>
+            <p class="roadmap-card-desc">Улучшенный бот с FSM-состояниями и Mini App для управления сервисами</p>
+          </div>
+        </div>
+
+        <div class="roadmap-item" role="listitem">
+          <div class="roadmap-dot planned"></div>
+          <div class="roadmap-card">
+            <div class="roadmap-card-header">
+              <span class="roadmap-card-title">Перевод книг</span>
+              <span class="roadmap-tag planned">Планируется</span>
+            </div>
+            <p class="roadmap-card-desc">Автоматизация pipeline: PDF &#x2192; OCR &#x2192; перевод &#x2192; публикация</p>
+          </div>
+        </div>
+
+        <div class="roadmap-item" role="listitem">
+          <div class="roadmap-dot planned"></div>
+          <div class="roadmap-card">
+            <div class="roadmap-card-header">
+              <span class="roadmap-card-title">RAG Knowledge Base</span>
+              <span class="roadmap-tag planned">Планируется</span>
+            </div>
+            <p class="roadmap-card-desc">LightRAG для хранения и поиска по всей документации проекта</p>
+          </div>
+        </div>
+
+        <div class="roadmap-item" role="listitem">
+          <div class="roadmap-dot planned"></div>
+          <div class="roadmap-card">
+            <div class="roadmap-card-header">
+              <span class="roadmap-card-title">CI/CD Pipeline</span>
+              <span class="roadmap-tag planned">Планируется</span>
+            </div>
+            <p class="roadmap-card-desc">Автоматический деплой из Git при пуше — n8n workflows, инфраструктура</p>
+          </div>
+        </div>
+
+        <div class="roadmap-item" role="listitem">
+          <div class="roadmap-dot planned"></div>
+          <div class="roadmap-card">
+            <div class="roadmap-card-header">
+              <span class="roadmap-card-title">Home Dashboard</span>
+              <span class="roadmap-tag planned">Планируется</span>
+            </div>
+            <p class="roadmap-card-desc">Единый дашборд мониторинга всех сервисов — Grafana, метрики, алерты</p>
+          </div>
+        </div>
+
+        <div class="roadmap-item" role="listitem">
+          <div class="roadmap-dot planned"></div>
+          <div class="roadmap-card">
+            <div class="roadmap-card-header">
+              <span class="roadmap-card-title">Firecrawl Production</span>
+              <span class="roadmap-tag planned">Планируется</span>
+            </div>
+            <p class="roadmap-card-desc">Настроить веб-скрапинг для сбора данных в n8n workflows</p>
+          </div>
+        </div>
+
+        <div class="roadmap-item" role="listitem">
+          <div class="roadmap-dot planned"></div>
+          <div class="roadmap-card">
+            <div class="roadmap-card-header">
+              <span class="roadmap-card-title">Security Hardening</span>
+              <span class="roadmap-tag planned">Планируется</span>
+            </div>
+            <p class="roadmap-card-desc">Rate limiting, fail2ban, audit logs — усиление безопасности сервера</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Change Password Modal -->
+  <div class="pw-modal-overlay" id="pwModal">
+    <div class="pw-modal">
+      <h3>&#x1F511; Сменить пароль</h3>
+      <input type="password" id="pwCurrent" placeholder="Текущий пароль" autocomplete="current-password">
+      <input type="password" id="pwNew" placeholder="Новый пароль" autocomplete="new-password">
+      <input type="password" id="pwConfirm" placeholder="Подтвердите пароль" autocomplete="new-password">
+      <div class="pw-error" id="pwError"></div>
+      <div class="pw-success" id="pwSuccess"></div>
+      <div class="pw-modal-actions">
+        <button class="btn btn-secondary" id="pwCancel" type="button">Отмена</button>
+        <button class="btn btn-primary" id="pwSave" type="button">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <p class="footer-text">
+        bigalexn8n.ru Infrastructure Dashboard &middot; 2026 &middot;
+        <a href="https://github.com/bigalex74/n8n" target="_blank" rel="noopener">GitHub</a>
+        &middot; Built with &#x2665; and vanilla JS
+      </p>
+    </div>
+  </footer>
+
+  <!-- Back to top -->
+  <button class="back-to-top" id="backToTop" aria-label="Back to top" type="button">&#x2191;</button>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* ===== AUTH (JWT) ===== */
+      var loginOverlay = document.getElementById('loginOverlay');
+      var loginUsername = document.getElementById('loginUsername');
+      var loginPassword = document.getElementById('loginPassword');
+      var loginBtn = document.getElementById('loginBtn');
+      var loginError = document.getElementById('loginError');
+      var profileMenu = document.getElementById('profileMenu');
+      var profileBtn = document.getElementById('profileBtn');
+      var profileDropdown = document.getElementById('profileDropdown');
+      var profileName = document.getElementById('profileName');
+      var logoutBtn = document.getElementById('logoutBtn');
+      var changePwBtn = document.getElementById('changePwBtn');
+      var pwModal = document.getElementById('pwModal');
+      var pwCurrent = document.getElementById('pwCurrent');
+      var pwNew = document.getElementById('pwNew');
+      var pwConfirm = document.getElementById('pwConfirm');
+      var pwError = document.getElementById('pwError');
+      var pwSuccess = document.getElementById('pwSuccess');
+      var pwCancel = document.getElementById('pwCancel');
+      var pwSave = document.getElementById('pwSave');
+
+      function getToken() {
+        return localStorage.getItem('portal_token');
+      }
+
+      function setToken(token) {
+        localStorage.setItem('portal_token', token);
+      }
+
+      function removeToken() {
+        localStorage.removeItem('portal_token');
+      }
+
+      function authFetch(url, options) {
+        options = options || {};
+        options.headers = options.headers || {};
+        var token = getToken();
+        if (token) {
+          options.headers['Authorization'] = 'Bearer ' + token;
+        }
+        if (!options.headers['Content-Type'] && options.body) {
+          options.headers['Content-Type'] = 'application/json';
+        }
+        return fetch(url, options);
+      }
+
+      function showMainContent() {
+        loginOverlay.classList.add('hidden');
+        if (profileMenu) profileMenu.classList.add('visible');
+        document.body.style.overflow = '';
+      }
+
+      function showLogin() {
+        loginOverlay.classList.remove('hidden');
+        if (profileMenu) profileMenu.classList.remove('visible');
+        document.body.style.overflow = 'hidden';
+        loginPassword.value = '';
+        loginError.classList.remove('visible');
+        loginError.textContent = '';
+        loginPassword.classList.remove('error');
+        loginPassword.focus();
+      }
+
+      async function attemptLogin() {
+        var username = loginUsername.value.trim();
+        var pwd = loginPassword.value;
+        if (!username || !pwd) {
+          loginError.textContent = 'Заполните все поля';
+          loginError.classList.add('visible');
+          loginPassword.classList.add('error');
+          return;
+        }
+
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Вход...';
+        loginError.classList.remove('visible');
+        loginPassword.classList.remove('error');
+
+        try {
+          var res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, password: pwd })
+          });
+          var data = await res.json();
+
+          if (res.ok && data.token) {
+            setToken(data.token);
+            if (profileName) profileName.textContent = data.user.username;
+            showMainContent();
+          } else {
+            loginError.textContent = data.error || 'Ошибка входа';
+            loginError.classList.add('visible');
+            loginPassword.classList.add('error');
+            loginPassword.value = '';
+            loginPassword.focus();
+          }
+        } catch (e) {
+          loginError.textContent = 'Ошибка сети: ' + e.message;
+          loginError.classList.add('visible');
+        } finally {
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Войти';
+        }
+      }
+
+      function logout() {
+        removeToken();
+        showLogin();
+        profileDropdown.classList.remove('open');
+      }
+
+      // Profile dropdown toggle
+      if (profileBtn) {
+        profileBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          profileDropdown.classList.toggle('open');
+        });
+      }
+
+      // Close dropdown on outside click
+      document.addEventListener('click', function () {
+        if (profileDropdown) profileDropdown.classList.remove('open');
+      });
+
+      // Logout
+      if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+      // Change password
+      if (changePwBtn) {
+        changePwBtn.addEventListener('click', function () {
+          profileDropdown.classList.remove('open');
+          pwCurrent.value = '';
+          pwNew.value = '';
+          pwConfirm.value = '';
+          pwError.classList.remove('visible');
+          pwError.textContent = '';
+          pwSuccess.classList.remove('visible');
+          pwSuccess.textContent = '';
+          pwModal.classList.add('open');
+          pwCurrent.focus();
+        });
+      }
+
+      // Cancel password change
+      if (pwCancel) {
+        pwCancel.addEventListener('click', function () {
+          pwModal.classList.remove('open');
+        });
+      }
+
+      // Save password
+      if (pwSave) {
+        pwSave.addEventListener('click', async function () {
+          pwError.classList.remove('visible');
+          pwError.textContent = '';
+          pwSuccess.classList.remove('visible');
+          pwSuccess.textContent = '';
+
+          var current = pwCurrent.value;
+          var newPw = pwNew.value;
+          var confirm = pwConfirm.value;
+
+          if (!current || !newPw || !confirm) {
+            pwError.textContent = 'Заполните все поля';
+            pwError.classList.add('visible');
+            return;
+          }
+          if (newPw !== confirm) {
+            pwError.textContent = 'Пароли не совпадают';
+            pwError.classList.add('visible');
+            return;
+          }
+          if (newPw.length < 6) {
+            pwError.textContent = 'Пароль должен быть не менее 6 символов';
+            pwError.classList.add('visible');
+            return;
+          }
+
+          pwSave.disabled = true;
+          pwSave.textContent = 'Сохранение...';
+
+          try {
+            var res = await authFetch('/api/change-password', {
+              method: 'POST',
+              body: JSON.stringify({ currentPassword: current, newPassword: newPw })
+            });
+            var data = await res.json();
+
+            if (res.ok && data.ok) {
+              pwSuccess.textContent = 'Пароль изменён! Все сессии сброшены. Войдите заново.';
+              pwSuccess.classList.add('visible');
+              pwCurrent.value = '';
+              pwNew.value = '';
+              pwConfirm.value = '';
+              // Logout after password change
+              setTimeout(function () {
+                pwModal.classList.remove('open');
+                logout();
+              }, 2000);
+            } else {
+              pwError.textContent = data.error || 'Ошибка смены пароля';
+              pwError.classList.add('visible');
+            }
+          } catch (e) {
+            pwError.textContent = 'Ошибка сети: ' + e.message;
+            pwError.classList.add('visible');
+          } finally {
+            pwSave.disabled = false;
+            pwSave.textContent = 'Сохранить';
+          }
+        });
+      }
+
+      // Enter key in password modal
+      if (pwConfirm) {
+        pwConfirm.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') pwSave.click();
+        });
+      }
+      if (pwNew) {
+        pwNew.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') pwConfirm.focus();
+        });
+      }
+
+      // Close password modal on overlay click
+      if (pwModal) {
+        pwModal.addEventListener('click', function (e) {
+          if (e.target === pwModal) pwModal.classList.remove('open');
+        });
+      }
+
+      // Event listeners
+      if (loginBtn) loginBtn.addEventListener('click', attemptLogin);
+      if (loginPassword) {
+        loginPassword.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') attemptLogin();
+        });
+      }
+      if (loginUsername) {
+        loginUsername.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') loginPassword.focus();
+        });
+      }
+
+      // Check auth on load
+      (async function checkAuth() {
+        var token = getToken();
+        if (token) {
+          // Verify token is still valid
+          try {
+            var res = await authFetch('/api/me');
+            if (res.ok) {
+              var data = await res.json();
+              if (profileName) profileName.textContent = data.username;
+              showMainContent();
+              return;
+            }
+          } catch (e) { /* token invalid, fall through to login */ }
+        }
+        showLogin();
+      })();
+
+      /* ===== Services data ===== */
+      var services = [
+        { name: 'n8n', domain: 'bigalexn8n.ru', url: 'https://bigalexn8n.ru', icon: '&#x1F916;' },
+        { name: 'Open WebUI', domain: 'ai.bigalexn8n.ru', url: 'https://ai.bigalexn8n.ru', icon: '&#x1F9E0;' },
+        { name: 'Ollama API', domain: 'ollama.bigalexn8n.ru', url: 'https://ollama.bigalexn8n.ru', icon: '&#x2699;&#xFE0F;' },
+        { name: 'Apps Hub', domain: 'apps.bigalexn8n.ru', url: 'https://apps.bigalexn8n.ru', icon: '&#x1F4E5;' },
+        { name: 'Grafana', domain: 'grafana.bigalexn8n.ru', url: 'https://grafana.bigalexn8n.ru', icon: '&#x1F4C8;' },
+        { name: 'Prometheus', domain: 'prometheus.bigalexn8n.ru', url: 'https://prometheus.bigalexn8n.ru', icon: '&#x1F525;' },
+        { name: 'Portainer', domain: 'docker.bigalexn8n.ru', url: 'https://docker.bigalexn8n.ru', icon: '&#x1F433;' },
+        { name: 'Crontab UI', domain: 'cron.bigalexn8n.ru', url: 'https://cron.bigalexn8n.ru', icon: '&#x23F0;' },
+        { name: 'Draw.io', domain: 'draw.bigalexn8n.ru', url: 'https://draw.bigalexn8n.ru', icon: '&#x1F4CD;' },
+        { name: 'pgAdmin 4', domain: 'pgadmin.bigalexn8n.ru', url: 'https://pgadmin.bigalexn8n.ru', icon: '&#x1F408;' },
+        { name: 'LightRAG', domain: 'lightrag.bigalexn8n.ru', url: 'https://lightrag.bigalexn8n.ru', icon: '&#x1F4DA;' },
+        { name: 'SearXNG', domain: 'search.bigalexn8n.ru', url: 'https://search.bigalexn8n.ru', icon: '&#x1F50D;' },
+        { name: 'Firecrawl', domain: 'firecrawl.bigalexn8n.ru', url: 'https://firecrawl.bigalexn8n.ru', icon: '&#x1F577;&#xFE0F;' }
+      ];
+
+      /* ===== Nav scroll effect ===== */
+      var nav = document.querySelector('.nav');
+      var backToTop = document.getElementById('backToTop');
+      var navToggle = document.getElementById('navToggle');
+      var navLinks = document.getElementById('navLinks');
+
+      window.addEventListener('scroll', function () {
+        if (window.scrollY > 50) {
+          nav.classList.add('scrolled');
+        } else {
+          nav.classList.remove('scrolled');
+        }
+        if (window.scrollY > 600) {
+          backToTop.classList.add('visible');
+        } else {
+          backToTop.classList.remove('visible');
+        }
+      }, { passive: true });
+
+      backToTop.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      navToggle.addEventListener('click', function () {
+        var isOpen = navLinks.classList.toggle('open');
+        navToggle.setAttribute('aria-expanded', String(isOpen));
+      });
+
+      // Close mobile nav on link click
+      navLinks.querySelectorAll('a').forEach(function (a) {
+        a.addEventListener('click', function () {
+          navLinks.classList.remove('open');
+          navToggle.setAttribute('aria-expanded', 'false');
+        });
+      });
+
+      /* ===== Intersection Observer for animations ===== */
+      var observerOptions = { threshold: 0.1, rootMargin: '0px 0px -40px 0px' };
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, observerOptions);
+
+      document.querySelectorAll('.service-card, .roadmap-item').forEach(function (el) {
+        observer.observe(el);
+      });
+
+      /* ===== Health Check ===== */
+      var healthGrid = document.getElementById('healthGrid');
+      var healthCheckBtn = document.getElementById('healthCheckBtn');
+      var heroHealthBtn = document.getElementById('heroHealthBtn');
+      var statOnline = document.getElementById('statOnline');
+      var isChecking = false;
+
+      // Populate health grid
+      services.forEach(function (svc) {
+        var item = document.createElement('div');
+        item.className = 'health-item';
+        item.id = 'health-' + svc.name.replace(/\s+/g, '-').toLowerCase();
+        item.innerHTML =
+          '<span class="health-item-icon">' + svc.icon + '</span>' +
+          '<div class="health-item-info">' +
+            '<div class="health-item-name">' + svc.name + '</div>' +
+            '<div class="health-item-status" id="status-' + svc.name.replace(/\s+/g, '-').toLowerCase() + '">unknown</div>' +
+          '</div>';
+        healthGrid.appendChild(item);
+      });
+
+      function checkHealth() {
+        if (isChecking) return;
+        isChecking = true;
+
+        var onlineCount = 0;
+
+        services.forEach(function (svc, idx) {
+          var statusEl = document.getElementById('status-' + svc.name.replace(/\s+/g, '-').toLowerCase());
+          statusEl.className = 'health-item-status checking';
+          statusEl.innerHTML = '<span class="spinner"></span>';
+
+          // Also update service card status
+          var cards = document.querySelectorAll('.service-card');
+          cards.forEach(function (card) {
+            var link = card.querySelector('.service-domain');
+            if (link && link.href === svc.url) {
+              var statusDiv = card.querySelector('.service-status');
+              if (statusDiv) {
+                statusDiv.className = 'service-status checking';
+                statusDiv.innerHTML = '<span class="status-dot"></span>checking';
+              }
+            }
+          });
+
+          var controller = new AbortController();
+          var timeoutId = setTimeout(function () { controller.abort(); }, 6000);
+
+          fetch(svc.url, {
+            method: 'HEAD',
+            mode: 'no-cors',
+            signal: controller.signal,
+            cache: 'no-store'
+          }).then(function () {
+            clearTimeout(timeoutId);
+            onlineCount++;
+            statusEl.className = 'health-item-status online';
+            statusEl.textContent = 'online';
+
+            // Update card
+            cards.forEach(function (card) {
+              var link = card.querySelector('.service-domain');
+              if (link && link.href === svc.url) {
+                var statusDiv = card.querySelector('.service-status');
+                if (statusDiv) {
+                  statusDiv.className = 'service-status online';
+                  statusDiv.innerHTML = '<span class="status-dot"></span>online';
+                }
+              }
+            });
+          }).catch(function () {
+            clearTimeout(timeoutId);
+            statusEl.className = 'health-item-status offline';
+            statusEl.textContent = 'offline';
+
+            // Update card
+            cards.forEach(function (card) {
+              var link = card.querySelector('.service-domain');
+              if (link && link.href === svc.url) {
+                var statusDiv = card.querySelector('.service-status');
+                if (statusDiv) {
+                  statusDiv.className = 'service-status offline';
+                  statusDiv.innerHTML = '<span class="status-dot"></span>offline';
+                }
+              }
+            });
+          });
+        });
+
+        // Update online count after all checks complete (with a slight delay)
+        setTimeout(function () {
+          // Recount from DOM
+          var actualOnline = 0;
+          document.querySelectorAll('.health-item-status').forEach(function (el) {
+            if (el.classList.contains('online')) actualOnline++;
+          });
+          statOnline.textContent = actualOnline + ' / ' + services.length;
+          isChecking = false;
+        }, 7000);
+      }
+
+      healthCheckBtn.addEventListener('click', function () {
+        healthCheckBtn.innerHTML = '<span class="spinner"></span> Проверка...';
+        healthCheckBtn.disabled = true;
+        checkHealth();
+        setTimeout(function () {
+          healthCheckBtn.innerHTML = '<span>&#x1F504;</span> Проверить все';
+          healthCheckBtn.disabled = false;
+        }, 7500);
+      });
+
+      heroHealthBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        // Scroll to health section and trigger check
+        document.getElementById('health').scrollIntoView({ behavior: 'smooth' });
+        setTimeout(function () {
+          healthCheckBtn.click();
+        }, 500);
+      });
+
+      /* ===== Counter animation for hero stats ===== */
+      function animateCounter(el, target) {
+        var current = 0;
+        var step = Math.max(1, Math.ceil(target / 20));
+        var interval = setInterval(function () {
+          current += step;
+          if (current >= target) {
+            current = target;
+            clearInterval(interval);
+          }
+          el.textContent = current;
+        }, 40);
+      }
+
+      // Animate statTotal on load
+      animateCounter(document.getElementById('statTotal'), services.length);
+
+      /* ===== Load services from API ===== */
+      authFetch('/api/data')
+        .then(function(r) { return r.json(); })
+        .then(function(apiData) {
+          if (apiData && apiData.services && apiData.services.length) {
+            services = apiData.services;
+            renderServicesFromAPI(services);
+            document.getElementById('statTotal').textContent = services.length;
+          }
+        })
+        .catch(function() { /* fallback to hardcoded services */ });
+
+      function renderServicesFromAPI(svcs) {
+        var container = document.getElementById('servicesContainer');
+        if (!container) return;
+
+        var cats = {
+          main: { icon: '🚀', title: 'Основные приложения' },
+          monitoring: { icon: '📊', title: 'Мониторинг & Observability' },
+          devops: { icon: '⚙️', title: 'DevOps & Управление' },
+          data: { icon: '🧠', title: 'AI & Данные' },
+          tools: { icon: '🛠️', title: 'Инструменты' }
+        };
+
+        var colors = {
+          main: '#58a6ff', monitoring: '#f85149', devops: '#58a6ff',
+          data: '#58a6ff', tools: '#d29922'
+        };
+
+        var html = '';
+        for (var catKey in cats) {
+          var cat = cats[catKey];
+          var items = svcs.filter(function(s) { return s.category === catKey; });
+          if (!items.length) continue;
+
+          html += '<div class="category" data-category="' + catKey + '">';
+          html += '<div class="category-header"><span class="category-icon">' + cat.icon + '</span>';
+          html += '<h3 class="category-title">' + cat.title + '</h3>';
+          html += '<span class="category-count">' + items.length + '</span></div>';
+          html += '<div class="service-grid">';
+
+          items.forEach(function(svc) {
+            var accent = colors[svc.category] || '#58a6ff';
+            var authBadge = svc.auth === 'none'
+              ? '<span class="badge badge-auth-free">🔓 Open</span>'
+              : '<span class="badge badge-auth-protected">🔒 Auth</span>';
+
+            html += '<a href="' + escHtml(svc.url) + '" target="_blank" rel="noopener" class="service-card" style="--card-accent:' + accent + '" title="Открыть ' + escHtml(svc.name) + '">';
+            html += '<div class="service-card-top">';
+            html += '<div class="service-icon" style="background:' + accent + '22;border-color:' + accent + '55">' + (svc.icon || '📦') + '</div>';
+            html += '<div class="service-status checking"><span class="status-dot"></span>checking</div>';
+            html += '</div>';
+            html += '<h4 class="service-name">' + escHtml(svc.name) + '</h4>';
+            html += '<span class="service-domain">' + escHtml(svc.domain) + ' <span class="ext-link">↗</span></span>';
+            html += '<p class="service-desc">' + escHtml(svc.desc || '') + '</p>';
+            html += '<div class="service-meta">';
+            html += '<span class="badge badge-port">📡 ' + svc.port + '</span>';
+            html += authBadge;
+            html += '</div></a>';
+          });
+
+          html += '</div></div>';
+        }
+
+        container.innerHTML = html;
+
+        // Re-observe new cards
+        setTimeout(function() {
+          document.querySelectorAll('.service-card').forEach(function(card) {
+            observer.observe(card);
+          });
+        }, 100);
+      }
+
+      function escHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+      }
+
+    })();
+  </script>
+</body>
+</html>

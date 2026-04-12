@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — Infrastructure</title>
+  <style>
+    :root {
+      --bg: #0d1117; --bg2: #161b22; --bg3: #21262d; --card: #1c2128;
+      --border: #30363d; --text: #e6edf3; --text2: #8b949e; --text3: #6e7681;
+      --blue: #58a6ff; --green: #3fb950; --orange: #d29922; --red: #f85149;
+      --purple: #bc8cff; --cyan: #39d2c0;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 4px; }
+
+    /* NAV */
+    .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .topbar-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font-weight: 700; }
+    .topbar-actions { display: flex; gap: 8px; }
+
+    /* BUTTONS */
+    .btn { padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--bg3); color: var(--text); transition: 150ms; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:hover { border-color: var(--text3); }
+    .btn-primary { background: var(--blue); color: #000; border-color: var(--blue); }
+    .btn-primary:hover { background: #79c0ff; }
+    .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-success { background: var(--green); color: #000; border-color: var(--green); }
+    .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+
+    /* TABS */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--bg2); }
+    .tab { padding: 12px 20px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text2); border-bottom: 2px solid transparent; transition: 150ms; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* CONTENT */
+    .content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { background: var(--bg3); padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text2); white-space: nowrap; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: var(--bg3); }
+    .td-actions { display: flex; gap: 4px; }
+
+    /* BADGES */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 0.7rem; font-weight: 600; }
+    .badge-open { background: rgba(63,185,80,0.15); color: var(--green); }
+    .badge-auth { background: rgba(210,153,34,0.15); color: var(--orange); }
+    .badge-online { background: rgba(63,185,80,0.15); color: var(--green); }
+    .badge-offline { background: rgba(248,81,73,0.15); color: var(--red); }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 90%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 16px; font-size: 1.1rem; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: 0.85rem; font-family: inherit;
+    }
+    .form-group textarea { min-height: 60px; resize: vertical; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--blue); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+    /* CLI */
+    .cli-section { margin-bottom: 24px; }
+    .cli-section h3 { font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .cli-input-row { display: flex; gap: 8px; }
+    .cli-input-row select { width: 140px; flex-shrink: 0; }
+    .cli-input-row input { flex: 1; }
+    .cli-output { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-top: 12px; max-height: 400px; overflow-y: auto; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.8rem; white-space: pre-wrap; color: var(--text2); line-height: 1.5; }
+    .cli-output.error { color: var(--red); }
+    .cli-output.success { color: var(--green); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; font-size: 0.85rem; z-index: 2000; transform: translateY(100px); opacity: 0; transition: 250ms; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: var(--green); }
+    .toast.error { border-color: var(--red); }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .content { padding: 16px; }
+      .cli-input-row { flex-direction: column; }
+      .cli-input-row select { width: 100%; }
+      .modal { width: 95%; padding: 16px; }
+      .topbar { padding: 0 16px; }
+    }
+
+    /* LOADING */
+    .loading { text-align: center; padding: 40px; color: var(--text3); }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/portal" class="topbar-brand">
+    <span>⚙️</span>
+    <span>Admin Panel</span>
+  </a>
+  <div class="topbar-actions">
+    <a href="/portal" class="btn btn-sm">← Портал</a>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="services">📦 Сервисы</div>
+  <div class="tab" data-tab="roadmap">🗺️ Roadmap</div>
+  <div class="tab" data-tab="cli">🤖 AI / CLI</div>
+  <div class="tab" data-tab="health">📊 Статус</div>
+</div>
+
+<div class="content">
+  <!-- SERVICES -->
+  <div class="panel active" id="panel-services">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <h2 style="font-size:1.2rem;">Управление сервисами</h2>
+      <button class="btn btn-primary" onclick="openServiceModal()">+ Добавить сервис</button>
+    </div>
+    <div id="servicesTable"><div class="loading"><div class="spinner"></div><br>Загрузка...</div></div>
+  </div>
+
+  <!-- ROADMAP -->
+  <div class="panel" id="panel-roadmap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <h2 style="font-size:1.2rem;">Планы и Roadmap</h2>
+      <button class="btn btn-primary" onclick="openRoadmapModal()">+ Добавить план</button>
+    </div>
+    <div id="roadmapTable"><div class="loading"><div class="spinner"></div><br>Загрузка...</div></div>
+  </div>
+
+  <!-- CLI -->
+  <div class="panel" id="panel-cli">
+    <div class="cli-section">
+      <h3>🤖 Запуск команд через AI</h3>
+      <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">
+        Выполняйте команды через Qwen CLI, Gemini CLI или напрямую в shell
+      </p>
+      <div class="cli-input-row">
+        <select id="cliTool">
+          <option value="qwen">Qwen CLI</option>
+          <option value="gemini">Gemini CLI</option>
+          <option value="shell">Shell</option>
+        </select>
+        <input type="text" id="cliCommand" placeholder="Введите команду или вопрос..." onkeydown="if(event.key==='Enter')runCli()">
+        <button class="btn btn-primary" onclick="runCli()">▶ Выполнить</button>
+      </div>
+      <div id="cliOutput" class="cli-output" style="display:none;"></div>
+    </div>
+
+    <div class="cli-section">
+      <h3>⚡ Быстрые команды</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+        <button class="btn btn-sm" onclick="quickCli('qwen','Покажи список всех запущенных Docker контейнеров')">🐳 Docker ps</button>
+        <button class="btn btn-sm" onclick="quickCli('qwen','Проверь статус всех сервисов на сервере bigalexn8n.ru')">📊 Проверить статус</button>
+        <button class="btn btn-sm" onclick="quickCli('qwen','Покажи последние 10 коммитов в репозитории n8n')">📝 Git log</button>
+        <button class="btn btn-sm" onclick="quickCli('qwen','Сколько свободного места на диске?')">💾 Disk space</button>
+        <button class="btn btn-sm" onclick="quickCli('qwen','Покажи потребление памяти и CPU системой')">🔋 System resources</button>
+        <button class="btn btn-sm" onclick="quickCli('shell','docker ps --format \"table {{.Names}}\\t{{.Status}}\"')">🐳 Docker (shell)</button>
+        <button class="btn btn-sm" onclick="quickCli('shell','df -h /')">💾 Disk (shell)</button>
+        <button class="btn btn-sm" onclick="quickCli('shell','free -h')">🔋 Memory (shell)</button>
+      </div>
+    </div>
+
+    <div class="cli-section">
+      <h3>📋 История команд</h3>
+      <div id="cliHistory" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- HEALTH -->
+  <div class="panel" id="panel-health">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <h2 style="font-size:1.2rem;">Статус сервисов</h2>
+      <button class="btn btn-primary" onclick="checkHealth()">🔄 Обновить</button>
+    </div>
+    <div id="healthGrid"><div class="loading"><div class="spinner"></div><br>Проверка...</div></div>
+  </div>
+</div>
+
+<!-- SERVICE MODAL -->
+<div class="modal-overlay" id="serviceModal">
+  <div class="modal">
+    <h3 id="svcModalTitle">Добавить сервис</h3>
+    <input type="hidden" id="svcEditId">
+    <div class="form-group"><label>Название</label><input id="svcName" placeholder="n8n"></div>
+    <div class="form-group"><label>Домен</label><input id="svcDomain" placeholder="bigalexn8n.ru"></div>
+    <div class="form-group"><label>URL</label><input id="svcUrl" placeholder="https://bigalexn8n.ru"></div>
+    <div class="form-group"><label>Порт</label><input id="svcPort" type="number" placeholder="5678"></div>
+    <div class="form-group"><label>Иконка (emoji)</label><input id="svcIcon" placeholder="🤖"></div>
+    <div class="form-group">
+      <label>Категория</label>
+      <select id="svcCategory">
+        <option value="main">Основные приложения</option>
+        <option value="monitoring">Мониторинг</option>
+        <option value="devops">DevOps</option>
+        <option value="data">AI & Данные</option>
+        <option value="tools">Инструменты</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Auth</label>
+      <select id="svcAuth">
+        <option value="none">Открытый</option>
+        <option value="basic">Basicauth</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Описание</label><textarea id="svcDesc" placeholder="Описание сервиса..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('serviceModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveService()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ROADMAP MODAL -->
+<div class="modal-overlay" id="roadmapModal">
+  <div class="modal">
+    <h3 id="rmModalTitle">Добавить план</h3>
+    <input type="hidden" id="rmEditId">
+    <div class="form-group"><label>Название</label><input id="rmTitle" placeholder="Новый план"></div>
+    <div class="form-group"><label>Описание</label><textarea id="rmDesc" placeholder="Описание..."></textarea></div>
+    <div class="form-group">
+      <label>Статус</label>
+      <select id="rmStatus">
+        <option value="planned">Запланировано</option>
+        <option value="active">В работе</option>
+        <option value="done">Готово</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('roadmapModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveRoadmap()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api';
+let data = { services: [], roadmap: [], notes: '' };
+let cliHistoryList = [];
+
+// ============ AUTH CHECK (JWT) ============
+function getToken() {
+  return localStorage.getItem('portal_token');
+}
+
+function authFetch(url, options) {
+  options = options || {};
+  options.headers = options.headers || {};
+  const token = getToken();
+  if (token) {
+    options.headers['Authorization'] = 'Bearer ' + token;
+  }
+  if (!options.headers['Content-Type'] && options.body) {
+    options.headers['Content-Type'] = 'application/json';
+  }
+  return fetch(url, options);
+}
+
+(function checkAuth() {
+  if (!getToken()) {
+    window.location.href = '/';
+    return;
+  }
+})();
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  setupTabs();
+});
+
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'health') checkHealth();
+    });
+  });
+}
+
+// ============ DATA ============
+async function loadData() {
+  try {
+    const res = await authFetch(API + '/data');
+    data = await res.json();
+    renderServices();
+    renderRoadmap();
+  } catch (e) {
+    document.getElementById('servicesTable').innerHTML = '<p style="color:var(--red);">Ошибка загрузки: ' + e.message + '</p>';
+  }
+}
+
+async function saveData() {
+  try {
+    const res = await authFetch(API + '/data', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    const r = await res.json();
+    if (r.ok) { showToast('Сохранено!', 'success'); }
+  } catch (e) { showToast('Ошибка сохранения: ' + e.message, 'error'); }
+}
+
+// ============ SERVICES ============
+function renderServices() {
+  const cats = { main: '🚀 Основные', monitoring: '📊 Мониторинг', devops: '⚙️ DevOps', data: '🧠 AI & Данные', tools: '🛠️ Инструменты' };
+  let html = '';
+  for (const [catKey, catLabel] of Object.entries(cats)) {
+    const items = data.services.filter(s => s.category === catKey);
+    if (!items.length) continue;
+    html += `<h3 style="margin:16px 0 8px;font-size:0.95rem;color:var(--text2);">${catLabel} (${items.length})</h3>`;
+    html += '<div class="table-wrap"><table><thead><tr><th>Иконка</th><th>Название</th><th>Домен</th><th>Порт</th><th>Auth</th><th>Описание</th><th>Действия</th></tr></thead><tbody>';
+    items.forEach(svc => {
+      html += `<tr>
+        <td style="font-size:1.3rem;">${svc.icon || '📦'}</td>
+        <td><strong>${esc(svc.name)}</strong></td>
+        <td><a href="${esc(svc.url)}" target="_blank" style="color:var(--blue);text-decoration:none;">${esc(svc.domain)}</a></td>
+        <td><code style="color:var(--blue);">${svc.port}</code></td>
+        <td><span class="badge ${svc.auth === 'none' ? 'badge-open' : 'badge-auth'}">${svc.auth === 'none' ? '🔓 Open' : '🔒 Auth'}</span></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(svc.desc)}">${esc(svc.desc)}</td>
+        <td class="td-actions">
+          <button class="btn btn-sm" onclick="editService('${svc.id}')">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteService('${svc.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+  document.getElementById('servicesTable').innerHTML = html || '<p style="color:var(--text3);">Нет сервисов</p>';
+}
+
+function openServiceModal(id) {
+  document.getElementById('svcEditId').value = '';
+  document.getElementById('svcName').value = '';
+  document.getElementById('svcDomain').value = '';
+  document.getElementById('svcUrl').value = '';
+  document.getElementById('svcPort').value = '';
+  document.getElementById('svcIcon').value = '';
+  document.getElementById('svcCategory').value = 'main';
+  document.getElementById('svcAuth').value = 'none';
+  document.getElementById('svcDesc').value = '';
+  document.getElementById('svcModalTitle').textContent = 'Добавить сервис';
+  document.getElementById('serviceModal').classList.add('open');
+}
+
+function editService(id) {
+  const svc = data.services.find(s => s.id === id);
+  if (!svc) return;
+  document.getElementById('svcEditId').value = svc.id;
+  document.getElementById('svcName').value = svc.name;
+  document.getElementById('svcDomain').value = svc.domain;
+  document.getElementById('svcUrl').value = svc.url;
+  document.getElementById('svcPort').value = svc.port;
+  document.getElementById('svcIcon').value = svc.icon || '';
+  document.getElementById('svcCategory').value = svc.category || 'main';
+  document.getElementById('svcAuth').value = svc.auth || 'none';
+  document.getElementById('svcDesc').value = svc.desc || '';
+  document.getElementById('svcModalTitle').textContent = 'Редактировать: ' + svc.name;
+  document.getElementById('serviceModal').classList.add('open');
+}
+
+async function saveService() {
+  const editId = document.getElementById('svcEditId').value;
+  const svc = {
+    id: editId || `svc-${Date.now()}`,
+    name: document.getElementById('svcName').value.trim(),
+    domain: document.getElementById('svcDomain').value.trim(),
+    url: document.getElementById('svcUrl').value.trim(),
+    port: parseInt(document.getElementById('svcPort').value) || 0,
+    icon: document.getElementById('svcIcon').value.trim(),
+    category: document.getElementById('svcCategory').value,
+    auth: document.getElementById('svcAuth').value,
+    desc: document.getElementById('svcDesc').value.trim()
+  };
+
+  if (!svc.name || !svc.url) { showToast('Название и URL обязательны', 'error'); return; }
+
+  if (editId) {
+    const idx = data.services.findIndex(s => s.id === editId);
+    if (idx !== -1) data.services[idx] = svc;
+  } else {
+    data.services.push(svc);
+  }
+
+  closeModal('serviceModal');
+  await saveData();
+  renderServices();
+}
+
+async function deleteService(id) {
+  if (!confirm('Удалить этот сервис?')) return;
+  data.services = data.services.filter(s => s.id !== id);
+  await saveData();
+  renderServices();
+}
+
+// ============ ROADMAP ============
+function renderRoadmap() {
+  const items = [...data.roadmap].sort((a, b) => (a.order || 0) - (b.order || 0));
+  let html = '<div class="table-wrap"><table><thead><tr><th>#</th><th>Название</th><th>Описание</th><th>Статус</th><th>Действия</th></tr></thead><tbody>';
+  items.forEach((item, i) => {
+    const statusBadge = item.status === 'active' ? '<span class="badge" style="background:rgba(88,166,255,0.15);color:var(--blue);">В работе</span>'
+      : item.status === 'done' ? '<span class="badge" style="background:rgba(63,185,80,0.15);color:var(--green);">Готово</span>'
+      : '<span class="badge" style="background:var(--bg3);color:var(--text3);">Запланировано</span>';
+    html += `<tr>
+      <td>${i + 1}</td>
+      <td><strong>${esc(item.title)}</strong></td>
+      <td style="max-width:250px;">${esc(item.desc)}</td>
+      <td>${statusBadge}</td>
+      <td class="td-actions">
+        <button class="btn btn-sm" onclick="editRoadmap('${item.id}')">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteRoadmap('${item.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('roadmapTable').innerHTML = html;
+}
+
+function openRoadmapModal() {
+  document.getElementById('rmEditId').value = '';
+  document.getElementById('rmTitle').value = '';
+  document.getElementById('rmDesc').value = '';
+  document.getElementById('rmStatus').value = 'planned';
+  document.getElementById('rmModalTitle').textContent = 'Добавить план';
+  document.getElementById('roadmapModal').classList.add('open');
+}
+
+function editRoadmap(id) {
+  const item = data.roadmap.find(r => r.id === id);
+  if (!item) return;
+  document.getElementById('rmEditId').value = item.id;
+  document.getElementById('rmTitle').value = item.title;
+  document.getElementById('rmDesc').value = item.desc || '';
+  document.getElementById('rmStatus').value = item.status || 'planned';
+  document.getElementById('rmModalTitle').textContent = 'Редактировать: ' + item.title;
+  document.getElementById('roadmapModal').classList.add('open');
+}
+
+async function saveRoadmap() {
+  const editId = document.getElementById('rmEditId').value;
+  const item = {
+    id: editId || `rm-${Date.now()}`,
+    title: document.getElementById('rmTitle').value.trim(),
+    desc: document.getElementById('rmDesc').value.trim(),
+    status: document.getElementById('rmStatus').value,
+    order: data.roadmap.length + 1
+  };
+  if (!item.title) { showToast('Название обязательно', 'error'); return; }
+
+  if (editId) {
+    const idx = data.roadmap.findIndex(r => r.id === editId);
+    if (idx !== -1) data.roadmap[idx] = item;
+  } else {
+    data.roadmap.push(item);
+  }
+
+  closeModal('roadmapModal');
+  await saveData();
+  renderRoadmap();
+}
+
+async function deleteRoadmap(id) {
+  if (!confirm('Удалить этот план?')) return;
+  data.roadmap = data.roadmap.filter(r => r.id !== id);
+  await saveData();
+  renderRoadmap();
+}
+
+// ============ CLI ============
+async function runCli() {
+  const command = document.getElementById('cliCommand').value.trim();
+  const tool = document.getElementById('cliTool').value;
+  if (!command) return;
+
+  const output = document.getElementById('cliOutput');
+  output.style.display = 'block';
+  output.className = 'cli-output';
+  output.innerHTML = '<div class="spinner"></div> Выполняется через ' + tool + '...';
+
+  cliHistoryList.unshift({ command, tool, time: new Date().toLocaleTimeString() });
+  renderCliHistory();
+
+  try {
+    const res = await authFetch(API + '/cli', {
+      method: 'POST',
+      body: JSON.stringify({ command, tool })
+    });
+    const result = await res.json();
+
+    if (result.ok) {
+      output.className = 'cli-output success';
+      output.textContent = result.stdout || '(команда выполнена без вывода)';
+    } else {
+      output.className = 'cli-output error';
+      output.textContent = (result.stdout || '') + (result.stderr || '') + (result.error ? '\n\nError: ' + result.error : '');
+    }
+  } catch (e) {
+    output.className = 'cli-output error';
+    output.textContent = 'Ошибка: ' + e.message;
+  }
+}
+
+function quickCli(tool, command) {
+  document.getElementById('cliTool').value = tool;
+  document.getElementById('cliCommand').value = command;
+  runCli();
+}
+
+function renderCliHistory() {
+  const el = document.getElementById('cliHistory');
+  if (!cliHistoryList.length) { el.innerHTML = '<p style="color:var(--text3);font-size:0.8rem;">Пока пусто</p>'; return; }
+  el.innerHTML = cliHistoryList.slice(0, 20).map(h =>
+    `<div style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:0.75rem;">
+      <span style="color:var(--text3);">${h.time}</span>
+      <span class="badge" style="margin-left:6px;">${h.tool}</span>
+      <span style="margin-left:6px;color:var(--text);">${esc(h.command)}</span>
+    </div>`
+  ).join('');
+}
+
+// ============ HEALTH ============
+async function checkHealth() {
+  const grid = document.getElementById('healthGrid');
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div><br>Проверка...</div>';
+  try {
+    const res = await authFetch(API + '/health');
+    const results = await res.json();
+    grid.innerHTML = results.map(r =>
+      `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;">
+        <span class="badge ${r.status === 'online' ? 'badge-online' : 'badge-offline'}">${r.status === 'online' ? '● Online' : '● Offline'}</span>
+        <span style="font-size:0.8rem;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.domain)}</span>
+        <span style="font-size:0.7rem;color:var(--text3);margin-left:auto;">${r.httpCode || '--'}</span>
+      </div>`
+    ).join('');
+  } catch (e) {
+    grid.innerHTML = '<p style="color:var(--red);">Ошибка: ' + e.message + '</p>';
+  }
+}
+
+// ============ MODALS ============
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ============ TOAST ============
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ============ UTILS ============
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+</script>
+
+</body>
+</html>

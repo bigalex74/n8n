@@ -1,14 +1,61 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { exec } = require('child_process');
 const { promisify } = require('util');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
 const execAsync = promisify(exec);
 
 const PORTAL_DIR = '/home/user/n8n-docker/portal';
 const DATA_FILE = path.join(PORTAL_DIR, 'data.json');
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'AdminPortal2025!';
+const JWT_SECRET_FILE = path.join(PORTAL_DIR, 'jwt-secret.json');
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'bigalex';
+const DEFAULT_PASSWORD = 'AdminPortal2025!';
+const JWT_EXPIRES_IN = '30d';
+const BCRYPT_ROUNDS = 10;
+
+// Rate limiter for login
+const loginAttempts = new Map();
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 60 * 1000; // 60 seconds
+
+// ============ JWT SECRET MANAGEMENT ============
+
+function initJwtSecret() {
+  try {
+    if (fs.existsSync(JWT_SECRET_FILE)) {
+      const raw = fs.readFileSync(JWT_SECRET_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      return parsed;
+    }
+  } catch (e) {
+    console.error('Error loading JWT secret:', e.message);
+  }
+
+  // Generate new secret and hash default password
+  const secret = crypto.randomBytes(32).toString('hex');
+  const passwordHash = bcrypt.hashSync(DEFAULT_PASSWORD, BCRYPT_ROUNDS);
+
+  const data = { secret, passwordHash };
+  fs.writeFileSync(JWT_SECRET_FILE, JSON.stringify(data, null, 2), 'utf8');
+  console.log('Generated new JWT secret and hashed default password');
+  return data;
+}
+
+let jwtConfig = initJwtSecret();
+
+function loadJwtConfig() {
+  try {
+    if (fs.existsSync(JWT_SECRET_FILE)) {
+      jwtConfig = JSON.parse(fs.readFileSync(JWT_SECRET_FILE, 'utf8'));
+    }
+  } catch (e) {
+    console.error('Error reloading JWT config:', e.message);
+  }
+}
 
 // ============ DATA ============
 
@@ -57,23 +104,82 @@ function saveData(data) {
 // Initialize data file
 if (!fs.existsSync(DATA_FILE)) saveData(defaultData);
 
-// ============ AUTH ============
+// ============ JWT MIDDLEWARE ============
 
-function parseAuth(header) {
-  if (!header || !header.startsWith('Basic ')) return null;
-  const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-  const [username, password] = decoded.split(':');
-  return { username, password };
+function getBearerToken(req) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return null;
+  return auth.slice(7);
 }
 
-function checkAuth(req, res) {
-  const auth = parseAuth(req.headers.authorization);
-  if (!auth || auth.username !== ADMIN_USERNAME || auth.password !== ADMIN_PASSWORD) {
-    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Admin Panel"', 'Content-Type': 'text/plain' });
-    res.end('Unauthorized');
-    return false;
+function authenticateJWT(req, res) {
+  const token = getBearerToken(req);
+  if (!token) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'No token provided' }));
+    return null;
+  }
+
+  try {
+    const decoded = jwt.verify(token, jwtConfig.secret);
+    return decoded;
+  } catch (e) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid or expired token' }));
+    return null;
+  }
+}
+
+// ============ RATE LIMITER ============
+
+function checkRateLimit(req, res) {
+  const ip = req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const attempt = loginAttempts.get(ip);
+
+  if (attempt) {
+    if (now > attempt.resetTime) {
+      // Window expired, reset
+      loginAttempts.set(ip, { count: 1, resetTime: now + LOGIN_WINDOW_MS });
+      return true;
+    }
+    if (attempt.count >= LOGIN_MAX_ATTEMPTS) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many login attempts. Try again later.' }));
+      return false;
+    }
+    attempt.count++;
+  } else {
+    loginAttempts.set(ip, { count: 1, resetTime: now + LOGIN_WINDOW_MS });
   }
   return true;
+}
+
+// Clean up old rate limit entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, attempt] of loginAttempts.entries()) {
+    if (now > attempt.resetTime) {
+      loginAttempts.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000); // every 5 minutes
+
+// ============ BODY PARSER ============
+
+function parseBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on('error', reject);
+  });
 }
 
 // ============ ROUTING ============
@@ -99,28 +205,120 @@ const server = http.createServer(async (req, res) => {
 
   // ---- API routes ----
 
-  // GET /api/data or /data (after strip_prefix)
+  // POST /api/login
+  if (pathname === '/api/login' && req.method === 'POST') {
+    if (!checkRateLimit(req, res)) return;
+
+    let body;
+    try {
+      body = await parseBody(req);
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+
+    const { username, password } = body;
+
+    if (username !== ADMIN_USERNAME) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid credentials' }));
+    }
+
+    const valid = bcrypt.compareSync(password, jwtConfig.passwordHash);
+    if (!valid) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid credentials' }));
+    }
+
+    const token = jwt.sign({ username }, jwtConfig.secret, { expiresIn: JWT_EXPIRES_IN });
+    const decoded = jwt.decode(token);
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      token,
+      user: { username },
+      expiresIn: JWT_EXPIRES_IN
+    }));
+  }
+
+  // POST /api/change-password
+  if (pathname === '/api/change-password' && req.method === 'POST') {
+    const decoded = authenticateJWT(req, res);
+    if (!decoded) return;
+
+    let body;
+    try {
+      body = await parseBody(req);
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+
+    const { currentPassword, newPassword } = body;
+
+    if (!currentPassword || !newPassword) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'currentPassword and newPassword are required' }));
+    }
+
+    // Verify current password
+    const valid = bcrypt.compareSync(currentPassword, jwtConfig.passwordHash);
+    if (!valid) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Current password is incorrect' }));
+    }
+
+    // Hash new password and regenerate secret (logout all sessions)
+    const newSecret = crypto.randomBytes(32).toString('hex');
+    const newHash = bcrypt.hashSync(newPassword, BCRYPT_ROUNDS);
+
+    jwtConfig = { secret: newSecret, passwordHash: newHash };
+    fs.writeFileSync(JWT_SECRET_FILE, JSON.stringify(jwtConfig, null, 2), 'utf8');
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true }));
+  }
+
+  // GET /api/me
+  if (pathname === '/api/me' && req.method === 'GET') {
+    const decoded = authenticateJWT(req, res);
+    if (!decoded) return;
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      username: decoded.username,
+      iat: decoded.iat,
+      exp: decoded.exp
+    }));
+  }
+
+  // GET /api/data
   if ((pathname === '/api/data' || pathname === '/data') && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(loadData()));
   }
 
-  // POST /api/data or /data — update full data
+  // POST /api/data — update full data (JWT required)
   if ((pathname === '/api/data' || pathname === '/data') && req.method === 'POST') {
-    if (!checkAuth(req, res)) return;
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      try {
-        const data = JSON.parse(body);
-        saveData(data);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true }));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    });
+    const decoded = authenticateJWT(req, res);
+    if (!decoded) return;
+
+    let body;
+    try {
+      body = await parseBody(req);
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+
+    try {
+      saveData(body);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 
@@ -131,35 +329,43 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify(data.services));
   }
 
-  // PUT /api/services/:id
+  // PUT /api/services/:id (JWT required)
   if (pathname.match(/^\/api\/services\/[\w-]+$/) && req.method === 'PUT') {
-    if (!checkAuth(req, res)) return;
+    const decoded = authenticateJWT(req, res);
+    if (!decoded) return;
+
     const id = pathname.split('/').pop();
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      try {
-        const data = loadData();
-        const idx = data.services.findIndex(s => s.id === id);
-        if (idx === -1) {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'Not found' }));
-        }
-        data.services[idx] = { ...data.services[idx], ...JSON.parse(body) };
-        saveData(data);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(data.services[idx]));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
+    let body;
+    try {
+      body = await parseBody(req);
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+
+    try {
+      const data = loadData();
+      const idx = data.services.findIndex(s => s.id === id);
+      if (idx === -1) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Not found' }));
       }
-    });
+      data.services[idx] = { ...data.services[idx], ...body };
+      saveData(data);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data.services[idx]));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 
-  // DELETE /api/services/:id
+  // DELETE /api/services/:id (JWT required)
   if (pathname.match(/^\/api\/services\/[\w-]+$/) && req.method === 'DELETE') {
-    if (!checkAuth(req, res)) return;
+    const decoded = authenticateJWT(req, res);
+    if (!decoded) return;
+
     const id = pathname.split('/').pop();
     const data = loadData();
     data.services = data.services.filter(s => s.id !== id);
@@ -168,70 +374,81 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify({ ok: true }));
   }
 
-  // POST /api/services — add new service
+  // POST /api/services — add new service (JWT required)
   if (pathname === '/api/services' && req.method === 'POST') {
-    if (!checkAuth(req, res)) return;
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      try {
-        const data = loadData();
-        const service = JSON.parse(body);
-        service.id = service.id || `svc-${Date.now()}`;
-        data.services.push(service);
-        saveData(data);
-        res.writeHead(201, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(service));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    });
+    const decoded = authenticateJWT(req, res);
+    if (!decoded) return;
+
+    let body;
+    try {
+      body = await parseBody(req);
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+
+    try {
+      const data = loadData();
+      const service = body;
+      service.id = service.id || `svc-${Date.now()}`;
+      data.services.push(service);
+      saveData(data);
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(service));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 
-  // POST /api/cli — run command via CLI
+  // POST /api/cli — run command via CLI (JWT required)
   if (pathname === '/api/cli' && req.method === 'POST') {
-    if (!checkAuth(req, res)) return;
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', async () => {
-      try {
-        const { command, tool } = JSON.parse(body);
-        if (!command) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'Command is required' }));
-        }
+    const decoded = authenticateJWT(req, res);
+    if (!decoded) return;
 
-        let fullCommand;
-        if (tool === 'qwen') {
-          fullCommand = `cd /home/user && qwen --output-format text --approval-mode yolo "${command.replace(/"/g, '\\"')}"`;
-        } else if (tool === 'gemini') {
-          fullCommand = `echo "${command.replace(/"/g, '\\"')}" | gemini`;
-        } else if (tool === 'shell') {
-          fullCommand = command;
-        } else {
-          fullCommand = `cd /home/user && qwen --output-format text "${command.replace(/"/g, '\\"')}"`;
-        }
+    let body;
+    try {
+      body = await parseBody(req);
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
 
-        // Set timeout to 5 minutes
-        const { stdout, stderr } = await execAsync(fullCommand, {
-          timeout: 300000,
-          maxBuffer: 10 * 1024 * 1024, // 10MB
-          env: { ...process.env, PATH: process.env.PATH + ':/home/user/.nvm/versions/node/v24.14.0/bin:/home/user/.local/bin' }
-        });
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, stdout: stdout || '', stderr: stderr || '' }));
-      } catch (e) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, stdout: e.stdout || '', stderr: e.stderr || '', error: e.message, code: e.code }));
+    try {
+      const { command, tool } = body;
+      if (!command) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Command is required' }));
       }
-    });
+
+      let fullCommand;
+      if (tool === 'qwen') {
+        fullCommand = `cd /home/user && qwen --output-format text --approval-mode yolo "${command.replace(/"/g, '\\"')}"`;
+      } else if (tool === 'gemini') {
+        fullCommand = `echo "${command.replace(/"/g, '\\"')}" | gemini`;
+      } else if (tool === 'shell') {
+        fullCommand = command;
+      } else {
+        fullCommand = `cd /home/user && qwen --output-format text "${command.replace(/"/g, '\\"')}"`;
+      }
+
+      const { stdout, stderr } = await execAsync(fullCommand, {
+        timeout: 300000,
+        maxBuffer: 10 * 1024 * 1024,
+        env: { ...process.env, PATH: process.env.PATH + ':/home/user/.nvm/versions/node/v24.14.0/bin:/home/user/.local/bin' }
+      });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, stdout: stdout || '', stderr: stderr || '' }));
+    } catch (e) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, stdout: e.stdout || '', stderr: e.stderr || '', error: e.message, code: e.code }));
+    }
     return;
   }
 
-  // GET /api/health — check all services
+  // GET /api/health — check all services (public)
   if (pathname === '/api/health' && req.method === 'GET') {
     const data = loadData();
     const results = await Promise.all(data.services.map(async (svc) => {
@@ -248,9 +465,6 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ---- Static files ----
-
-  // Admin panel — serve without Basic Auth (frontend handles sessionStorage auth)
-  // API write operations still require Basic Auth (checkAuth calls above)
 
   // Serve files
   let filePath;
@@ -278,4 +492,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(3080, '127.0.0.1', () => {
   console.log(`Portal API server running on http://127.0.0.1:3080`);
   console.log(`Admin panel: http://127.0.0.1:3080/admin`);
+  console.log(`JWT auth enabled`);
 });
