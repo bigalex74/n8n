@@ -931,7 +931,7 @@
       border-color: var(--accent-blue);
     }
 
-    /* ========== LOGIN OVERLAY ========== */
+    /* ========== LOGIN FORM ========== */
     .login-overlay {
       position: fixed;
       inset: 0;
@@ -1026,6 +1026,12 @@
       box-shadow: 0 6px 20px rgba(88,166,255,0.4);
     }
 
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
     .login-error {
       color: var(--accent-red);
       font-size: 0.85rem;
@@ -1043,30 +1049,158 @@
       margin-top: 20px;
     }
 
-    /* Logout button in nav */
-    .nav-logout-btn {
+    /* Profile menu */
+    .profile-menu {
       display: none;
+      align-items: center;
+      gap: 8px;
+      margin-left: 8px;
+      position: relative;
+    }
+
+    .profile-menu.visible {
+      display: inline-flex;
+    }
+
+    .profile-btn {
+      display: flex;
       align-items: center;
       gap: 6px;
       padding: 6px 12px;
-      background: rgba(248,81,73,0.1);
-      border: 1px solid rgba(248,81,73,0.3);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
       border-radius: var(--radius-sm);
-      color: var(--accent-red);
+      color: var(--text-primary);
       font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       transition: var(--transition-fast);
       font-family: var(--font-sans);
-      margin-left: 8px;
     }
 
-    .nav-logout-btn.visible {
-      display: inline-flex;
+    .profile-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--text-muted);
     }
 
-    .nav-logout-btn:hover {
-      background: rgba(248,81,73,0.2);
+    .profile-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card-hover);
+      min-width: 180px;
+      display: none;
+      z-index: 10001;
+      overflow: hidden;
+    }
+
+    .profile-dropdown.open {
+      display: block;
+    }
+
+    .profile-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-sans);
+    }
+
+    .profile-dropdown-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .profile-dropdown-item.danger {
+      color: var(--accent-red);
+    }
+
+    /* Change password modal */
+    .pw-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10002;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pw-modal-overlay.open {
+      display: flex;
+    }
+
+    .pw-modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .pw-modal h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    .pw-modal input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-family: var(--font-sans);
+      margin-bottom: 12px;
+    }
+
+    .pw-modal input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .pw-modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .pw-error {
+      color: var(--accent-red);
+      font-size: 0.85rem;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .pw-error.visible {
+      display: block;
+    }
+
+    .pw-success {
+      color: var(--accent-green);
+      font-size: 0.85rem;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .pw-success.visible {
+      display: block;
     }
   </style>
 </head>
@@ -1076,11 +1210,12 @@
     <div class="login-card">
       <div class="login-icon">&#x1F680;</div>
       <h2>Infrastructure Dashboard</h2>
-      <p>bigalexn8n.ru &mdash; введите пароль для доступа</p>
-      <input type="password" class="login-input" id="loginPassword" placeholder="Пароль" autocomplete="current-password" autofocus>
+      <p>bigalexn8n.ru &mdash; войдите для доступа</p>
+      <input type="text" class="login-input" id="loginUsername" placeholder="Username" autocomplete="username" value="bigalex">
+      <input type="password" class="login-input" id="loginPassword" placeholder="Password" autocomplete="current-password">
       <button class="login-btn" id="loginBtn" type="button">Войти</button>
-      <div class="login-error" id="loginError">Неверный пароль</div>
-      <div class="login-footer">Сессия сохраняется до закрытия вкладки</div>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-footer">Сессия сохраняется 30 дней</div>
     </div>
   </div>
 
@@ -1104,7 +1239,16 @@
         <li><a href="#roadmap">Roadmap</a></li>
         <li><a href="/admin" class="admin-link" style="color:var(--accent-purple);font-weight:600;">⚙️ Админ</a></li>
       </ul>
-      <button class="nav-logout-btn" id="navLogout" type="button">🚪 Выйти</button>
+      <div class="profile-menu" id="profileMenu">
+        <button class="profile-btn" id="profileBtn" type="button">
+          <span>&#x1F464;</span>
+          <span id="profileName">bigalex</span>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown">
+          <button class="profile-dropdown-item" id="changePwBtn" type="button">&#x1F511; Сменить пароль</button>
+          <button class="profile-dropdown-item danger" id="logoutBtn" type="button">&#x1F6AA; Выйти</button>
+        </div>
+      </div>
       <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
@@ -1345,6 +1489,22 @@
     </section>
   </main>
 
+  <!-- Change Password Modal -->
+  <div class="pw-modal-overlay" id="pwModal">
+    <div class="pw-modal">
+      <h3>&#x1F511; Сменить пароль</h3>
+      <input type="password" id="pwCurrent" placeholder="Текущий пароль" autocomplete="current-password">
+      <input type="password" id="pwNew" placeholder="Новый пароль" autocomplete="new-password">
+      <input type="password" id="pwConfirm" placeholder="Подтвердите пароль" autocomplete="new-password">
+      <div class="pw-error" id="pwError"></div>
+      <div class="pw-success" id="pwSuccess"></div>
+      <div class="pw-modal-actions">
+        <button class="btn btn-secondary" id="pwCancel" type="button">Отмена</button>
+        <button class="btn btn-primary" id="pwSave" type="button">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="footer">
     <div class="footer-inner">
@@ -1363,66 +1523,269 @@
     (function () {
       'use strict';
 
-      /* ===== AUTH ===== */
-      var PORTAL_PASSWORD = 'Portal2025!';
+      /* ===== AUTH (JWT) ===== */
       var loginOverlay = document.getElementById('loginOverlay');
+      var loginUsername = document.getElementById('loginUsername');
       var loginPassword = document.getElementById('loginPassword');
       var loginBtn = document.getElementById('loginBtn');
       var loginError = document.getElementById('loginError');
-      var navLogout = document.getElementById('navLogout');
+      var profileMenu = document.getElementById('profileMenu');
+      var profileBtn = document.getElementById('profileBtn');
+      var profileDropdown = document.getElementById('profileDropdown');
+      var profileName = document.getElementById('profileName');
+      var logoutBtn = document.getElementById('logoutBtn');
+      var changePwBtn = document.getElementById('changePwBtn');
+      var pwModal = document.getElementById('pwModal');
+      var pwCurrent = document.getElementById('pwCurrent');
+      var pwNew = document.getElementById('pwNew');
+      var pwConfirm = document.getElementById('pwConfirm');
+      var pwError = document.getElementById('pwError');
+      var pwSuccess = document.getElementById('pwSuccess');
+      var pwCancel = document.getElementById('pwCancel');
+      var pwSave = document.getElementById('pwSave');
 
-      function isAuthenticated() {
-        return sessionStorage.getItem('portal_auth') === 'true';
+      function getToken() {
+        return localStorage.getItem('portal_token');
+      }
+
+      function setToken(token) {
+        localStorage.setItem('portal_token', token);
+      }
+
+      function removeToken() {
+        localStorage.removeItem('portal_token');
+      }
+
+      function authFetch(url, options) {
+        options = options || {};
+        options.headers = options.headers || {};
+        var token = getToken();
+        if (token) {
+          options.headers['Authorization'] = 'Bearer ' + token;
+        }
+        if (!options.headers['Content-Type'] && options.body) {
+          options.headers['Content-Type'] = 'application/json';
+        }
+        return fetch(url, options);
       }
 
       function showMainContent() {
         loginOverlay.classList.add('hidden');
-        if (navLogout) navLogout.classList.add('visible');
+        if (profileMenu) profileMenu.classList.add('visible');
         document.body.style.overflow = '';
       }
 
       function showLogin() {
         loginOverlay.classList.remove('hidden');
-        if (navLogout) navLogout.classList.remove('visible');
+        if (profileMenu) profileMenu.classList.remove('visible');
         document.body.style.overflow = 'hidden';
         loginPassword.value = '';
         loginError.classList.remove('visible');
+        loginError.textContent = '';
         loginPassword.classList.remove('error');
         loginPassword.focus();
       }
 
-      function attemptLogin() {
-        var pwd = loginPassword.value.trim();
-        if (pwd === PORTAL_PASSWORD) {
-          sessionStorage.setItem('portal_auth', 'true');
-          showMainContent();
-        } else {
+      async function attemptLogin() {
+        var username = loginUsername.value.trim();
+        var pwd = loginPassword.value;
+        if (!username || !pwd) {
+          loginError.textContent = 'Заполните все поля';
           loginError.classList.add('visible');
           loginPassword.classList.add('error');
-          loginPassword.value = '';
-          loginPassword.focus();
+          return;
+        }
+
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Вход...';
+        loginError.classList.remove('visible');
+        loginPassword.classList.remove('error');
+
+        try {
+          var res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, password: pwd })
+          });
+          var data = await res.json();
+
+          if (res.ok && data.token) {
+            setToken(data.token);
+            if (profileName) profileName.textContent = data.user.username;
+            showMainContent();
+          } else {
+            loginError.textContent = data.error || 'Ошибка входа';
+            loginError.classList.add('visible');
+            loginPassword.classList.add('error');
+            loginPassword.value = '';
+            loginPassword.focus();
+          }
+        } catch (e) {
+          loginError.textContent = 'Ошибка сети: ' + e.message;
+          loginError.classList.add('visible');
+        } finally {
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Войти';
         }
       }
 
       function logout() {
-        sessionStorage.removeItem('portal_auth');
+        removeToken();
         showLogin();
+        profileDropdown.classList.remove('open');
       }
 
+      // Profile dropdown toggle
+      if (profileBtn) {
+        profileBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          profileDropdown.classList.toggle('open');
+        });
+      }
+
+      // Close dropdown on outside click
+      document.addEventListener('click', function () {
+        if (profileDropdown) profileDropdown.classList.remove('open');
+      });
+
+      // Logout
+      if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+      // Change password
+      if (changePwBtn) {
+        changePwBtn.addEventListener('click', function () {
+          profileDropdown.classList.remove('open');
+          pwCurrent.value = '';
+          pwNew.value = '';
+          pwConfirm.value = '';
+          pwError.classList.remove('visible');
+          pwError.textContent = '';
+          pwSuccess.classList.remove('visible');
+          pwSuccess.textContent = '';
+          pwModal.classList.add('open');
+          pwCurrent.focus();
+        });
+      }
+
+      // Cancel password change
+      if (pwCancel) {
+        pwCancel.addEventListener('click', function () {
+          pwModal.classList.remove('open');
+        });
+      }
+
+      // Save password
+      if (pwSave) {
+        pwSave.addEventListener('click', async function () {
+          pwError.classList.remove('visible');
+          pwError.textContent = '';
+          pwSuccess.classList.remove('visible');
+          pwSuccess.textContent = '';
+
+          var current = pwCurrent.value;
+          var newPw = pwNew.value;
+          var confirm = pwConfirm.value;
+
+          if (!current || !newPw || !confirm) {
+            pwError.textContent = 'Заполните все поля';
+            pwError.classList.add('visible');
+            return;
+          }
+          if (newPw !== confirm) {
+            pwError.textContent = 'Пароли не совпадают';
+            pwError.classList.add('visible');
+            return;
+          }
+          if (newPw.length < 6) {
+            pwError.textContent = 'Пароль должен быть не менее 6 символов';
+            pwError.classList.add('visible');
+            return;
+          }
+
+          pwSave.disabled = true;
+          pwSave.textContent = 'Сохранение...';
+
+          try {
+            var res = await authFetch('/api/change-password', {
+              method: 'POST',
+              body: JSON.stringify({ currentPassword: current, newPassword: newPw })
+            });
+            var data = await res.json();
+
+            if (res.ok && data.ok) {
+              pwSuccess.textContent = 'Пароль изменён! Все сессии сброшены. Войдите заново.';
+              pwSuccess.classList.add('visible');
+              pwCurrent.value = '';
+              pwNew.value = '';
+              pwConfirm.value = '';
+              // Logout after password change
+              setTimeout(function () {
+                pwModal.classList.remove('open');
+                logout();
+              }, 2000);
+            } else {
+              pwError.textContent = data.error || 'Ошибка смены пароля';
+              pwError.classList.add('visible');
+            }
+          } catch (e) {
+            pwError.textContent = 'Ошибка сети: ' + e.message;
+            pwError.classList.add('visible');
+          } finally {
+            pwSave.disabled = false;
+            pwSave.textContent = 'Сохранить';
+          }
+        });
+      }
+
+      // Enter key in password modal
+      if (pwConfirm) {
+        pwConfirm.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') pwSave.click();
+        });
+      }
+      if (pwNew) {
+        pwNew.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') pwConfirm.focus();
+        });
+      }
+
+      // Close password modal on overlay click
+      if (pwModal) {
+        pwModal.addEventListener('click', function (e) {
+          if (e.target === pwModal) pwModal.classList.remove('open');
+        });
+      }
+
+      // Event listeners
       if (loginBtn) loginBtn.addEventListener('click', attemptLogin);
-      if (navLogout) navLogout.addEventListener('click', logout);
       if (loginPassword) {
-        loginPassword.addEventListener('keydown', function(e) {
+        loginPassword.addEventListener('keydown', function (e) {
           if (e.key === 'Enter') attemptLogin();
+        });
+      }
+      if (loginUsername) {
+        loginUsername.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') loginPassword.focus();
         });
       }
 
       // Check auth on load
-      if (!isAuthenticated()) {
+      (async function checkAuth() {
+        var token = getToken();
+        if (token) {
+          // Verify token is still valid
+          try {
+            var res = await authFetch('/api/me');
+            if (res.ok) {
+              var data = await res.json();
+              if (profileName) profileName.textContent = data.username;
+              showMainContent();
+              return;
+            }
+          } catch (e) { /* token invalid, fall through to login */ }
+        }
         showLogin();
-      } else {
-        showMainContent();
-      }
+      })();
 
       /* ===== Services data ===== */
       var services = [
@@ -1630,7 +1993,7 @@
       animateCounter(document.getElementById('statTotal'), services.length);
 
       /* ===== Load services from API ===== */
-      fetch('/api/data')
+      authFetch('/api/data')
         .then(function(r) { return r.json(); })
         .then(function(apiData) {
           if (apiData && apiData.services && apiData.services.length) {

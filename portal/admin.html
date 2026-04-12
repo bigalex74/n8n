@@ -254,9 +254,26 @@ const API = '/api';
 let data = { services: [], roadmap: [], notes: '' };
 let cliHistoryList = [];
 
-// ============ AUTH CHECK ============
+// ============ AUTH CHECK (JWT) ============
+function getToken() {
+  return localStorage.getItem('portal_token');
+}
+
+function authFetch(url, options) {
+  options = options || {};
+  options.headers = options.headers || {};
+  const token = getToken();
+  if (token) {
+    options.headers['Authorization'] = 'Bearer ' + token;
+  }
+  if (!options.headers['Content-Type'] && options.body) {
+    options.headers['Content-Type'] = 'application/json';
+  }
+  return fetch(url, options);
+}
+
 (function checkAuth() {
-  if (sessionStorage.getItem('portal_auth') !== 'true') {
+  if (!getToken()) {
     window.location.href = '/';
     return;
   }
@@ -283,7 +300,7 @@ function setupTabs() {
 // ============ DATA ============
 async function loadData() {
   try {
-    const res = await fetch(API + '/data');
+    const res = await authFetch(API + '/data');
     data = await res.json();
     renderServices();
     renderRoadmap();
@@ -294,9 +311,8 @@ async function loadData() {
 
 async function saveData() {
   try {
-    const res = await fetch(API + '/data', {
+    const res = await authFetch(API + '/data', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
     const r = await res.json();
@@ -485,9 +501,8 @@ async function runCli() {
   renderCliHistory();
 
   try {
-    const res = await fetch(API + '/cli', {
+    const res = await authFetch(API + '/cli', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ command, tool })
     });
     const result = await res.json();
@@ -528,7 +543,7 @@ async function checkHealth() {
   const grid = document.getElementById('healthGrid');
   grid.innerHTML = '<div class="loading"><div class="spinner"></div><br>Проверка...</div>';
   try {
-    const res = await fetch(API + '/health');
+    const res = await authFetch(API + '/health');
     const results = await res.json();
     grid.innerHTML = results.map(r =>
       `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;">

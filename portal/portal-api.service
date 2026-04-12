@@ -1,0 +1,16 @@
+[Unit]
+Description=Portal API Server
+After=network.target
+
+[Service]
+Type=simple
+User=user
+WorkingDirectory=/home/user/n8n-docker/portal
+ExecStart=/home/user/.nvm/versions/node/v24.14.0/bin/node /home/user/n8n-docker/portal/server.js
+Restart=always
+RestartSec=5
+Environment=PATH=/home/user/.nvm/versions/node/v24.14.0/bin:/home/user/.local/bin:/usr/bin:/bin
+Environment=ADMIN_USERNAME=bigalex
+
+[Install]
+WantedBy=multi-user.target
