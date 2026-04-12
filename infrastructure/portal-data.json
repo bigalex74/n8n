@@ -1,0 +1,238 @@
+{
+  "categories": [
+    {
+      "id": "main",
+      "name": "Основные приложения",
+      "icon": "🚀",
+      "order": 1
+    },
+    {
+      "id": "monitoring",
+      "name": "Мониторинг",
+      "icon": "📊",
+      "order": 2
+    },
+    {
+      "id": "devops",
+      "name": "DevOps",
+      "icon": "⚙️",
+      "order": 3
+    },
+    {
+      "id": "data",
+      "name": "AI & Данные",
+      "icon": "🧠",
+      "order": 4
+    },
+    {
+      "id": "tools",
+      "name": "Инструменты",
+      "icon": "🛠️",
+      "order": 5
+    }
+  ],
+  "services": [
+    {
+      "id": "n8n",
+      "name": "n8n",
+      "domain": "bigalexn8n.ru",
+      "url": "https://bigalexn8n.ru",
+      "port": 5678,
+      "auth": "none",
+      "icon": "🤖",
+      "category": "main",
+      "desc": "Главная платформа автоматизации. Telegram-бот, AI workflows, интеграции"
+    },
+    {
+      "id": "openwebui",
+      "name": "Open WebUI",
+      "domain": "ai.bigalexn8n.ru",
+      "url": "https://ai.bigalexn8n.ru",
+      "port": 8080,
+      "auth": "none",
+      "icon": "🧠",
+      "category": "main",
+      "desc": "Веб-интерфейс для локальных AI-моделей через Ollama"
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama API",
+      "domain": "ollama.bigalexn8n.ru",
+      "url": "https://ollama.bigalexn8n.ru",
+      "port": 11434,
+      "auth": "basic",
+      "icon": "⚙️",
+      "category": "data",
+      "desc": "Локальный AI API-сервер для запуска LLM-моделей"
+    },
+    {
+      "id": "appshub",
+      "name": "Apps Hub",
+      "domain": "apps.bigalexn8n.ru",
+      "url": "https://apps.bigalexn8n.ru",
+      "port": 8000,
+      "auth": "none",
+      "icon": "📥",
+      "category": "main",
+      "desc": "Хаб приложений — FastAPI микросервисы + Telegram интеграции"
+    },
+    {
+      "id": "grafana",
+      "name": "Grafana",
+      "domain": "grafana.bigalexn8n.ru",
+      "url": "https://grafana.bigalexn8n.ru",
+      "port": 3000,
+      "auth": "none",
+      "icon": "📈",
+      "category": "monitoring",
+      "desc": "Дашборды мониторинга, алерты, визуализация метрик"
+    },
+    {
+      "id": "prometheus",
+      "name": "Prometheus",
+      "domain": "prometheus.bigalexn8n.ru",
+      "url": "https://prometheus.bigalexn8n.ru",
+      "port": 9090,
+      "auth": "none",
+      "icon": "🔥",
+      "category": "monitoring",
+      "desc": "Сбор и хранение метрик — system, Postgres, n8n"
+    },
+    {
+      "id": "portainer",
+      "name": "Portainer",
+      "domain": "docker.bigalexn8n.ru",
+      "url": "https://docker.bigalexn8n.ru",
+      "port": 9000,
+      "auth": "none",
+      "icon": "🐳",
+      "category": "devops",
+      "desc": "Управление Docker-контейнерами через UI"
+    },
+    {
+      "id": "crontab",
+      "name": "Crontab UI",
+      "domain": "cron.bigalexn8n.ru",
+      "url": "https://cron.bigalexn8n.ru",
+      "port": 8001,
+      "auth": "basic",
+      "icon": "⏰",
+      "category": "devops",
+      "desc": "Управление cron-задачами — автобэкапы каждые 4ч"
+    },
+    {
+      "id": "drawio",
+      "name": "Draw.io",
+      "domain": "draw.bigalexn8n.ru",
+      "url": "https://draw.bigalexn8n.ru",
+      "port": 24700,
+      "auth": "none",
+      "icon": "📌",
+      "category": "devops",
+      "desc": "Редактор диаграмм и схем"
+    },
+    {
+      "id": "pgadmin",
+      "name": "pgAdmin 4",
+      "domain": "pgadmin.bigalexn8n.ru",
+      "url": "https://pgadmin.bigalexn8n.ru",
+      "port": 5055,
+      "auth": "none",
+      "icon": "🐘",
+      "category": "data",
+      "desc": "Управление PostgreSQL — база данных n8n"
+    },
+    {
+      "id": "lightrag",
+      "name": "LightRAG",
+      "domain": "lightrag.bigalexn8n.ru",
+      "url": "https://lightrag.bigalexn8n.ru",
+      "port": 9621,
+      "auth": "none",
+      "icon": "📚",
+      "category": "data",
+      "desc": "RAG-система — AI knowledge base с retrieval"
+    },
+    {
+      "id": "searxng",
+      "name": "SearXNG",
+      "domain": "search.bigalexn8n.ru",
+      "url": "https://search.bigalexn8n.ru",
+      "port": 8888,
+      "auth": "basic",
+      "icon": "🔍",
+      "category": "tools",
+      "desc": "Приватный метапоисковик"
+    },
+    {
+      "id": "firecrawl",
+      "name": "Firecrawl",
+      "domain": "firecrawl.bigalexn8n.ru",
+      "url": "https://firecrawl.bigalexn8n.ru",
+      "port": 3002,
+      "auth": "basic",
+      "icon": "🕸️",
+      "category": "tools",
+      "desc": "Web scraping и crawling API для AI"
+    }
+  ],
+  "roadmap": [
+    {
+      "id": "r1",
+      "title": "Qwen Code MCP интеграция",
+      "desc": "n8n-mcp + grafana-mcp для AI-управления",
+      "status": "active",
+      "order": 1
+    },
+    {
+      "id": "r2",
+      "title": "Telegram бот v2",
+      "desc": "FSM состояния, Mini App, улучшенная архитектура",
+      "status": "planned",
+      "order": 2
+    },
+    {
+      "id": "r3",
+      "title": "Перевод книг",
+      "desc": "PDF → OCR → перевод → публикация",
+      "status": "planned",
+      "order": 3
+    },
+    {
+      "id": "r4",
+      "title": "RAG knowledge base",
+      "desc": "LightRAG для всей документации",
+      "status": "planned",
+      "order": 4
+    },
+    {
+      "id": "r5",
+      "title": "CI/CD pipeline",
+      "desc": "Автодеплой из Git при пуше",
+      "status": "planned",
+      "order": 5
+    },
+    {
+      "id": "r6",
+      "title": "Home Dashboard",
+      "desc": "Единый дашборд мониторинга",
+      "status": "planned",
+      "order": 6
+    },
+    {
+      "id": "r7",
+      "title": "Firecrawl production",
+      "desc": "Веб-скрапинг для n8n workflows",
+      "status": "planned",
+      "order": 7
+    },
+    {
+      "id": "r8",
+      "title": "Security hardening",
+      "desc": "Rate limiting, fail2ban, audit logs",
+      "status": "planned",
+      "order": 8
+    }
+  ],
+  "notes": ""
+}

@@ -111,6 +111,13 @@
       font-size: 0.95rem;
       font-weight: 700;
     }
+    .group-icon { font-size: 1.2rem; }
+    .group-name {
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: background 150ms;
+    }
+    .group-name:hover { background: rgba(88,166,255,0.1); }
     .svc-group-count {
       font-size: 0.7rem;
       background: var(--bg);
@@ -342,6 +349,19 @@
   </div>
 </div>
 
+<!-- CATEGORY MODAL -->
+<div class="modal-overlay" id="categoryModal">
+  <div class="modal">
+    <h3>Новая группа</h3>
+    <div class="form-group"><label>Название</label><input id="catName" placeholder="Мои сервисы"></div>
+    <div class="form-group"><label>Иконка (emoji)</label><input id="catIcon" placeholder="📁" maxlength="4"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('categoryModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveCategory()">Создать</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -393,10 +413,16 @@ function setupTabs() {
 }
 
 // ============ DATA ============
+let categories = [];
+
 async function loadData() {
   try {
-    const res = await authFetch(API + '/data');
-    data = await res.json();
+    const [dataRes, catsRes] = await Promise.all([
+      authFetch(API + '/data'),
+      authFetch(API + '/categories')
+    ]);
+    data = await dataRes.json();
+    categories = await catsRes.json();
     renderServices();
     renderRoadmap();
     initSortableGroups();
@@ -416,26 +442,37 @@ async function saveData() {
   } catch (e) { showToast('Ошибка сохранения: ' + e.message, 'error'); }
 }
 
-// ============ SERVICES (DRAG & DROP) ============
+// ============ SERVICES (DRAG & DROP + DYNAMIC CATEGORIES) ============
 function renderServices() {
-  const cats = {
-    main: { icon: '🚀', title: 'Основные приложения' },
-    monitoring: { icon: '📊', title: 'Мониторинг & Observability' },
-    devops: { icon: '⚙️', title: 'DevOps & Управление' },
-    data: { icon: '🧠', title: 'AI & Данные' },
-    tools: { icon: '🛠️', title: 'Инструменты' }
-  };
+  const cats = categories.length ? [...categories].sort((a, b) => (a.order || 0) - (b.order || 0))
+    : [
+        { id: 'main', name: 'Основные приложения', icon: '🚀' },
+        { id: 'monitoring', name: 'Мониторинг', icon: '📊' },
+        { id: 'devops', name: 'DevOps', icon: '⚙️' },
+        { id: 'data', name: 'AI & Данные', icon: '🧠' },
+        { id: 'tools', name: 'Инструменты', icon: '🛠️' }
+      ];
 
   let html = '<div class="svc-groups">';
 
-  for (const [catKey, catInfo] of Object.entries(cats)) {
-    const items = data.services.filter(s => s.category === catKey);
-    html += `<div class="svc-group" data-category="${catKey}">`;
+  for (const cat of cats) {
+    const items = data.services.filter(s => s.category === cat.id);
+    html += `<div class="svc-group" data-category="${cat.id}">`;
     html += `<div class="svc-group-header">`;
-    html += `<div class="svc-group-title"><span>${catInfo.icon}</span><span>${catInfo.title}</span><span class="svc-group-count">${items.length}</span></div>`;
-    html += `<span class="svc-group-hint">↕ перетащите сюда</span>`;
+    html += `<div class="svc-group-title">`;
+    html += `<span class="group-icon">${cat.icon || '📁'}</span>`;
+    // Clickable name for inline editing
+    html += `<span class="group-name" data-id="${cat.id}" title="Нажми для переименования">${esc(cat.name)}</span>`;
+    html += `<span class="svc-group-count">${items.length}</span>`;
     html += `</div>`;
-    html += `<div class="svc-group-list" id="group-${catKey}">`;
+    html += `<div style="display:flex;align-items:center;gap:6px;">`;
+    html += `<span class="svc-group-hint">↕ drag & drop</span>`;
+    // Delete button (only if more than 1 category)
+    if (cats.length > 1) {
+      html += `<button class="btn btn-sm btn-danger" onclick="deleteCategory('${cat.id}')" title="Удалить группу">🗑️</button>`;
+    }
+    html += `</div></div>`;
+    html += `<div class="svc-group-list" id="group-${cat.id}">`;
 
     items.forEach(svc => {
       const authBadge = svc.auth === 'none'
@@ -456,8 +493,19 @@ function renderServices() {
     html += '</div></div>';
   }
 
+  // "Add Group" button
+  html += `<div style="text-align:center;padding:16px;">`;
+  html += `<button class="btn" onclick="openCategoryModal()" style="border-style:dashed;">+ Добавить группу</button>`;
+  html += `</div>`;
+
   html += '</div>';
   document.getElementById('servicesContainer').innerHTML = html;
+
+  // Setup inline rename on group names
+  document.querySelectorAll('.group-name').forEach(el => {
+    el.addEventListener('click', () => startInlineRename(el));
+    el.style.cursor = 'pointer';
+  });
 }
 
 function openServiceModal(id) {
@@ -537,6 +585,112 @@ async function deleteService(id) {
       renderServices();
       initSortableGroups();
       showToast('Сервис удалён', 'success');
+    }
+  } catch (e) { showToast('Ошибка: ' + e.message, 'error'); }
+}
+
+// ============ CATEGORY CRUD ============
+
+// Inline rename on click
+function startInlineRename(el) {
+  if (el.querySelector('input')) return; // already editing
+  const catId = el.dataset.id;
+  const currentName = el.textContent.trim();
+  const cat = categories.find(c => c.id === catId);
+  if (!cat) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentName;
+  input.style.cssText = `background:var(--bg);border:1px solid var(--blue);border-radius:4px;color:var(--text);
+    font-size:0.95rem;font-weight:700;padding:2px 8px;width:200px;font-family:inherit;`;
+
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+
+  const save = async () => {
+    const newName = input.value.trim();
+    if (!newName || newName === currentName) {
+      renderServices();
+      initSortableGroups();
+      return;
+    }
+    try {
+      const res = await authFetch(`${API}/categories/${catId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: newName })
+      });
+      if (res.ok) {
+        const result = await res.json();
+        const idx = categories.findIndex(c => c.id === catId);
+        if (idx !== -1) categories[idx] = result;
+        showToast('Группа переименована', 'success');
+      } else if (res.status === 409) {
+        showToast('Группа с таким именем уже есть', 'error');
+      }
+    } catch (e) { showToast('Ошибка: ' + e.message, 'error'); }
+    renderServices();
+    initSortableGroups();
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { input.blur(); }
+    if (e.key === 'Escape') { input.value = currentName; input.blur(); }
+  });
+}
+
+// Delete category
+async function deleteCategory(catId) {
+  const cat = categories.find(c => c.id === catId);
+  const svcCount = data.services.filter(s => s.category === catId).length;
+  const msg = svcCount > 0
+    ? `Удалить группу «${cat.name}»? ${svcCount} сервис(ов) будут перемещены в другую группу.`
+    : `Удалить группу «${cat.name}»?`;
+
+  if (!confirm(msg)) return;
+
+  try {
+    const res = await authFetch(`${API}/categories/${catId}`, { method: 'DELETE' });
+    if (res.ok) {
+      categories = categories.filter(c => c.id !== catId);
+      renderServices();
+      initSortableGroups();
+      showToast('Группа удалена', 'success');
+    }
+  } catch (e) { showToast('Ошибка: ' + e.message, 'error'); }
+}
+
+// Create category modal
+function openCategoryModal() {
+  const overlay = document.getElementById('categoryModal');
+  document.getElementById('catName').value = '';
+  document.getElementById('catIcon').value = '📁';
+  overlay.classList.add('open');
+  setTimeout(() => document.getElementById('catName').focus(), 100);
+}
+
+async function saveCategory() {
+  const name = document.getElementById('catName').value.trim();
+  const icon = document.getElementById('catIcon').value.trim() || '📁';
+  if (!name) { showToast('Название группы обязательно', 'error'); return; }
+
+  try {
+    const res = await authFetch(`${API}/categories`, {
+      method: 'POST',
+      body: JSON.stringify({ name, icon })
+    });
+    if (res.ok) {
+      const cat = await res.json();
+      categories.push(cat);
+      closeModal('categoryModal');
+      renderServices();
+      initSortableGroups();
+      showToast('Группа создана', 'success');
+    } else if (res.status === 409) {
+      showToast('Группа с таким именем уже есть', 'error');
     }
   } catch (e) { showToast('Ошибка: ' + e.message, 'error'); }
 }
@@ -737,13 +891,14 @@ function initSortableGroups() {
   Object.values(sortInstances).forEach(inst => inst.destroy());
   sortInstances = {};
 
-  const cats = ['main', 'monitoring', 'devops', 'data', 'tools'];
+  const catIds = categories.length ? categories.map(c => c.id)
+    : ['main', 'monitoring', 'devops', 'data', 'tools'];
 
-  cats.forEach(cat => {
-    const el = document.getElementById('group-' + cat);
+  catIds.forEach(catId => {
+    const el = document.getElementById('group-' + catId);
     if (!el) return;
 
-    sortInstances[cat] = new Sortable(el, {
+    sortInstances[catId] = new Sortable(el, {
       group: 'services',
       animation: 150,
       ghostClass: 'sortable-ghost',

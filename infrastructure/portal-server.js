@@ -464,6 +464,93 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify(results));
   }
 
+  // ============ CATEGORY CRUD ============
+
+  // GET /api/categories (public)
+  if ((pathname === '/api/categories' || pathname === '/api/categories/') && req.method === 'GET') {
+    const data = loadData();
+    const cats = (data.categories || []).sort((a, b) => (a.order || 0) - (b.order || 0));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(cats));
+  }
+
+  // POST /api/categories — create category (JWT required)
+  if (pathname === '/api/categories' && req.method === 'POST') {
+    if (!authenticateJWT(req, res)) return;
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const data = loadData();
+        if (!data.categories) data.categories = [];
+        const cat = JSON.parse(body);
+        cat.id = cat.id || `cat-${Date.now()}`;
+        cat.order = data.categories.length + 1;
+        data.categories.push(cat);
+        saveData(data);
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(cat));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // PUT /api/categories/:id — update category (JWT required)
+  if (pathname.match(/^\/api\/categories\/[\w-]+$/) && req.method === 'PUT') {
+    if (!authenticateJWT(req, res)) return;
+    const id = pathname.split('/').pop();
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const data = loadData();
+        const idx = (data.categories || []).findIndex(c => c.id === id);
+        if (idx === -1) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Category not found' }));
+        }
+        // Check for duplicate name
+        const newName = JSON.parse(body).name;
+        if (newName && data.categories.some((c, i) => i !== idx && c.name === newName)) {
+          res.writeHead(409, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Category with this name already exists' }));
+        }
+        data.categories[idx] = { ...data.categories[idx], ...JSON.parse(body) };
+        saveData(data);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data.categories[idx]));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // DELETE /api/categories/:id — delete category (JWT required)
+  if (pathname.match(/^\/api\/categories\/[\w-]+$/) && req.method === 'DELETE') {
+    if (!authenticateJWT(req, res)) return;
+    const id = pathname.split('/').pop();
+    const data = loadData();
+    const catIdx = (data.categories || []).findIndex(c => c.id === id);
+    if (catIdx === -1) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Category not found' }));
+    }
+    // Move services to first available category or 'uncategorized'
+    const fallbackCat = data.categories.find(c => c.id !== id)?.id || 'uncategorized';
+    data.services.forEach(svc => {
+      if (svc.category === id) svc.category = fallbackCat;
+    });
+    data.categories.splice(catIdx, 1);
+    saveData(data);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, fallbackCategory: fallbackCat }));
+  }
+
   // ---- Static files ----
 
   // Serve files
