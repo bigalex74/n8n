@@ -12,7 +12,7 @@ if ! command -v git &> /dev/null; then
 fi
 
 # SSH config workaround (owned by user, run as root in container)
-export GIT_SSH_COMMAND="ssh -i /home/user/.ssh/id_ed25519_n8n -F /dev/null -o StrictHostKeyChecking=no"
+export GIT_SSH_COMMAND="ssh -i /root/.ssh/id_ed25519_n8n -F /dev/null -o StrictHostKeyChecking=no"
 
 REPO_DIR="/home/user/n8n-backups"
 N8N_CONTAINER="n8n-docker-n8n-1"
