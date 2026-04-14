@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Orzc0j86lhdRL77g4hqDdV8pnOpFTpEHlK0VVNjQDFP646R4AdHn9ydTBebTZhD
+\restrict 8EaQEoSBodSoyhVhNb8PhePQQAsYWxX8dEa8s0mzmdTQgCeDngPP6dF8L7XiLud
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -36,11 +36,12 @@ INSERT INTO public.credentials_entity VALUES ('Ollama account', 'U2FsdGVkX19Wt9o
 INSERT INTO public.credentials_entity VALUES ('Google Drive account', 'U2FsdGVkX1+YE2c7gqM2Cu5Hies8A0zH5oj3meTvsiitHeqiOIouJ/Xk886s06dDy2Ji+wch2SRocz1l1Q3SlCdq8BT/4b0NzlNfuVVvsVDrF0OLw+xCb8tYIjbF7d5NzZhmPx5e2qvkqiUHLoUHqaUAFHHxdTogrGm2c7S6ngaXlX60bkgUl5lC0Zk38LCn0zeh9l6vtOjRKjRWfAuESTM/NFN+LoF7aidmstH/lgBV0yrFiJCFeeD43iZmZXgpCj7bVj4hu1k5THZRvRlX6XlfbqC+pYTiyJctrzc9g8VXXY6cs0L5HQNRjfbvsjPZtuZussKG+Rj6iIQiExSgEbX3r5QdpBijrjAdZzXLNSbAOcqjnF/p3BA8zPnM/kFBQHNJgMLYuvJHJID29NHM+BnnoZnXdqfKJbrA3y5ygKeJ7yzxow7cyWzCf6oT8kpb2pNTz8v8zFdZGRQH8vAjACUmPJ0GtHevQmOOiUbme+PmJ/6Zbh5xhEfaeli5mmrFXQ7xEJLSHcxz4JEasVc9DgU6i7E8nhrn87FFMbPfV4Xd+blDj173fj3wak5Xr5qbd+septkygvXfyhxCLCVoLh4PNKsfOU/sGM14neLXBGi1ycnY7cPqb9Q0MulxSZJdViVthoOqCe478g4uk8opN3oHz2bd1zCSSSMdCzsm7PsD7Bttu1sinX/uQ5QsI9vhJcAujGFXrTwFNuLkJ53hYYROeG6JvsGsYoYqCHVlhoZ3+183iBAUm/V3DiRpZOW0dV0H73XwUkJm7CNm6YloKPGLptjx/SK0nGwsFW7qJHHARY0S7rn4ei11zwkN1y3b/xtaxLfzBCx98TbcYshCF12B0n1aX9lfPAnw+YQBSqMepw91Md/F3dK0X/jJgajSbWtuCoKj7AwgiPmDv2V7LGvHIOXAzJZgggG0fxtHr8BajL/2jzbcd52NfBMhUrZSrm8fBljGsaxiLL5Ou9Qc8MZwO7IDDYJ7k4KsdnS2flzVyfebVoMRJU7eSOhJbbMNDxFXHr+RX9zeX0sK2VHKCWb0IDQdUGKbBPcd34MmUgHnkNiRbBznuu5TXHu7HPO6sVfq6Fg0U67iREwcxLD0COv+8NEL7NDz1FJII7QbuTymBz6wpzYj6z1Ufz+4topZYXzSJY6GLENwvdt5FuSSjkJyH8ciWkLud2grtdCvCogtB0dXCjSqUSn3cwtrmyh6BmrBZNZZs6kv8NSU7727w25WklyD3UV4n07YrqEV0xUcQnN82QXtHTfnSHRKzBE09OUddG0QWnq135tRxzyNaw==', 'googleDriveOAuth2Api', '2026-02-11 06:20:44.587+00', '2026-04-11 19:26:11.589+00', 'OfjqR7v8bwrPeQgK', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Ollama Local', 'U2FsdGVkX19y+lVhjjlr/QFFjkFm1VjvimcR8rLetV16dP7XDrLZ/CWx+hRn4MqIgspnPctodldU/lm/XspaAQ==', 'ollamaApi', '2026-04-12 17:23:26.61+00', '2026-04-12 17:23:26.61+00', 'j0V93P3JQ2OxewHn', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Ollama', 'U2FsdGVkX19YU+hzXD/Gnq956iQOO6JKl49BKv444ItdD8YS7xaCHPbhstoZhU+MTivEyTgfdpHV90M4+daytR/gKCF/VVEG3MwSiAVJJYjeRRDCWdynuW6AcaTTOauc', 'openAiApi', '2026-04-12 18:56:43.892+00', '2026-04-12 18:56:43.892+00', 'JD2Nq8h0kULY7Ly3', false, false, false, false, NULL);
+INSERT INTO public.credentials_entity VALUES ('Ollama Test', 'U2FsdGVkX19YuGNeiMT1yseT7J4Aiekk1TF8f+6SiZupDPUXOvUtxdvtCdF9O4XGsii+DfOxhGNckk8K97vPQwwNlw1b598ZUUdZ6SIIQ6lcdW/U1NkVx5KlDWCKhNmy', 'openAiApi', '2026-04-14 18:29:35.871+00', '2026-04-14 18:29:35.871+00', 'UxOmwr19QNzUZL9q', false, false, false, false, NULL);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Orzc0j86lhdRL77g4hqDdV8pnOpFTpEHlK0VVNjQDFP646R4AdHn9ydTBebTZhD
+\unrestrict 8EaQEoSBodSoyhVhNb8PhePQQAsYWxX8dEa8s0mzmdTQgCeDngPP6dF8L7XiLud
 

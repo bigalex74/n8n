@@ -71,19 +71,25 @@ log "📦 Branch: $BRANCH_NAME"
 # 2. Export workflows
 log "📦 Exporting workflows..."
 rm -rf workflows/*.json
+# Fetch workflow list and parse correctly (handling spaces in names)
 docker exec "$N8N_CONTAINER" n8n list:workflow > /tmp/wf_list.txt 2>/dev/null
 
 if [ -s /tmp/wf_list.txt ]; then
-    while IFS='|' read -r WF_ID WF_NAME || [ -n "$WF_ID" ]; do
-        WF_ID=$(echo "$WF_ID" | tr -d ' \r\n')
-        WF_NAME=$(echo "$WF_NAME" | tr -d '\r\n' | sed 's/[ /]/_/g')
+    # Parse lines like "ID|Name" or "ID Name"
+    while read -r line; do
+        # Extract ID (first part before space or |)
+        WF_ID=$(echo "$line" | awk -F'[ |]' '{print $1}')
+        # Extract Name (everything after the first separator)
+        WF_NAME=$(echo "$line" | sed -E 's/^[^ |]+[ |]//' | tr -d '\r\n' | sed 's/[ /]/_/g' | sed 's/[^a-zA-Z0-9_-]/_/g')
+        
         if [ -n "$WF_ID" ] && [ -n "$WF_NAME" ]; then
+            log "  + Exporting: $WF_NAME ($WF_ID)"
             docker exec "$N8N_CONTAINER" n8n export:workflow --id="$WF_ID" > "workflows/${WF_NAME}.json" 2>/dev/null || true
         fi
     done < /tmp/wf_list.txt
     log "✅ Exported $(ls workflows/*.json 2>/dev/null | wc -l) workflows"
 else
-    log "⚠️ Failed to list workflows"
+    log "⚠️ Failed to list workflows (empty list)"
 fi
 docker exec "$N8N_CONTAINER" n8n export:credentials --all --decrypted=false > credentials/all_credentials_meta.json 2>/dev/null || true
 
