@@ -70,24 +70,24 @@ log "📦 Branch: $BRANCH_NAME"
 
 # 2. Export workflows
 log "📦 Exporting workflows..."
-rm -rf workflows/*.json
-# Fetch workflow list and parse correctly (handling spaces in names)
+mkdir -p "$REPO_DIR/workflows"
+rm -rf "$REPO_DIR/workflows"/*.json
+# Fetch workflow list and parse correctly
 docker exec "$N8N_CONTAINER" n8n list:workflow > /tmp/wf_list.txt 2>/dev/null
 
 if [ -s /tmp/wf_list.txt ]; then
-    # Parse lines like "ID|Name" or "ID Name"
     while read -r line; do
-        # Extract ID (first part before space or |)
         WF_ID=$(echo "$line" | awk -F'[ |]' '{print $1}')
-        # Extract Name (everything after the first separator)
+        # Clean name: remove special chars, replace spaces with underscores
         WF_NAME=$(echo "$line" | sed -E 's/^[^ |]+[ |]//' | tr -d '\r\n' | sed 's/[ /]/_/g' | sed 's/[^a-zA-Z0-9_-]/_/g')
         
         if [ -n "$WF_ID" ] && [ -n "$WF_NAME" ]; then
             log "  + Exporting: $WF_NAME ($WF_ID)"
-            docker exec "$N8N_CONTAINER" n8n export:workflow --id="$WF_ID" > "workflows/${WF_NAME}.json" 2>/dev/null || true
+            # Use absolute path for output redirection
+            docker exec "$N8N_CONTAINER" n8n export:workflow --id="$WF_ID" > "$REPO_DIR/workflows/${WF_NAME}.json" 2>/dev/null || true
         fi
     done < /tmp/wf_list.txt
-    log "✅ Exported $(ls workflows/*.json 2>/dev/null | wc -l) workflows"
+    log "✅ Exported $(ls "$REPO_DIR/workflows"/*.json 2>/dev/null | wc -l) workflows"
 else
     log "⚠️ Failed to list workflows (empty list)"
 fi
