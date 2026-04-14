@@ -45,11 +45,15 @@ git checkout master 2>/dev/null
 # Abort any in-progress rebase/merge
 git rebase --abort 2>/dev/null || true
 git merge --abort 2>/dev/null || true
-# Stash only tracked files that might have local changes
-git stash push -m "auto-stash before sync" 2>/dev/null || true
+# Ensure sync.log is tracked but not stashed (it's in .gitignore now but may be cached)
+git rm --cached sync.log 2>/dev/null || true
+# Stash tracked files that might have local changes (exclude sync.log)
+git stash push -m "auto-stash before sync" -- $(git ls-files | grep -v sync.log) 2>/dev/null || true
 git pull origin master || {
     log "❌ Cannot pull from remote"; exit 1
 }
+# Restore sync.log as empty if it doesn't exist
+touch "$LOG_FILE"
 
 # 1. Branch number
 LAST_NUM=$(cat .last_branch_number 2>/dev/null || echo "0")
@@ -214,18 +218,21 @@ git push origin "$BRANCH_NAME"
 # 8. Merge to master - PULL FIRST!
 log "🔀 Merging to master..."
 
-# Stash local changes (sync.log etc)
-git stash 2>/dev/null || true
+# Stash local changes (exclude sync.log)
+git stash push -m "auto-stash before merge" -- $(git ls-files | grep -v sync.log) 2>/dev/null || true
 
 git checkout master
-git stash; git pull origin master; git stash pop
+# Abort any in-progress rebase/merge
+git rebase --abort 2>/dev/null || true
+git merge --abort 2>/dev/null || true
+git pull origin master || { log "❌ Cannot pull master"; exit 1; }
 
 # Resolve conflicts by taking ours (latest backup data)
-git merge "$BRANCH_NAME" --no-ff -m "Merge branch '$BRANCH_NAME'" 2>/dev/null
+git merge "$BRANCH_NAME" --no-ff -m "Merge branch '$BRANCH_NAME'" --strategy-option ours 2>/dev/null
 if [ $? -ne 0 ]; then
     log "⚠️ Merge conflicts detected, resolving..."
     git checkout --ours .
-    git add .
+    git add -A
     git commit -m "Merge branch '$BRANCH_NAME' (resolved conflicts)" 2>/dev/null || true
 fi
 
