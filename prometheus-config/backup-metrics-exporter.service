@@ -1,0 +1,14 @@
+[Unit]
+Description=Backup Metrics Prometheus Exporter
+After=network.target
+
+[Service]
+Type=simple
+User=user
+ExecStart=/usr/bin/python3 /home/user/n8n-docker/prometheus/backup_metrics.py --port 9199
+Restart=always
+RestartSec=10
+Environment=BACKUP_METRICS_PORT=9199
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,199 @@
+groups:
+  # ============================================================
+  # Critical alerts — immediate notification
+  # ============================================================
+  - name: pipeline-critical
+    interval: 30s
+    rules:
+      # Ollama API недоступна
+      - alert: OllamaAPIDown
+        expr: probe_success{job="ollama-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: ollama
+        annotations:
+          summary: "Ollama API не отвечает более 2 минут"
+          value: "{{ $value }}"
+          dashboard_url: "https://bigalexn8n.ru:3000/d/translation-pipeline"
+
+      # LightRAG API недоступен
+      - alert: LightRAGAPIDown
+        expr: probe_success{job="lightrag-health"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: lightrag
+        annotations:
+          summary: "LightRAG API не отвечает более 1 минуты"
+          value: "{{ $value }}"
+          dashboard_url: "https://bigalexn8n.ru:3000/d/translation-pipeline"
+
+      # PostgreSQL connections exhaustion
+      - alert: PostgreSQLConnectionsHigh
+        expr: pg_stat_activity_count / pg_settings_max_connections > 0.8
+        for: 2m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL connections > 80%"
+          value: "{{ $value | humanizePercentage }}"
+          dashboard_url: "https://bigalexn8n.ru:3000/d/translation-pipeline"
+
+      # n8n process down
+      - alert: N8NProcessDown
+        expr: up{job="n8n"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: n8n
+        annotations:
+          summary: "n8n процесс не отвечает"
+          dashboard_url: "https://bigalexn8n.ru:3000/d/translation-pipeline"
+
+  # ============================================================
+  # Warning alerts — notification, no immediate action
+  # ============================================================
+  - name: pipeline-warnings
+    interval: 1m
+    rules:
+      # High error rate
+      - alert: PipelineHighErrorRate
+        expr: |
+          sum(rate(n8n_workflow_errors_total[5m]))
+          /
+          sum(rate(n8n_workflow_executions_total[5m]))
+          > 0.15
+        for: 5m
+        labels:
+          severity: warning
+          service: pipeline
+        annotations:
+          summary: "Error rate > 15% за последние 5 минут"
+          value: "{{ $value | humanizePercentage }}"
+
+      # High latency
+      - alert: PipelineHighLatency
+        expr: histogram_quantile(0.95, rate(n8n_workflow_duration_seconds_bucket[10m])) > 30
+        for: 10m
+        labels:
+          severity: warning
+          service: pipeline
+        annotations:
+          summary: "P95 latency > 30s за последние 10 минут"
+          value: "{{ $value }}s"
+
+      # Ollama response time degradation
+      - alert: OllamaLatencyHigh
+        expr: histogram_quantile(0.95, rate(ollama_request_duration_seconds_bucket[5m])) > 60
+        for: 5m
+        labels:
+          severity: warning
+          service: ollama
+        annotations:
+          summary: "Ollama P95 latency > 60s"
+          value: "{{ $value }}s"
+
+      # LightRAG response time degradation
+      - alert: LightRAGLatencyHigh
+        expr: histogram_quantile(0.95, rate(lightrag_request_duration_seconds_bucket[5m])) > 15
+        for: 5m
+        labels:
+          severity: warning
+          service: lightrag
+        annotations:
+          summary: "LightRAG P95 latency > 15s"
+          value: "{{ $value }}s"
+
+      # Dead Letter Queue growing
+      - alert: DLQSizeGrowing
+        expr: dlq_pending_tasks > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: pipeline
+        annotations:
+          summary: "Dead Letter Queue size > 10 pending tasks"
+          value: "{{ $value }}"
+
+      # Circuit breaker opened
+      - alert: CircuitBreakerOpened
+        expr: circuit_breaker_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: warning
+          service: circuit-breaker
+        annotations:
+          summary: "Circuit breaker opened for {{ $labels.service }}"
+          dashboard_url: "https://bigalexn8n.ru:3000/d/translation-pipeline"
+
+      # Disk usage high
+      - alert: DiskUsageHigh
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Disk usage > 85% on /"
+          value: "{{ $value | humanizePercentage }}"
+
+      # Memory usage high
+      - alert: MemoryUsageHigh
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Memory usage > 90%"
+          value: "{{ $value | humanizePercentage }}"
+
+      # Ollama model not loaded
+      - alert: OllamaModelNotLoaded
+        expr: ollama_loaded_models == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: ollama
+        annotations:
+          summary: "No models loaded in Ollama"
+
+  # ============================================================
+  # Info alerts — low priority, daily review
+  # ============================================================
+  - name: pipeline-info
+    interval: 5m
+    rules:
+      # No executions in working hours
+      - alert: NoExecutionsDuringWorkHours
+        expr: increase(n8n_workflow_executions_total[30m]) == 0
+        for: 30m
+        labels:
+          severity: info
+          service: pipeline
+        annotations:
+          summary: "No workflow executions in last 30 minutes"
+
+      # DB size growing fast
+      - alert: DatabaseSizeGrowing
+        expr: rate(pg_database_size_bytes[1h]) > 10 * 1024 * 1024  # > 10MB/hour
+        for: 1h
+        labels:
+          severity: info
+          service: postgresql
+        annotations:
+          summary: "Database growing > 10MB/hour"
+          value: "{{ $value | humanize1024 }}B/hour"
+
+      # High retry rate
+      - alert: HighRetryRate
+        expr: rate(n8n_workflow_retries_total[15m]) / rate(n8n_workflow_executions_total[15m]) > 0.1
+        for: 15m
+        labels:
+          severity: info
+          service: pipeline
+        annotations:
+          summary: "Retry rate > 10% за последние 15 минут"
+          value: "{{ $value | humanizePercentage }}"
