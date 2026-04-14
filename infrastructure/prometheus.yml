@@ -36,3 +36,8 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:5678']
     scrape_interval: 30s
+
+  - job_name: 'backup-exporter'
+    static_configs:
+      - targets: ['backup-exporter:9199']
+    scrape_interval: 60s
