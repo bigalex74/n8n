@@ -1,0 +1,8 @@
+{
+  "name": "docker-mcp",
+  "description": "Docker MCP Server — управление контейнерами, образами, сетями, томами, Docker Compose и registry. 49 инструментов для полной работы с Docker.",
+  "trigger": "docker",
+  "instruction": "Docker MCP Server (@alisaitteke/docker-mcp) — 49 инструментов:\n\n**Контейнеры:**\n- docker_list_containers — список контейнеров (all=true для всех)\n- docker_create_container — создать контейнер (image, name, cmd, env, ports, labels)\n- docker_start/stop/restart/kill/pause/unpause_container — управление состоянием\n- docker_remove_container — удалить контейнер\n- docker_inspect_container — детали контейнера\n- docker_container_logs — логи контейнера\n- docker_container_stats — статистика ресурсов\n- docker_exec/inspect_exec — выполнение команд в контейнере\n- docker_container_health_check — проверка здоровья\n\n**Образы:**\n- docker_list_images — список образов\n- docker_pull/push/tag/remove_image — управление образами\n- docker_inspect_image — детали образа\n- docker_image_history — история слоёв\n\n**Сети:**\n- docker_list/create/remove/connect/disconnect/inspect_network\n\n**Томa:**\n- docker_list/create/remove/inspect_volume\n\n**Система:**\n- docker_system_info, docker_version\n- docker_prune_system/images/containers/volumes/networks\n\n**Docker Compose:**\n- docker_compose_up/down/ps/logs/config/build/restart/stop/start\n\n**Registry:**\n- dockerhub_search/get_tags/authenticate/pull/push\n- ghcr_authenticate/pull/push\n\n**Best Practices:**\n- Всегда проверять существование перед удалением\n- Использовать docker_compose для multi-container приложений\n- docker_container_stats перед масштабированием\n- Prune только с подтверждением пользователя",
+  "tools": ["agent"],
+  "autoActivate": false
+}

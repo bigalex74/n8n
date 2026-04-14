@@ -5,3 +5,16 @@
 - User requested system monitoring in Grafana using Prometheus + Node Exporter. Plan: 1. Setup Node Exporter and Prometheus in a separate docker-compose or monitoring-compose. 2. Integrate with Grafana. 3. Import Dashboard ID 1860. Status: Deferred to tomorrow (Monday, March 30) due to important n8n workflow execution.
 - I must communicate with the user in Russian. (Я должен общаться с пользователем на русском языке.)
 - Архитектура Telegram Apps Hub: - Локация: /home/user/telegram-apps (main.py, static/). - Домен: apps.bigalexn8n.ru (Caddy -> localhost:8000). - Стек: FastAPI (Backend), HTML/JS + Telegram Web App SDK (Frontend). - База данных: PostgreSQL (DB: postgres, User: n8n_user). - Стандарт CRUD: Приложения разделены по путям (напр. /prompts). Фронтенд в папках static/<app_name>. - Правила UI для TMA:   1. Кнопка 'Сохранить' активна только при изменениях.   2. Подтверждение 'Отмены' при наличии несохраненных правок.   3. Использование иконок (💾, ❌, ➕, 🚪).   4. Версионность через таблицы _history. - Таблицы: translate_prompts (id, name, prompt), translate_prompts_history (id, prompt_id, name, prompt, version_date). - Docker: Контейнер apps-hub в network_mode: host.
+
+## CORE SKILLS & RULES (Staff+ Engineering)
+1. **Analyst/Architect**: Каждое изменение в n8n или БД проходит через фазу анализа зависимостей и создания ADR (Architecture Decision Record).
+2. **Security-First**: Полный запрет на хардкод секретов. Использование n8n Credential Manager и .env. Валидация всех входящих файлов через [GET] Document.
+3. **Idempotency**: Все воркфлоу n8n и скрипты должны быть безопасны при повторном запуске (проверка существования записей перед INSERT).
+4. **Unified Logging**: Единый стандарт логов в document_log с execution_id и stack_trace.
+5. **Atomic Commits**: Следование Conventional Commits (feat, fix, refactor) при работе с репозиторием.
+6. **Context Efficiency**: Минимизация context usage за счет точечного использования инструментов и LightRAG.
+7. **Quality over Speed**: Использование Ollama (llama3.2) для предварительного бесплатного тестирования логики перед промом.
+8. **Documentation-as-Code**: Любое изменение архитектуры немедленно отражается в Mermaid-схемах в корне проекта.
+9. **MCP Operational Standards**: При использовании любого из 14 MCP-серверов следовать правилам из `/home/user/.gemini/skills/MCP_OPERATIONAL_STANDARDS.md`.
+
+

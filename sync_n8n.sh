@@ -37,11 +37,16 @@ notify() {
 }
 
 cd "$REPO_DIR" || exit 1
-log "--- Starting Sync ($DATE) ---"
+echo "Running as: $(whoami)"; echo "Current dir: $(pwd)"; log "--- Starting Sync ($DATE) ---"
 
 # 0. Sync with remote first
 log "🔄 Syncing with remote..."
 git checkout master 2>/dev/null
+# Abort any in-progress rebase/merge
+git rebase --abort 2>/dev/null || true
+git merge --abort 2>/dev/null || true
+# Stash only tracked files that might have local changes
+git stash push -m "auto-stash before sync" 2>/dev/null || true
 git pull origin master || {
     log "❌ Cannot pull from remote"; exit 1
 }
@@ -213,7 +218,7 @@ log "🔀 Merging to master..."
 git stash 2>/dev/null || true
 
 git checkout master
-git pull origin master
+git stash; git pull origin master; git stash pop
 
 # Resolve conflicts by taking ours (latest backup data)
 git merge "$BRANCH_NAME" --no-ff -m "Merge branch '$BRANCH_NAME'" 2>/dev/null

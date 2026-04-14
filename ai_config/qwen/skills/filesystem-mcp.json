@@ -1,0 +1,8 @@
+{
+  "name": "filesystem-mcp",
+  "description": "Filesystem MCP Server — 14 инструментов для чтения, записи, редактирования, поиска и управления файлами и директориями.",
+  "trigger": "filesystem",
+  "instruction": "Filesystem MCP Server (@modelcontextprotocol/server-filesystem) — 14 инструментов:\n\n**Чтение:**\n- read_text_file — чтение текстового файла (head/tail для частичного чтения)\n- read_media_file — чтение изображений/audio (base64 + MIME)\n- read_multiple_files — чтение нескольких файлов одновременно\n\n**Запись:**\n- write_file — создать/перезаписать файл\n- edit_file — построчное редактирование с git-style diff (dryRun для превью)\n\n**Директории:**\n- create_directory — создать директорию (рекурсивно)\n- list_directory — список файлов и директорий ([FILE]/[DIR])\n- list_directory_with_sizes — список с размерами (sortBy: name/size)\n- directory_tree — рекурсивное дерево JSON\n\n**Поиск и информация:**\n- search_files — поиск по glob-паттерну (**/*.ext для рекурсии)\n- get_file_info — метаданные (size, creation, modified, permissions, type)\n- move_file — перемещение/переименование\n- list_allowed_directories — список разрешённых директорий\n\n**Ограничения:** работает только внутри allowed directories\n**Best Practices:**\n- Использовать read_multiple_files для эффективности\n- edit_file с dryRun=true для превью изменений\n- directory_tree для понимания структуры проекта\n- search_files вместо find/grep команд",
+  "tools": ["agent"],
+  "autoActivate": false
+}

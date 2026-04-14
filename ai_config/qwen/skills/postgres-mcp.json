@@ -1,0 +1,8 @@
+{
+  "name": "postgres-mcp",
+  "description": "PostgreSQL MCP Server — выполнение read-only SQL запросов к PostgreSQL базе данных.",
+  "trigger": "postgres",
+  "instruction": "PostgreSQL MCP Server (@modelcontextprotocol/server-postgres) — 1 инструмент:\n\n**query** — выполнить read-only SQL запрос\n\n**Подключение:** postgresql://n8n_user:n8n_db_password@127.0.0.1:5432/n8n_database\n\n**Best Practices:**\n- SELECT запросы только (read-only режим)\n- Использовать LIMIT для больших таблиц\n- EXPLAIN ANALYZE для анализа производительности\n- Информационные запросы:\n  - \\dt — список таблиц\n  - \\d table_name — структура таблицы\n  - SELECT COUNT(*) FROM table — количество записей\n  - SELECT * FROM table LIMIT 10 — пример данных\n- Для записи/изменения данных использовать mcp__postgresql__query напрямую\n\n**Типичные запросы:**\n- Список таблиц: SELECT tablename FROM pg_tables WHERE schemaname = 'public'\n- Структура: SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'X'\n- Размер таблиц: SELECT pg_size_pretty(pg_total_relation_size('X'))",
+  "tools": ["agent"],
+  "autoActivate": false
+}

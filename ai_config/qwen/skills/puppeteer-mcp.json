@@ -1,0 +1,8 @@
+{
+  "name": "puppeteer-mcp",
+  "description": "Puppeteer MCP Server — 8 инструментов для браузера через Chrome DevTools Protocol (debug port 9222).",
+  "trigger": "puppeteer",
+  "instruction": "Puppeteer MCP Server (@mseep/puppeteer-mcp-server) — 8 инструментов:\n\n**Инструменты:**\n- puppeteer_connect_active_tab — подключиться к активному Chrome (debug port 9222)\n- puppeteer_navigate — перейти на URL\n- puppeteer_screenshot — сделать скриншот (name, selector, width, height, encoded)\n- puppeteer_click — кликнуть по CSS селектору\n- puppeteer_fill — заполнить input поле\n- puppeteer_select — выбрать из select\n- puppeteer_hover — hover на элемент\n- puppeteer_evaluate — выполнить JavaScript\n\n**Требования:**\n- Chrome должен быть запущен с --remote-debugging-port=9222\n- Альтернатива Playwright когда нужен доступ к существующей сессии браузера\n\n**Best Practices:**\n- connect_active_tab для работы с уже открытым браузером\n- screenshot для визуальной проверки\n- evaluate для кастомной JS логики\n- Выбирать между Playwright (30 инструментов, собственный браузер) и Puppeteer (8 инструментов, подключение к существующему Chrome)",
+  "tools": ["agent"],
+  "autoActivate": false
+}

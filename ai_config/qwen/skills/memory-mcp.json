@@ -1,0 +1,8 @@
+{
+  "name": "memory-mcp",
+  "description": "Memory MCP Server — граф знаний для AI. 9 инструментов для создания, хранения и поиска сущностей, связей и наблюдений.",
+  "trigger": "memory",
+  "instruction": "Memory MCP Server (@modelcontextprotocol/server-memory) — 9 инструментов:\n\n**Создание:**\n- create_entities — создать сущности (name, entityType, observations[])\n- create_relations — создать связи (from, to, relationType)\n- add_observations — добавить наблюдения к сущности\n\n**Удаление:**\n- delete_entities — удалить сущности и их связи\n- delete_observations — удалить конкретные наблюдения\n- delete_relations — удалить связи\n\n**Чтение:**\n- read_graph — прочитать весь граф знаний\n- search_nodes — поиск по имени, типу, наблюдениям\n- open_nodes — получить конкретные сущности по именам\n\n**Use Cases:**\n- Хранение контекста проекта между сессиями\n- Запоминание предпочтений пользователя\n- Создание базы знаний о кодовой базе\n- Отслеживание зависимостей между компонентами\n\n**Best Practices:**\n- Использовать понятные имена сущностей\n- Связи в active voice (например 'uses', 'depends_on')\n- search_nodes перед созданием чтобы избежать дубликатов\n- read_graph для полного обзора перед изменениями",
+  "tools": ["agent"],
+  "autoActivate": false
+}

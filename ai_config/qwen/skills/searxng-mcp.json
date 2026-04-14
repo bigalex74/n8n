@@ -1,0 +1,8 @@
+{
+  "name": "searxng-mcp",
+  "description": "SearXNG MCP Server — приватный метапоисковик (Google, DuckDuckGo, Wikipedia, GitHub и др.). Self-hosted на localhost:8888. Без API ключей, без лимитов, без трекинга.",
+  "trigger": "searxng",
+  "instruction": "SearXNG MCP Server (@iflow-mcp/searxng-mcp) — 1 инструмент:\n\n**searxngsearch** — поиск через SearXNG (privacy-respecting metasearch)\n\n**URL:** http://localhost:8888\n**Auth:** Не требуется\n**Лимиты:** Нет\n\n**Параметры поиска:**\n- query (обязательно) — поисковый запрос\n- language: 'ru', 'en', 'de' и т.д. (по умолчанию 'all')\n- categories: ['general', 'news', 'images', 'videos', 'music', 'files', 'it', 'science', 'social media']\n- engines: ['google', 'duckduckgo', 'wikipedia', 'github', 'bing', 'yandex']\n- pageno: номер страницы\n- time_range: 'day', 'week', 'month', 'year'\n- safe_search: 0 (нет), 1 (умеренный), 2 (строгий)\n\n**Use Cases:**\n- Поиск актуальной информации в вебе\n- Поиск документации и примеров кода\n- Фактчекинг\n- Поиск по GitHub, Wikipedia, новостям\n- Поиск изображений и файлов\n\n**Best Practices:**\n- Указывать language: 'ru' для русскоязычных запросов\n- Использовать categories для уточнения типа результатов\n- time_range для свежих результатов\n- engines: ['google', 'duckduckgo'] для лучших результатов\n- SearXNG — приватная альтернатива Brave/Google (без трекинга, без API ключей)\n\n**Инфраструктура:**\n- Docker контейнер: /home/user/searxng\n- Порт: 8888 (внутренний 8080)\n- Engines: Google, DuckDuckGo, Wikipedia, GitHub\n- Документация: docker compose в /home/user/searxng/",
+  "tools": ["agent"],
+  "autoActivate": false
+}
