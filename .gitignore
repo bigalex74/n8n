@@ -1,2 +1,3 @@
 sync.log
-sync.log
+ai_config/qwen/settings.json
+*.secret
