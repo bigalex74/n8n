@@ -45,15 +45,21 @@ git checkout master 2>/dev/null
 # Abort any in-progress rebase/merge
 git rebase --abort 2>/dev/null || true
 git merge --abort 2>/dev/null || true
-# Ensure sync.log is tracked but not stashed (it's in .gitignore now but may be cached)
+# Ensure sync.log is NOT tracked (it's in .gitignore)
 git rm --cached sync.log 2>/dev/null || true
-# Stash tracked files that might have local changes (exclude sync.log)
+# Save branch number if exists, stash other changes
+if [ -f .last_branch_number ]; then
+    cp .last_branch_number /tmp/.last_branch_number_backup
+fi
 git stash push -m "auto-stash before sync" -- $(git ls-files | grep -v sync.log) 2>/dev/null || true
 git pull origin master || {
     log "❌ Cannot pull from remote"; exit 1
 }
-# Restore sync.log as empty if it doesn't exist
-touch "$LOG_FILE"
+# Restore branch number
+if [ -f /tmp/.last_branch_number_backup ]; then
+    cp /tmp/.last_branch_number_backup .last_branch_number
+    rm -f /tmp/.last_branch_number_backup
+fi
 
 # 1. Branch number
 LAST_NUM=$(cat .last_branch_number 2>/dev/null || echo "0")
@@ -219,6 +225,9 @@ git push origin "$BRANCH_NAME"
 log "🔀 Merging to master..."
 
 # Stash local changes (exclude sync.log)
+if [ -f .last_branch_number ]; then
+    cp .last_branch_number /tmp/.last_branch_number_backup2
+fi
 git stash push -m "auto-stash before merge" -- $(git ls-files | grep -v sync.log) 2>/dev/null || true
 
 git checkout master
@@ -238,8 +247,13 @@ fi
 
 git push origin master
 
-# Pop stashed changes
+# Pop stashed changes (ignore errors - sync.log conflicts)
 git stash pop 2>/dev/null || true
+# Restore branch number
+if [ -f /tmp/.last_branch_number_backup2 ]; then
+    cp /tmp/.last_branch_number_backup2 .last_branch_number
+    rm -f /tmp/.last_branch_number_backup2
+fi
 
 # Cleanup
 git branch -d "$BRANCH_NAME" 2>/dev/null
