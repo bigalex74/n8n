@@ -46,7 +46,7 @@ cleanup() {
 
 notify() {
     # Use environment variables if provided, fallback to existing token/chat
-    BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0}"
+    BOT_TOKEN="${TELEGRAM_BOT_TOKEN}"
     CHAT_ID="${TELEGRAM_CHAT_ID:-923741104}"
 
     # Curl options with proxy support and timeouts
