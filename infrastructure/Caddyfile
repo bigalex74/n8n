@@ -133,6 +133,11 @@ apps.bigalexn8n.ru {
     reverse_proxy 127.0.0.1:8000
 }
 
+secrets.bigalexn8n.ru {
+    tls alexei.bigalex@yandex.ru
+    reverse_proxy 127.0.0.1:8083
+}
+
 portal.bigalexn8n.ru {
     tls alexei.bigalex@yandex.ru
 
