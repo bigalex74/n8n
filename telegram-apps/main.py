@@ -17,7 +17,13 @@ telegram_polling.start_bot()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 N8N_WEBHOOK_URL = "https://bigalexn8n.ru/webhook/trigger-translation"
-DB_CONFIG_POSTGRES = {"host": "127.0.0.1", "database": "postgres", "user": "n8n_user", "password": "n8n_db_password", "port": 5432}
+DB_CONFIG_POSTGRES = {
+    "host": os.getenv("DB_HOST", "127.0.0.1"),
+    "database": os.getenv("DB_NAME", "postgres"),
+    "user": os.getenv("DB_USER", "n8n_user"),
+    "password": os.getenv("DB_PASSWORD", "n8n_db_password"),
+    "port": int(os.getenv("DB_PORT", 5432))
+}
 
 def get_conn_pg(): return psycopg2.connect(**DB_CONFIG_POSTGRES)
 
