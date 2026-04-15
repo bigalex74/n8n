@@ -2,6 +2,15 @@
 # 🚀 bigalexn8n Git Sync Script - FULL BACKUP
 # Backs up: workflows, DB, infra, AI agents/skills/rules, docs, apps
 
+# Load environment variables from .env if present
+ENV_FILE="/home/user/n8n-backups/.env"
+if [ -f "$ENV_FILE" ]; then
+    set -o allexport
+    # shellcheck source=/dev/null
+    source "$ENV_FILE"
+    set +o allexport
+fi
+
 # Ensure git is available (when running inside Alpine container)
 if ! command -v git &> /dev/null; then
     apk add --no-cache git bash openssh 2>/dev/null || true
