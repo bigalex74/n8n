@@ -10,6 +10,11 @@ if [ -f "$ENV_FILE" ]; then
     source "$ENV_FILE"
     set +o allexport
 fi
+# Ensure proxy variables are set (use local proxy by default)
+export HTTP_PROXY="${HTTP_PROXY:-http://127.0.0.1:10808}"
+export HTTPS_PROXY="${HTTPS_PROXY:-http://127.0.0.1:10808}"
+export NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,::1,bigalexn8n.ru}"
+
 
 # Ensure git is available (when running inside Alpine container)
 if ! command -v git &> /dev/null; then
@@ -44,8 +49,14 @@ notify() {
     BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0}"
     CHAT_ID="${TELEGRAM_CHAT_ID:-923741104}"
 
+    # Curl options with proxy support and timeouts
+    CURL_OPTS="--connect-timeout 10 --max-time 30 -sS"
+    if [ -n "$HTTPS_PROXY" ]; then
+        CURL_OPTS="$CURL_OPTS -x $HTTPS_PROXY"
+    fi
+
     # Send and capture response for logging
-    RESP=$(curl -sS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+    RESP=$(curl $CURL_OPTS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
         -H "Content-Type: application/json" \
         -d "{\"chat_id\": ${CHAT_ID}, \"text\": \"$1\"}" 2>&1) || true
 
@@ -53,8 +64,14 @@ notify() {
         log "✅ Telegram notification sent"
     else
         log "❌ Telegram notification failed: $RESP"
+        # Fallback: queue message in telegram_send_message table so n8n can send it later
+        if command -v docker >/dev/null 2>&1; then
+            docker exec "$DB_CONTAINER" psql -U n8n_user -d n8n_database -c "INSERT INTO telegram_send_message (template, chat_id) VALUES ('backup_report', '${CHAT_ID}');" 2>/dev/null || true
+            log "ℹ️ Queued notification in telegram_send_message"
+        fi
     fi
 }
+
 
 cd "$REPO_DIR" || exit 1
 echo "Running as: $(whoami)"; echo "Current dir: $(pwd)"; log "--- Starting Sync ($DATE) ---"
