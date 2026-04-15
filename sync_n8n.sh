@@ -31,9 +31,20 @@ cleanup() {
 }
 
 notify() {
-    curl -s -X POST "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/sendMessage" \
+    # Use environment variables if provided, fallback to existing token/chat
+    BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0}"
+    CHAT_ID="${TELEGRAM_CHAT_ID:-923741104}"
+
+    # Send and capture response for logging
+    RESP=$(curl -sS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
         -H "Content-Type: application/json" \
-        -d "{\"chat_id\": 923741104, \"text\": \"$1\"}" 2>/dev/null
+        -d "{\"chat_id\": ${CHAT_ID}, \"text\": \"$1\"}" 2>&1) || true
+
+    if echo "$RESP" | grep -q '"ok":true'; then
+        log "✅ Telegram notification sent"
+    else
+        log "❌ Telegram notification failed: $RESP"
+    fi
 }
 
 cd "$REPO_DIR" || exit 1
