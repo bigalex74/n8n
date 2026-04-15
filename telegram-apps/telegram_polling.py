@@ -8,7 +8,7 @@ import threading
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("TMA-Polling-Raw")
 
-BOT_TOKEN = "8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0"
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 N8N_WEBHOOK = "http://127.0.0.1:5678/webhook/trigger-translation"
 PROXY = {"https": "http://127.0.0.1:10808"}
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
