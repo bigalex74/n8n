@@ -2,26 +2,17 @@
 # ☁️ Yandex Disk Cloud Backup Script for n8n
 # Backs up local git repo data to Yandex Disk
 
-# Load configuration from .env if present
-ENV_FILE="/home/user/n8n-backups/.env"
-if [ -f "$ENV_FILE" ]; then
-    set -o allexport
-    # shellcheck source=/dev/null
-    source "$ENV_FILE"
-    set +o allexport
-fi
-
-# Cloud token (from env or fallback)
-TOKEN="${YANDEX_OAUTH_TOKEN:-${TOKEN:-}}"
-BACKUP_DIR="${BACKUP_DIR:-/home/user/n8n-backups}"
-CLOUD_ARCHIVE_DIR="${CLOUD_ARCHIVE_DIR:-$BACKUP_DIR/cloud_archives}"
+# Cloud token (from environment, injected by Infisical)
+TOKEN="${YANDEX_OAUTH_TOKEN}"
+BACKUP_DIR="/home/user/n8n-backups"
+CLOUD_ARCHIVE_DIR="$BACKUP_DIR/cloud_archives"
 DATE=$(date +"%Y-%m-%d_%H-%M-%S")
 FILENAME="n8n_full_backup_$DATE.zip"
 ARCHIVE_PATH="$CLOUD_ARCHIVE_DIR/$FILENAME"
 
-# Telegram settings (prefer env)
-TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-${TELEGRAM_BOT:-}}"
-TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-${TELEGRAM_CHAT:-}}"
+# Telegram settings (from environment, injected by Infisical)
+BOT_TOKEN="${TELEGRAM_BOT_TOKEN}"
+CHAT_ID="${TELEGRAM_CHAT_ID}"
 
 # Ensure proxy variables are set (use local proxy by default)
 export HTTP_PROXY="${HTTP_PROXY:-http://127.0.0.1:10808}"
