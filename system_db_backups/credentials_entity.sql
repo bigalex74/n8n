@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict NQUK8twPcJ5tV6FCUUM4sHGy9HCdCfgVnZaGP9CdXMMlqfodKeM5VKMobqx6KcP
+\restrict HTUrFRQbBPJUfsfUYwTv78WBzQVBzXh1Qa1kPm9xkpCcCz0OGLCPnzf1BWO7Y0J
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -43,5 +43,5 @@ INSERT INTO public.credentials_entity VALUES ('Ollama Test', 'U2FsdGVkX19YuGNeiM
 -- PostgreSQL database dump complete
 --
 
-\unrestrict NQUK8twPcJ5tV6FCUUM4sHGy9HCdCfgVnZaGP9CdXMMlqfodKeM5VKMobqx6KcP
+\unrestrict HTUrFRQbBPJUfsfUYwTv78WBzQVBzXh1Qa1kPm9xkpCcCz0OGLCPnzf1BWO7Y0J
 
