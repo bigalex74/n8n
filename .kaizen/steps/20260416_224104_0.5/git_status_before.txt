@@ -1,0 +1,5 @@
+?? .kaizen/
+?? AGENTS.md
+?? KAIZEN_EXECUTION.md
+?? tests/
+?? tools/kaizen_step.sh
