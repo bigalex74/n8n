@@ -124,6 +124,18 @@ search.bigalexn8n.ru {
     reverse_proxy 127.0.0.1:8888
 }
 
+# LightRAG — Trade Knowledge Base
+tradekb.bigalexn8n.ru {
+    tls alexei.bigalex@yandex.ru
+    reverse_proxy 127.0.0.1:9623
+}
+
+# LightRAG — Algo Trading Research
+algo.bigalexn8n.ru {
+    tls alexei.bigalex@yandex.ru
+    reverse_proxy 127.0.0.1:9624
+}
+
 www.bigalexn8n.ru {
     redir https://bigalexn8n.ru{uri} permanent
 }
