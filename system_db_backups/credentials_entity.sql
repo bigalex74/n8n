@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ciS0r46w0BAxhB1BwGW1m9MsQ3sUmhoSi0Tdw4uAVmJZM5BnDQg2fSBFWKmkkh8
+\restrict 8frSK9UPfP4vkt7fmsFmwk07vRcrggmouvgjp39PvFuxJJ0eYnV9BEiMn4ybLDM
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -39,11 +39,13 @@ INSERT INTO public.credentials_entity VALUES ('Ollama', 'U2FsdGVkX19YU+hzXD/Gnq9
 INSERT INTO public.credentials_entity VALUES ('Ollama Test', 'U2FsdGVkX19YuGNeiMT1yseT7J4Aiekk1TF8f+6SiZupDPUXOvUtxdvtCdF9O4XGsii+DfOxhGNckk8K97vPQwwNlw1b598ZUUdZ6SIIQ6lcdW/U1NkVx5KlDWCKhNmy', 'openAiApi', '2026-04-14 18:29:35.871+00', '2026-04-14 18:29:35.871+00', 'UxOmwr19QNzUZL9q', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Billing Polza Header', 'U2FsdGVkX1/wXmTEc2ifEl+CJLoXJgJ6jm2uxOJU5AtJ+b6EHSyj7rmQyA5bdB48E0V7FUH45NQ3pkwvFj+6hjMxjMXGsToH1CyIIbKcKpN8VTtD5CtfA27QQdskvMIu', 'httpHeaderAuth', '2026-04-17 03:44:02.178+00', '2026-04-17 03:44:02.178+00', '3dfmGKUa1Q01H200', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Billing Neuro Header', 'U2FsdGVkX1/NP3Xfk9KdPGdYysKURBAaRqW310avpjxssfkcTsLmNaa1CXAa9Vh5YjkRU+oN2pIN2nWGF8l6hAoyX4ZGzpgQ4Iqv7aZVU8NdTdShIvVZNLcbfwvgoolCyCk3WkZpre63zaT50vMajA==', 'httpHeaderAuth', '2026-04-17 03:44:02.178+00', '2026-04-17 03:44:02.178+00', 'GIoKsxpIObYHo6Nm', false, false, false, false, NULL);
+INSERT INTO public.credentials_entity VALUES ('Market Research Postgres RW', 'U2FsdGVkX18ad+IXGrODt1NjlNgZYES42znDh2P1KWaoV3Vaij0i1bCPWgs23FXCLYA8z2bdSWpfZ4CwCcVKQj3G0zEb4c2tlZ0L5UrhxdwHBWehYgv9RD9vNHmdoMWLjI1Rmo0mYD1jeisB+KaS6vTrB/gA5nJGgCMpNoxbhT5n0jTzGQu+HwVtuUgwkkF32cQs/8nga1zoj9kA/fWCFUKWAP9S8vdTHq7X80lV5jC8oep5HgKCdY1NGXo9rOYDFwMv5yuVfjrVLjzWxBWJWVORQ7Yh60dzFTgJ3DqvP80=', 'postgres', '2026-04-17 17:45:37.167+00', '2026-04-17 17:51:09.765+00', 'HJifIbuLF5vUUVdd', false, false, false, false, NULL);
+INSERT INTO public.credentials_entity VALUES ('Market Research Postgres RO', 'U2FsdGVkX19z+hmq/0WR6w4+HIGywKP+RLx/DzfSdQO80VspM+/5rmMSoa7iOUhRPS4DCN1kM+KE9jIA9Vuf9QriCNiBhrYD0X54MDwrUyxGpK/ifAGg0RLqDiusbps8KHIUTikXKSFtBuZFja8brb0HNqxteAuY32HeO5tHv5r5fzdfKDf15LqPCFsLBoG5pmxTZ5t8uCC1lzopmyu3DME7s0hpSdZkRXO39RWXHJ26WOVQ2FODtRMmlvxuQdcx2em8lqwXPsSMt0PErzLt1hBf4d1vsWI77RktACsklow=', 'postgres', '2026-04-17 17:46:07.247+00', '2026-04-17 17:51:15.255+00', 'VcFidTwTBvJldBxy', false, false, false, false, NULL);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ciS0r46w0BAxhB1BwGW1m9MsQ3sUmhoSi0Tdw4uAVmJZM5BnDQg2fSBFWKmkkh8
+\unrestrict 8frSK9UPfP4vkt7fmsFmwk07vRcrggmouvgjp39PvFuxJJ0eYnV9BEiMn4ybLDM
 
