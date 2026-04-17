@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict nMXsBL4SKDE4Qg1B40CquSWb2dTkSEK1wcodXTIzbU26ZAeftLOcuU29IfJC7qx
+\restrict dZe3ezmRP7HWJ6CuZ45JqEyKwtOVf9mbDMbY4KyzUFRgXexSv0UzQ2DQr4fkyaB
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -37,11 +37,13 @@ INSERT INTO public.credentials_entity VALUES ('Google Drive account', 'U2FsdGVkX
 INSERT INTO public.credentials_entity VALUES ('Ollama Local', 'U2FsdGVkX19y+lVhjjlr/QFFjkFm1VjvimcR8rLetV16dP7XDrLZ/CWx+hRn4MqIgspnPctodldU/lm/XspaAQ==', 'ollamaApi', '2026-04-12 17:23:26.61+00', '2026-04-12 17:23:26.61+00', 'j0V93P3JQ2OxewHn', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Ollama', 'U2FsdGVkX19YU+hzXD/Gnq956iQOO6JKl49BKv444ItdD8YS7xaCHPbhstoZhU+MTivEyTgfdpHV90M4+daytR/gKCF/VVEG3MwSiAVJJYjeRRDCWdynuW6AcaTTOauc', 'openAiApi', '2026-04-12 18:56:43.892+00', '2026-04-12 18:56:43.892+00', 'JD2Nq8h0kULY7Ly3', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Ollama Test', 'U2FsdGVkX19YuGNeiMT1yseT7J4Aiekk1TF8f+6SiZupDPUXOvUtxdvtCdF9O4XGsii+DfOxhGNckk8K97vPQwwNlw1b598ZUUdZ6SIIQ6lcdW/U1NkVx5KlDWCKhNmy', 'openAiApi', '2026-04-14 18:29:35.871+00', '2026-04-14 18:29:35.871+00', 'UxOmwr19QNzUZL9q', false, false, false, false, NULL);
+INSERT INTO public.credentials_entity VALUES ('Billing Polza Header', 'U2FsdGVkX1/wXmTEc2ifEl+CJLoXJgJ6jm2uxOJU5AtJ+b6EHSyj7rmQyA5bdB48E0V7FUH45NQ3pkwvFj+6hjMxjMXGsToH1CyIIbKcKpN8VTtD5CtfA27QQdskvMIu', 'httpHeaderAuth', '2026-04-17 03:44:02.178+00', '2026-04-17 03:44:02.178+00', '3dfmGKUa1Q01H200', false, false, false, false, NULL);
+INSERT INTO public.credentials_entity VALUES ('Billing Neuro Header', 'U2FsdGVkX1/NP3Xfk9KdPGdYysKURBAaRqW310avpjxssfkcTsLmNaa1CXAa9Vh5YjkRU+oN2pIN2nWGF8l6hAoyX4ZGzpgQ4Iqv7aZVU8NdTdShIvVZNLcbfwvgoolCyCk3WkZpre63zaT50vMajA==', 'httpHeaderAuth', '2026-04-17 03:44:02.178+00', '2026-04-17 03:44:02.178+00', 'GIoKsxpIObYHo6Nm', false, false, false, false, NULL);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict nMXsBL4SKDE4Qg1B40CquSWb2dTkSEK1wcodXTIzbU26ZAeftLOcuU29IfJC7qx
+\unrestrict dZe3ezmRP7HWJ6CuZ45JqEyKwtOVf9mbDMbY4KyzUFRgXexSv0UzQ2DQr4fkyaB
 

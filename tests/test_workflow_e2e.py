@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+import time
 import uuid
 import sys
 import unittest
@@ -18,6 +19,8 @@ from workflow_test_helpers import PG_DB, db_connect, db_connect_n8n_system, load
 
 class WorkflowE2ETests(unittest.TestCase):
     _credentials_cache = None
+    _live_billing_nodes_cache = None
+    _n8n_api_key_cache = None
 
     @classmethod
     def _load_n8n_credentials(cls):
@@ -51,12 +54,123 @@ class WorkflowE2ETests(unittest.TestCase):
         return payload
 
     @classmethod
+    def _n8n_api_key(cls) -> str:
+        if cls._n8n_api_key_cache is not None:
+            return cls._n8n_api_key_cache
+        cred = cls._credential_by_name("n8n account")
+        key = (cred.get("data") or {}).get("apiKey")
+        if not key:
+            raise AssertionError("Credential 'n8n account' не содержит apiKey")
+        cls._n8n_api_key_cache = key
+        return key
+
+    @classmethod
+    def _list_executions(cls, workflow_id: str, limit: int = 20):
+        key = cls._n8n_api_key()
+        resp = requests.get(
+            "http://127.0.0.1:5678/api/v1/executions",
+            params={"workflowId": workflow_id, "limit": limit},
+            headers={"X-N8N-API-KEY": key},
+            timeout=20,
+        )
+        if resp.status_code != 200:
+            raise AssertionError(f"n8n API executions error: {resp.status_code} {resp.text[:200]}")
+        return resp.json().get("data", [])
+
+    @classmethod
+    def _wait_new_execution(cls, workflow_id: str, before_ids: set[int], timeout_s: int = 20):
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            rows = cls._list_executions(workflow_id, limit=30)
+            for item in rows:
+                if item.get("id") not in before_ids:
+                    return item
+            time.sleep(1)
+        return None
+
+    @classmethod
+    def _execution_details(cls, execution_id: int):
+        key = cls._n8n_api_key()
+        resp = requests.get(
+            f"http://127.0.0.1:5678/api/v1/executions/{execution_id}",
+            params={"includeData": "true"},
+            headers={"X-N8N-API-KEY": key},
+            timeout=20,
+        )
+        if resp.status_code != 200:
+            raise AssertionError(f"n8n API execution details error: {resp.status_code} {resp.text[:200]}")
+        return resp.json()
+
+    @classmethod
     def _credential_by_name(cls, name: str):
         creds = cls._load_n8n_credentials()
         for item in creds:
             if item.get("name") == name:
                 return item
         raise AssertionError(f"Credential '{name}' не найден в n8n export")
+
+    @classmethod
+    def _load_live_billing_nodes(cls):
+        if cls._live_billing_nodes_cache is not None:
+            return cls._live_billing_nodes_cache
+
+        target_workflows = ["Start", "[Send] processing", "[Sub] Billing Check"]
+        conn = db_connect_n8n_system()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                      w.name AS workflow_name,
+                      e->>'name' AS node_name,
+                      e->'parameters'->>'url' AS url,
+                      e->'parameters'->'headerParameters'->'parameters'->0->>'value' AS auth_value,
+                      COALESCE(
+                        e->'credentials'->'httpHeaderAuth'->>'name',
+                        e->'credentials'->'openAiApi'->>'name'
+                      ) AS credential_name
+                    FROM public.workflow_entity w,
+                         jsonb_array_elements(w.nodes::jsonb) e
+                    WHERE w.name = ANY(%s)
+                      AND e->>'name' IN ('Billing Polza.ai', 'Billing Neuro')
+                    ORDER BY w.name, e->>'name'
+                    """,
+                    (target_workflows,),
+                )
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+
+        cls._live_billing_nodes_cache = [
+            {
+                "workflow_name": row[0],
+                "node_name": row[1],
+                "url": row[2],
+                "auth_value": row[3],
+                "credential_name": row[4],
+            }
+            for row in rows
+        ]
+        return cls._live_billing_nodes_cache
+
+    @classmethod
+    def _live_credential_for_node(cls, node_name: str) -> str:
+        rows = [r for r in cls._load_live_billing_nodes() if r["node_name"] == node_name]
+        if not rows:
+            raise AssertionError(f"Billing node '{node_name}' не найден в live workflow")
+        cred_names = {r["credential_name"] for r in rows}
+        if None in cred_names or "" in cred_names:
+            raise AssertionError(f"У node '{node_name}' отсутствует credential в live workflow")
+        if len(cred_names) != 1:
+            raise AssertionError(f"У node '{node_name}' разные credentials в workflow: {sorted(cred_names)}")
+        return next(iter(cred_names))
+
+    @classmethod
+    def _live_billing_node_rows(cls, node_name: str):
+        rows = [r for r in cls._load_live_billing_nodes() if r["node_name"] == node_name]
+        if not rows:
+            raise AssertionError(f"Billing node '{node_name}' не найден в live workflow")
+        return rows
 
     def test_project_db_is_postgres(self):
         self.assertEqual(PG_DB, "postgres")
@@ -241,15 +355,17 @@ class WorkflowE2ETests(unittest.TestCase):
         self.assertIn(row[2], ("openAiApi", "ollamaApi"))
 
     def test_polza_balance_api_returns_200_and_valid_payload(self):
-        cred = self._credential_by_name("polza.ai")
+        credential_name = self._live_credential_for_node("Billing Polza.ai")
+        cred = self._credential_by_name(credential_name)
         data = cred.get("data", {})
-        api_key = data.get("apiKey")
         base_url = (data.get("url") or "https://polza.ai/api/v1").rstrip("/")
-        self.assertTrue(api_key, "У credential polza.ai отсутствует apiKey")
+        auth_value = data.get("value")
+        self.assertTrue(auth_value, f"У credential {credential_name} отсутствует value")
+        self.assertTrue(str(auth_value).startswith("Bearer "), f"У credential {credential_name} value без Bearer")
 
         resp = requests.get(
             f"{base_url}/balance",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": auth_value},
             timeout=20,
         )
         self.assertEqual(resp.status_code, 200, resp.text[:300])
@@ -261,21 +377,64 @@ class WorkflowE2ETests(unittest.TestCase):
             self.fail(f"Поле amount не является числом/числоподобной строкой: {payload.get('amount')!r} ({exc})")
 
     def test_neuroapi_billing_usage_returns_200_and_valid_payload(self):
-        cred = self._credential_by_name("Neuroapi")
+        credential_name = self._live_credential_for_node("Billing Neuro")
+        cred = self._credential_by_name(credential_name)
         data = cred.get("data", {})
-        api_key = data.get("apiKey")
         base_url = (data.get("url") or "https://neuroapi.host/v1").rstrip("/")
-        self.assertTrue(api_key, "У credential Neuroapi отсутствует apiKey")
+        auth_value = data.get("value")
+        self.assertTrue(auth_value, f"У credential {credential_name} отсутствует value")
+        self.assertTrue(str(auth_value).startswith("Bearer "), f"У credential {credential_name} value без Bearer")
 
         resp = requests.get(
             f"{base_url}/dashboard/billing/usage",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": auth_value},
             timeout=20,
         )
         self.assertEqual(resp.status_code, 200, resp.text[:300])
         payload = resp.json()
         self.assertIn("total_usage", payload)
         self.assertIsInstance(payload["total_usage"], (int, float))
+
+    def test_live_billing_nodes_use_http_header_auth_credentials(self):
+        rows = self._load_live_billing_nodes()
+        self.assertTrue(rows, "Billing nodes не найдены в live workflow")
+
+        bad = []
+        for row in rows:
+            if row["credential_name"] not in ("Billing Polza Header", "Billing Neuro Header"):
+                bad.append(
+                    (
+                        row["workflow_name"],
+                        row["node_name"],
+                        f"unexpected credential_name={row['credential_name']!r}",
+                    )
+                )
+            if row["auth_value"] not in (None, "", "={{ 'Bearer ' + $credentials.apiKey }}"):
+                bad.append(
+                    (
+                        row["workflow_name"],
+                        row["node_name"],
+                        f"unexpected inline auth_value={row['auth_value']!r}",
+                    )
+                )
+
+        self.assertEqual(
+            bad,
+            [],
+            f"Billing nodes сконфигурированы некорректно: {bad}",
+        )
+
+    def test_live_billing_credentials_have_authorization_bearer(self):
+        for node_name in ("Billing Polza.ai", "Billing Neuro"):
+            cred_name = self._live_credential_for_node(node_name)
+            cred = self._credential_by_name(cred_name)
+            self.assertEqual(cred.get("type"), "httpHeaderAuth", f"{node_name}: credential type должен быть httpHeaderAuth")
+            data = cred.get("data", {})
+            self.assertEqual(data.get("name"), "Authorization", f"{node_name}: header name должен быть Authorization")
+            self.assertTrue(
+                str(data.get("value", "")).startswith("Bearer "),
+                f"{node_name}: header value должен начинаться с Bearer ",
+            )
 
     def test_live_billing_nodes_do_not_use_broken_api_key_placeholders(self):
         conn = db_connect_n8n_system()
@@ -293,7 +452,7 @@ class WorkflowE2ETests(unittest.TestCase):
                     ORDER BY name
                     """,
                     (
-                        ["Start", "[Send] finish", "[Send] processing", "[Sub] Billing Check", "Анотация"],
+                        ["Start", "[Send] processing", "[Sub] Billing Check", "Анотация"],
                         "%{{.apiKey}}%",
                         "% + .apiKey %",
                     ),
@@ -307,6 +466,45 @@ class WorkflowE2ETests(unittest.TestCase):
             [],
             f"Обнаружены нерабочие шаблоны apiKey в live workflow: {bad}",
         )
+
+    def test_send_message_trigger_creates_real_executions(self):
+        if not n8n_health_ok():
+            self.skipTest("n8n недоступен по /healthz")
+
+        send_message_wf = "J62UViXZMD5o6qoU"
+        free_templates = ["create_job", "start_processing", "processing", "error_processing"]
+        before_send = {row["id"] for row in self._list_executions(send_message_wf, limit=40)}
+
+        conn = db_connect()
+        try:
+            for template in free_templates:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO telegram_send_message (template) VALUES (%s) RETURNING id",
+                        (template,),
+                    )
+                    inserted_id = cur.fetchone()[0]
+                    conn.commit()
+
+                send_exec = self._wait_new_execution(send_message_wf, before_send, timeout_s=25)
+                self.assertIsNotNone(
+                    send_exec,
+                    f"После INSERT template={template} id={inserted_id} не появился execution Send Message",
+                )
+                self.assertIn(
+                    send_exec.get("status"),
+                    ("running", "success"),
+                    f"Send Message execution в неожиданном статусе: {send_exec}",
+                )
+                self.assertEqual(
+                    send_exec.get("mode"),
+                    "trigger",
+                    f"Send Message execution должен быть trigger-mode: {send_exec}",
+                )
+
+                before_send.add(int(send_exec["id"]))
+        finally:
+            conn.close()
 
 
 if __name__ == "__main__":
