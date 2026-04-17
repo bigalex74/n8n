@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+import subprocess
 import uuid
 import sys
 import unittest
@@ -15,6 +17,47 @@ from workflow_test_helpers import PG_DB, db_connect, db_connect_n8n_system, load
 
 
 class WorkflowE2ETests(unittest.TestCase):
+    _credentials_cache = None
+
+    @classmethod
+    def _load_n8n_credentials(cls):
+        if cls._credentials_cache is not None:
+            return cls._credentials_cache
+        try:
+            proc = subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    "n8n-docker-n8n-1",
+                    "n8n",
+                    "export:credentials",
+                    "--all",
+                    "--decrypted",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except Exception as exc:
+            raise AssertionError(f"Не удалось получить credentials из n8n: {exc}") from exc
+
+        try:
+            payload = json.loads(proc.stdout)
+        except json.JSONDecodeError as exc:
+            raise AssertionError(f"Некорректный JSON credentials export: {exc}") from exc
+
+        cls._credentials_cache = payload
+        return payload
+
+    @classmethod
+    def _credential_by_name(cls, name: str):
+        creds = cls._load_n8n_credentials()
+        for item in creds:
+            if item.get("name") == name:
+                return item
+        raise AssertionError(f"Credential '{name}' не найден в n8n export")
+
     def test_project_db_is_postgres(self):
         self.assertEqual(PG_DB, "postgres")
 
@@ -196,6 +239,74 @@ class WorkflowE2ETests(unittest.TestCase):
         self.assertIsNotNone(row, "Credential 'Ollama Test' не найден в n8n_database")
         self.assertEqual(row[1], "Ollama Test")
         self.assertIn(row[2], ("openAiApi", "ollamaApi"))
+
+    def test_polza_balance_api_returns_200_and_valid_payload(self):
+        cred = self._credential_by_name("polza.ai")
+        data = cred.get("data", {})
+        api_key = data.get("apiKey")
+        base_url = (data.get("url") or "https://polza.ai/api/v1").rstrip("/")
+        self.assertTrue(api_key, "У credential polza.ai отсутствует apiKey")
+
+        resp = requests.get(
+            f"{base_url}/balance",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=20,
+        )
+        self.assertEqual(resp.status_code, 200, resp.text[:300])
+        payload = resp.json()
+        self.assertIn("amount", payload)
+        try:
+            float(payload["amount"])
+        except (TypeError, ValueError) as exc:
+            self.fail(f"Поле amount не является числом/числоподобной строкой: {payload.get('amount')!r} ({exc})")
+
+    def test_neuroapi_billing_usage_returns_200_and_valid_payload(self):
+        cred = self._credential_by_name("Neuroapi")
+        data = cred.get("data", {})
+        api_key = data.get("apiKey")
+        base_url = (data.get("url") or "https://neuroapi.host/v1").rstrip("/")
+        self.assertTrue(api_key, "У credential Neuroapi отсутствует apiKey")
+
+        resp = requests.get(
+            f"{base_url}/dashboard/billing/usage",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=20,
+        )
+        self.assertEqual(resp.status_code, 200, resp.text[:300])
+        payload = resp.json()
+        self.assertIn("total_usage", payload)
+        self.assertIsInstance(payload["total_usage"], (int, float))
+
+    def test_live_billing_nodes_do_not_use_broken_api_key_placeholders(self):
+        conn = db_connect_n8n_system()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT name
+                    FROM public.workflow_entity
+                    WHERE name = ANY(%s)
+                      AND (
+                        nodes::text LIKE %s
+                        OR nodes::text LIKE %s
+                      )
+                    ORDER BY name
+                    """,
+                    (
+                        ["Start", "[Send] finish", "[Send] processing", "[Sub] Billing Check", "Анотация"],
+                        "%{{.apiKey}}%",
+                        "% + .apiKey %",
+                    ),
+                )
+                bad = [row[0] for row in cur.fetchall()]
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            bad,
+            [],
+            f"Обнаружены нерабочие шаблоны apiKey в live workflow: {bad}",
+        )
 
 
 if __name__ == "__main__":
