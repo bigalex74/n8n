@@ -38,6 +38,13 @@ crontab -l
 # END MOEX RESEARCH
 ```
 
+Если сразу после `./scripts/apply_moex_cron.sh` выполнить `crontab -l`, в терминале визуально будут два одинаковых блока подряд:
+
+- первый печатает сам installer
+- второй печатает `crontab -l`
+
+Это не означает, что в `crontab` реально две копии блока.
+
 ## Снятие cron блока
 
 ```bash
@@ -75,5 +82,16 @@ tail -f /home/user/n8n-docker/logs/moex-backfill-cron.log
 3. `news` пишет новые записи в `raw.news_item` и матчи в `raw.news_instrument_match`
 4. `candle` пишет очередную порцию свечей в trade DB
 5. `digest` собирает summary и пушит материал в отдельный trade LightRAG
+
+## Уже подтверждено
+
+На `2026-04-18 08:03 MSK` зафиксирован реальный запуск из `cron`:
+
+```text
+[2026-04-18T08:03:01+03:00] trigger start workflow=news path=moex-news-feed-int-b0e19a6a
+[2026-04-18T08:03:01+03:00] trigger success workflow=news target=local response={"message":"Workflow was started"}
+```
+
+Это подтверждает, что host `cron` действительно вызывает внутренний webhook `n8n`.
 
 Только после этого имеет смысл переносить секреты в `Infisical`.
