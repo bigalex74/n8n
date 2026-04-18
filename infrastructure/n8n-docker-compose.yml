@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=n8n_user
-      - POSTGRES_PASSWORD=n8n_db_password
-      - POSTGRES_DB=n8n_database
+      - POSTGRES_USER=${POSTGRES_USER:?Set via Infisical}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set via Infisical}
+      - POSTGRES_DB=${POSTGRES_DB:?Set via Infisical}
     ports:
       - 5432:5432
     restart: always
@@ -17,13 +17,13 @@ services:
     depends_on:
       - db
     environment:
-      - N8N_ENCRYPTION_KEY=InqHY6REAuKYfnqDgmmcZGuSnLZJFl90
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?Set via Infisical}
       - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=127.0.0.1
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=n8n_database
-      - DB_POSTGRESDB_USER=n8n_user
-      - DB_POSTGRESDB_PASSWORD=n8n_db_password
+      - DB_POSTGRESDB_HOST=${DB_POSTGRESDB_HOST:?Set via Infisical}
+      - DB_POSTGRESDB_PORT=${DB_POSTGRESDB_PORT:?Set via Infisical}
+      - DB_POSTGRESDB_DATABASE=${DB_POSTGRESDB_DATABASE:?Set via Infisical}
+      - DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER:?Set via Infisical}
+      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD:?Set via Infisical}
       - N8N_HOST=bigalexn8n.ru
       - N8N_PROTOCOL=https
       - N8N_PORT=5678
@@ -46,8 +46,8 @@ services:
     depends_on:
       - db
     environment:
-      - PGADMIN_DEFAULT_EMAIL=alexei.bigalex@yandex.ru
-      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:?Set via Infisical}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:?Set via Infisical}
       - PGADMIN_CONFIG_SERVER_MODE=False
       - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
       - PGADMIN_CONFIG_ENFORCE_CSRF=False
@@ -104,7 +104,7 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: postgres-exporter
     environment:
-      - DATA_SOURCE_NAME=postgresql://n8n_user:n8n_db_password@db:5432/n8n_database?sslmode=disable
+      - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DATA_SOURCE_NAME:?Set via Infisical}
     restart: always
     ports:
       - 9187:9187
