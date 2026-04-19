@@ -1,0 +1,14 @@
+Update Required: Your current package installation script is outdated and will no longer receive updates.
+Please update to the new installation script which can be found here https://infisical.com/docs/cli/overview#installation debian section
+
+A new release of infisical is available: 0.38.0 -> v0.159.17
+
+To update, run: sudo apt-get update && sudo apt-get install infisical
+
+[90m4:00AM[0m [32mINF[0m Injecting 37 Infisical secrets into your application process
+Вс 19 апр 2026 04:00:03 MSK - --- Starting System Cleanup ---
+Вс 19 апр 2026 04:00:03 MSK - Pruning Docker system...
+Вс 19 апр 2026 04:00:07 MSK - Cleaning old log files...
+Вс 19 апр 2026 04:00:07 MSK - Cleaning /tmp directory...
+Вс 19 апр 2026 04:00:07 MSK - ✅ Cleanup completed!
+Вс 19 апр 2026 04:00:07 MSK - ✅ Telegram notification sent
