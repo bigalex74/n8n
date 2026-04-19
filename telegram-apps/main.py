@@ -27,6 +27,16 @@ DB_CONFIG_POSTGRES = {
 
 def get_conn_pg(): return psycopg2.connect(**DB_CONFIG_POSTGRES)
 
+DB_CONFIG_RESEARCH = {
+    "host": os.getenv("DB_HOST", "127.0.0.1"),
+    "database": "market_research",
+    "user": "n8n_user",
+    "password": os.getenv("DB_PASSWORD", "n8n_db_password"),
+    "port": int(os.getenv("DB_PORT", 5432))
+}
+
+def get_conn_research(): return psycopg2.connect(**DB_CONFIG_RESEARCH)
+
 class StartTranslationRequest(BaseModel):
     file_id: str; file_name: str; chat_id: int = None
     bp_file_id: str = None; bp_file_name: str = None
@@ -108,6 +118,22 @@ async def get_prompt_history(prompt_id: int):
     conn.close()
     return data
 
+@app.get("/api/trade/league")
+async def get_trade_league():
+    try:
+        conn = get_conn_research()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT p.trader_name, p.cash_balance, c.learned_traits as memory FROM trading.portfolio p LEFT JOIN trading.trader_config c ON p.trader_name = c.trader_name ORDER BY p.trader_name")
+        portfolios = cur.fetchall()
+        cur.execute("SELECT trader_name, secid, quantity, avg_entry_price FROM trading.position WHERE quantity > 0")
+        positions = cur.fetchall()
+        cur.execute("SELECT trader_name, secid, action, quantity, price, created_at FROM trading.journal ORDER BY created_at DESC LIMIT 10")
+        journal = cur.fetchall()
+        cur.close(); conn.close()
+        return {"traders": portfolios, "positions": positions, "journal": journal}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/start-translation")
 async def start_translation(req: StartTranslationRequest):
     async with httpx.AsyncClient() as client:
@@ -148,5 +174,9 @@ async def manage_page():
 @app.get("/prompts", response_class=HTMLResponse)
 async def prompts_page():
     with open("static/prompts/index.html", "r", encoding="utf-8") as f: return f.read()
+
+@app.get("/trade", response_class=HTMLResponse)
+async def trade_page():
+    with open("static/trade/index.html", "r", encoding="utf-8") as f: return f.read()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
