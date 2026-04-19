@@ -119,18 +119,44 @@ async def get_prompt_history(prompt_id: int):
     return data
 
 @app.get("/api/trade/league")
-async def get_trade_league():
+async def get_trade_league(division: str = "moex"):
     try:
-        conn = get_conn_research()
+        db_name = "market_research" if division == "moex" else "crypto_research"
+        config = DB_CONFIG_RESEARCH.copy()
+        config["database"] = db_name
+        
+        conn = psycopg2.connect(**config)
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        
         cur.execute("SELECT p.trader_name, p.cash_balance, c.learned_traits as memory FROM trading.portfolio p LEFT JOIN trading.trader_config c ON p.trader_name = c.trader_name ORDER BY p.trader_name")
         portfolios = cur.fetchall()
-        cur.execute("SELECT trader_name, secid, quantity, avg_entry_price FROM trading.position WHERE quantity > 0")
+        
+        cur.execute("SELECT trader_name, secid, quantity, avg_entry_price FROM trading.position WHERE quantity != 0")
         positions = cur.fetchall()
+        
         cur.execute("SELECT trader_name, secid, action, quantity, price, created_at FROM trading.journal ORDER BY created_at DESC LIMIT 10")
         journal = cur.fetchall()
+        
+        cur.execute("SELECT id, trader_name, secid, order_type, quantity, target_price FROM trading.orders WHERE status = 'PENDING'")
+        orders = cur.fetchall()
+        
+        cur.execute("SELECT secid, score, summary FROM analytics.market_sentiment")
+        sentiment = cur.fetchall()
+
+        # 6. Список активных инструментов
+        cur.execute("SELECT secid, issuer_name FROM ref.instrument WHERE active = true")
+        instruments = cur.fetchall()
+        
         cur.close(); conn.close()
-        return {"traders": portfolios, "positions": positions, "journal": journal}
+        return {
+            "division": division,
+            "traders": portfolios, 
+            "positions": positions, 
+            "journal": journal, 
+            "orders": orders, 
+            "sentiment": sentiment,
+            "instruments": instruments
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
