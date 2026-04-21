@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict owspht6pTbdgiLLlHsKn35yXlvyhtbieN8VwuheXQPxFT1ChOF9WUUOC1apV409
+\restrict bzhX2OP4kjgQOswOinBYPbgQ94KIdkND4OtdH1qEsrGgk7CZ2rTlOsYyq4UuBtf
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -47,5 +47,5 @@ INSERT INTO public.credentials_entity VALUES ('Market Research Postgres RO', 'U2
 -- PostgreSQL database dump complete
 --
 
-\unrestrict owspht6pTbdgiLLlHsKn35yXlvyhtbieN8VwuheXQPxFT1ChOF9WUUOC1apV409
+\unrestrict bzhX2OP4kjgQOswOinBYPbgQ94KIdkND4OtdH1qEsrGgk7CZ2rTlOsYyq4UuBtf
 
