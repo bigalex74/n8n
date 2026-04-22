@@ -87,3 +87,17 @@ To update, run: sudo apt-get update && sudo apt-get install infisical
 Вт 21 апр 2026 03:00:05 MSK - Uploading to Yandex Disk...
 Вт 21 апр 2026 03:00:28 MSK - ✅ Successfully uploaded to Yandex Disk!
 Вт 21 апр 2026 03:00:28 MSK - ✅ Telegram notification sent
+Update Required: Your current package installation script is outdated and will no longer receive updates.
+Please update to the new installation script which can be found here https://infisical.com/docs/cli/overview#installation debian section
+
+A new release of infisical is available: 0.38.0 -> v0.159.19
+
+To update, run: sudo apt-get update && sudo apt-get install infisical
+
+[90m3:00AM[0m [32mINF[0m Injecting 37 Infisical secrets into your application process
+Ср 22 апр 2026 03:00:02 MSK - Creating ZIP archive...
+Ср 22 апр 2026 03:00:02 MSK - Ensuring Cloud folder exists...
+Ср 22 апр 2026 03:00:05 MSK - Getting upload URL...
+Ср 22 апр 2026 03:00:07 MSK - Uploading to Yandex Disk...
+Ср 22 апр 2026 03:00:31 MSK - ✅ Successfully uploaded to Yandex Disk!
+Ср 22 апр 2026 03:00:32 MSK - ✅ Telegram notification sent
