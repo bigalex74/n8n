@@ -1,104 +1,85 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:?Set via Infisical}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set via Infisical}
-      - POSTGRES_DB=${POSTGRES_DB:?Set via Infisical}
-    ports:
-      - 5432:5432
+    container_name: n8n-docker-db-1
     restart: always
+    network_mode: host
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - db_storage:/var/lib/postgresql/data
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
+    image: n8nio/n8n:latest
+    container_name: n8n-docker-n8n-1
+    restart: always
     network_mode: host
-    depends_on:
-      - db
     environment:
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?Set via Infisical}
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=${DB_POSTGRESDB_HOST:?Set via Infisical}
-      - DB_POSTGRESDB_PORT=${DB_POSTGRESDB_PORT:?Set via Infisical}
-      - DB_POSTGRESDB_DATABASE=${DB_POSTGRESDB_DATABASE:?Set via Infisical}
-      - DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER:?Set via Infisical}
-      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD:?Set via Infisical}
-      - N8N_HOST=bigalexn8n.ru
-      - N8N_PROTOCOL=https
+      - N8N_HOST=${DOMAIN_NAME}
       - N8N_PORT=5678
-      - N8N_EDITOR_BASE_URL=https://bigalexn8n.ru
-      - WEBHOOK_URL=https://bigalexn8n.ru/
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${DOMAIN_NAME}/
       - GENERIC_TIMEZONE=Europe/Moscow
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=127.0.0.1
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_TRUST_PROXY=true
       - N8N_PROXY_HOPS=1
       - HTTP_PROXY=http://127.0.0.1:10808
       - HTTPS_PROXY=http://127.0.0.1:10808
-      - NO_PROXY=localhost,127.0.0.1,::1,192.168.1.124,bigalexn8n.ru,www.bigalexn8n.ru
+      - ALL_PROXY=http://127.0.0.1:10808
+      - GLOBAL_AGENT_HTTP_PROXY=http://127.0.0.1:10808
+      - NO_PROXY=localhost,127.0.0.1,::1
       - EXECUTIONS_DATA_PRUNE=true
       - EXECUTIONS_DATA_MAX_AGE=168
-    restart: always
     volumes:
       - n8n_storage:/home/node/.n8n
 
+  tg-polling:
+    image: python:3.11-slim
+    container_name: tg-polling
+    restart: always
+    network_mode: host
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    volumes:
+      - /home/user/telegram-apps/telegram_polling.py:/app/telegram_polling.py:ro
+    working_dir: /app
+    command: sh -c "pip install pyTelegramBotAPI requests && python3 -u -c 'import sys; sys.path.append(\".\"); from telegram_polling import run_polling; run_polling()'"
+
   pgadmin:
     image: dpage/pgadmin4:latest
-    depends_on:
-      - db
+    container_name: n8n-docker-pgadmin-1
+    restart: always
+    network_mode: host
     environment:
-      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:?Set via Infisical}
-      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:?Set via Infisical}
+      - PGADMIN_DEFAULT_EMAIL=${SSL_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:?Set via Infisical}
+      - PGADMIN_LISTEN_PORT=5055
       - PGADMIN_CONFIG_SERVER_MODE=False
-      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
-      - PGADMIN_CONFIG_ENFORCE_CSRF=False
-    ports:
-      - 127.0.0.1:5055:80
-    restart: unless-stopped
-
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
     volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)'
-    restart: always
-    ports:
-      - 9100:9100
+      - /home/user/n8n-docker/pgadmin-servers.json:/pgadmin4/servers.json:ro
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    volumes:
-      - /home/user/n8n-docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/console_templates'
-    restart: always
-    ports:
-      - 9090:9090
-
-  backup-exporter:
-    image: python:3.11-alpine
-    container_name: backup-exporter
-    volumes:
-      - /home/user/n8n-docker/prometheus/backup_metrics.py:/app/backup_metrics.py:ro
-      - /home/user/n8n-backups:/home/user/n8n-backups:ro
-    command:
-      - 'python3'
-      - '/app/backup_metrics.py'
+  gemini-bridge:
+    image: python:3.11-slim
+    container_name: gemini-bridge
+    network_mode: host
     environment:
-      - BACKUP_METRICS_PORT=9199
+      - GOOGLE_AI_STUDIO_KEY=${GOOGLE_AI_STUDIO_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    volumes:
+      - /home/user/n8n-docker/scripts/gemini_bridge.py:/app/bridge.py:ro
+    command: sh -c "pip install flask requests && python3 /app/bridge.py"
     restart: always
-    ports:
-      - 9199:9199
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest

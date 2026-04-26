@@ -1,0 +1,10 @@
+## [0.12.0] - 2026-04-26
+### Added
+- Gemini Bridge v42 with request cleaning and rate limiting.
+- Dockerized Telegram Long Polling (tg-polling service).
+- DevOps Safety Switch in Translation workflow.
+
+### Fixed
+- TMA Backend: correct PostgreSQL column names (name/prompt) and database (postgres).
+- pgAdmin: restored connectivity via network_mode host and auto-import servers.json.
+
