@@ -11,9 +11,11 @@ import httpx
 import docx
 import shutil
 import telegram_polling
+import invest_logic
+from datetime import datetime
 
 app = FastAPI(title="bigalexn8n Apps Hub")
-telegram_polling.start_bot()
+# telegram_polling.start_bot()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 N8N_WEBHOOK_URL = "https://bigalexn8n.ru/webhook/trigger-translation"
@@ -44,15 +46,41 @@ class StartTranslationRequest(BaseModel):
     glossary_id: str = None; glossary_file_name: str = None
     create_glossary: bool = False
 
-# Работа с файлами (с фильтрацией по chat_id)
+# --- INVEST API ---
+@app.get("/api/invest/offers")
+async def get_invest_offers():
+    return invest_logic.get_current_offers()
+
+@app.get("/api/invest/portfolio")
+async def get_portfolio(user_id: int):
+    return invest_logic.get_user_portfolio(user_id)
+
+@app.post("/api/invest/portfolio")
+async def add_to_portfolio(data: dict):
+    invest_logic.add_to_portfolio(data['user_id'], data['offer_id'], data['amount'])
+    return {"status": "success"}
+
+@app.delete("/api/invest/portfolio/{item_id}")
+async def delete_from_portfolio(item_id: int, user_id: int):
+    success = invest_logic.remove_from_portfolio(user_id, item_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to delete")
+    return {"status": "success"}
+
+@app.post("/api/invest/update")
+async def update_invest_offers():
+    success = await invest_logic.update_invest_offers()
+    return {"status": "success" if success else "error"}
+
+# --- OTHER API ---
 @app.get("/api/get-form-data")
 async def get_form_data(chat_id: int):
+    if chat_id == 0: chat_id = 923741104 # FALLBACK FOR DEV
     conn = get_conn_pg()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT type, lang, message->'document'->>'file_name' as name, message->'document'->>'file_id' as file_id FROM telegram_messages WHERE (message->'chat'->>'id')::bigint = %s AND message->'document' IS NOT NULL AND (is_translate IS NULL OR is_translate = false) ORDER BY date_time DESC", (chat_id,))
     all_items = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return {"files_ko": [f for f in all_items if f['lang'] == 'ko'], "glossaries": [f for f in all_items if f['type'] == 'xlsx'], "prompts_ru": [f for f in all_items if f['lang'] == 'ru']}
 
 @app.post("/api/files/hide")
@@ -62,19 +90,16 @@ async def hide_files(data: dict):
     cur = conn.cursor()
     cur.execute("UPDATE telegram_messages SET is_translate = true WHERE message->'document'->>'file_id' = ANY(%s) AND (message->'chat'->>'id')::bigint = %s", (file_ids, chat_id))
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return {"status": "success"}
 
-# Работа с промптами (БЕЗ фильтрации по chat_id)
 @app.get("/api/prompts")
 async def get_prompts_db():
     conn = get_conn_pg()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT id, name, prompt FROM translate_prompts ORDER BY name")
     data = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return data
 
 @app.post("/api/prompts")
@@ -83,8 +108,7 @@ async def create_prompt(data: dict):
     cur = conn.cursor()
     cur.execute("INSERT INTO translate_prompts (name, prompt) VALUES (%s, %s)", (data['name'], data['prompt']))
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return {"status": "success"}
 
 @app.put("/api/prompts/{prompt_id}")
@@ -92,10 +116,9 @@ async def update_prompt(prompt_id: int, data: dict):
     conn = get_conn_pg()
     cur = conn.cursor()
     cur.execute("INSERT INTO translate_prompts_history (prompt_id, name, prompt, version_date) SELECT id, name, prompt, CURRENT_TIMESTAMP FROM translate_prompts WHERE id = %s", (prompt_id,))
-    cur.execute("UPDATE translate_prompts SET name = %s, prompt = %s WHERE id = %s", (data['name'], data['prompt'], prompt_id))
+    cur.execute("UPDATE translate_prompts SET name = %s, prompt = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s", (data['name'], data['prompt'], prompt_id))
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return {"status": "success"}
 
 @app.delete("/api/prompts/{prompt_id}")
@@ -104,8 +127,7 @@ async def delete_prompt(prompt_id: int):
     cur = conn.cursor()
     cur.execute("DELETE FROM translate_prompts WHERE id = %s", (prompt_id,))
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return {"status": "success"}
 
 @app.get("/api/prompts/{prompt_id}/history")
@@ -114,12 +136,10 @@ async def get_prompt_history(prompt_id: int):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT id, prompt_id, name, prompt, version_date FROM translate_prompts_history WHERE prompt_id = %s ORDER BY version_date DESC", (prompt_id,))
     data = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return data
 
 async def get_global_risk():
-    """Запрашивает уровень риска из базы знаний ALGO."""
     url = "http://localhost:9624/query"
     try:
         async with httpx.AsyncClient() as client:
@@ -140,30 +160,15 @@ async def get_trade_league(division: str = "moex"):
         db_name = "market_research" if division == "moex" else "crypto_research"
         config = DB_CONFIG_RESEARCH.copy()
         config["database"] = db_name
-        
         conn = psycopg2.connect(**config)
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # 1. Портфели и память
         cur.execute("SELECT p.trader_name, p.cash_balance, c.learned_traits as memory FROM trading.portfolio p LEFT JOIN trading.trader_config c ON p.trader_name = c.trader_name ORDER BY p.trader_name")
         portfolios = cur.fetchall()
-        
-        # 2. Открытые позиции
         cur.execute("SELECT trader_name, secid, quantity, avg_entry_price FROM trading.position WHERE quantity != 0")
         positions = cur.fetchall()
-
-        # 3. Глобальный риск из KB
         risk_level, storm_active = await get_global_risk()
-        
         cur.close(); conn.close()
-        return {
-            "division": division,
-            "traders": portfolios, 
-            "positions": positions,
-            "risk": risk_level,
-            "storm_mode": storm_active,
-            "server_time": datetime.now().strftime("%H:%M:%S")
-        }
+        return {"division": division, "traders": portfolios, "positions": positions, "risk": risk_level, "storm_mode": storm_active, "server_time": datetime.now().strftime("%H:%M:%S")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -188,6 +193,7 @@ async def upload_file(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- HTML PAGES ---
 @app.get("/", response_class=HTMLResponse)
 async def main_hub():
     with open("static/index.html", "r", encoding="utf-8") as f: return f.read()
@@ -211,5 +217,9 @@ async def prompts_page():
 @app.get("/trade", response_class=HTMLResponse)
 async def trade_page():
     with open("static/trade/index.html", "r", encoding="utf-8") as f: return f.read()
+
+@app.get("/invest", response_class=HTMLResponse)
+async def invest_page():
+    with open("static/invest/index.html", "r", encoding="utf-8") as f: return f.read()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

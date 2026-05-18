@@ -5,4 +5,4 @@
 cd /home/user/n8n-docker
 
 # Инъекция секретов из Infisical и запуск n8n
-infisical run --domain https://secrets.bigalexn8n.ru --env dev -- n8n start
+/home/user/run_infisical_quiet.sh --domain https://secrets.bigalexn8n.ru --env dev -- n8n start
