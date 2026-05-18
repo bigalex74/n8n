@@ -14,7 +14,7 @@ while true; do
     echo "$(date): Starting n8n with Infisical Secrets Injection..."
     
     # Запуск n8n с впрыском переменных окружения из Infisical
-    infisical run --domain https://secrets.bigalexn8n.ru --env dev -- n8n start
+    /home/user/run_infisical_quiet.sh --domain https://secrets.bigalexn8n.ru --env dev -- n8n start
     
     echo "$(date): n8n exited, restarting..."
     sleep 5

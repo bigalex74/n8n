@@ -1,0 +1,478 @@
+[
+  {
+    "updatedAt": "2026-04-12T18:34:17.433Z",
+    "createdAt": "2026-04-12T17:21:10.199Z",
+    "id": "uMaJIanCMJqosDXC",
+    "name": "[Agent] Translation Core",
+    "description": null,
+    "active": false,
+    "isArchived": true,
+    "nodes": [
+      {
+        "parameters": {
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "chunk_text"
+              },
+              {
+                "name": "system_prompt"
+              },
+              {
+                "name": "user_prompt"
+              },
+              {
+                "name": "glossary"
+              },
+              {
+                "name": "rag_context"
+              },
+              {
+                "name": "rolling_summary"
+              },
+              {
+                "name": "arc_summary"
+              },
+              {
+                "name": "prev_line"
+              },
+              {
+                "name": "model_config"
+              },
+              {
+                "name": "test_id"
+              }
+            ]
+          }
+        },
+        "id": "trigger-1",
+        "name": "Start Workflow",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          -1200,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $('Start Workflow').first().json;\nconst chunkText = input.chunk_text || '';\nconst systemPrompt = input.system_prompt || '';\nconst userPrompt = input.user_prompt || '';\nconst glossary = input.glossary || '';\nconst ragContext = input.rag_context || '';\nconst rollingSummary = input.rolling_summary || '';\nconst arcSummary = input.arc_summary || '';\nconst prevLine = input.prev_line || '';\n\nlet fullUserPrompt = '';\nif (rollingSummary) fullUserPrompt += '## \u041a\u0420\u0410\u0422\u041a\u041e\u0415 \u0421\u041e\u0414\u0415\u0420\u0416\u0410\u041d\u0418\u0415 \u041f\u0420\u0415\u0414\u042b\u0414\u0423\u0429\u0415\u0419 \u0413\u041b\u0410\u0412\u042b:\\n' + rollingSummary + '\\n\\n';\nif (arcSummary) fullUserPrompt += '## \u041a\u0420\u0410\u0422\u041a\u041e\u0415 \u041e\u041f\u0418\u0421\u0410\u041d\u0418\u0415 \u0422\u0415\u041a\u0423\u0429\u0415\u0419 \u0410\u0420\u041a\u0418:\\n' + arcSummary + '\\n\\n';\nif (prevLine) fullUserPrompt += '<CONTEXT_BEFORE>\\n' + prevLine + '\\n</CONTEXT_BEFORE>\\n\\n';\nif (userPrompt) fullUserPrompt += userPrompt + '\\n\\n';\nfullUserPrompt += '## \u041f\u0415\u0420\u0415\u0412\u0415\u0414\u0418 \u0421\u0422\u0420\u041e\u0413\u041e \u041d\u0410 \u0420\u0423\u0421\u0421\u041a\u0418\u0419:\\n' + chunkText;\n\nlet fullSystemPrompt = systemPrompt;\nif (glossary) fullSystemPrompt = fullSystemPrompt.replace('{{GLOSSARY}}', '\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n\u0413\u041b\u041e\u0421\u0421\u0410\u0420\u0418\u0419 \u2014 \u0418\u0421\u0422\u041e\u0427\u041d\u0418\u041a \u0418\u0421\u0422\u0418\u041d\u042b\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n' + glossary);\nif (ragContext) fullSystemPrompt = fullSystemPrompt.replace('{{LIGHT_RAG}}', '\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n\u0411\u0410\u0417\u0410 \u0417\u041d\u0410\u041d\u0418\u0419 \u041c\u0418\u0420\u0410 (\u041a\u041e\u041d\u0422\u0415\u041a\u0421\u0422 \u0418\u0417 RAG)\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n' + ragContext);\nif (prevLine) fullSystemPrompt = fullSystemPrompt.replace('{{CONTEXT_BEFORE}}', '\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n\u0421\u0415\u041a\u0426\u0418\u042f<CONTEXT_BEFORE>\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n\u041d\u0415 \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442\u044c.\\n\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u0434\u043b\u044f \u0443\u043b\u0443\u0447\u0448\u0435\u043d\u0438\u044f \u0441\u0432\u044f\u0437\u043d\u043e\u0441\u0442\u0438 \u043e\u0441\u043d\u043e\u0432\u043d\u043e\u0433\u043e \u0442\u0435\u043a\u0441\u0442\u0430.');\n\nconst isTest = input.is_devops_test === true;\nlet modelConfig = input.model_config || { mainModel: 'ollama', mainModelName: 'llama3.2:3b', baseUrl: 'http://127.0.0.1:11434' };\nif (isTest) {\n  modelConfig = { mainModel: 'openai', mainModelName: 'google/gemini-2.0-flash-001', baseUrl: 'http://127.0.0.1:5000' };\n  console.log('\u26a0\ufe0f DEVOPS SAFETY SWITCH ACTIVATED');\n}\n\nreturn [{ json: { chunk_text: chunkText, system_prompt: fullSystemPrompt, user_prompt: fullUserPrompt, model_config: modelConfig, start_time: Date.now(), test_id: input.test_id || 'translation-core', attempt: 0 } }];"
+        },
+        "id": "prepare-data",
+        "name": "\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -960,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nconsole.log('\ud83e\udd16 Translation Core Start');\nconsole.log('\ud83d\udcdd Input: ' + input.chunk_text.length + ' chars');\nconsole.log('\ud83e\udde0 Model: ' + input.model_config.mainModelName);\nreturn $input.all();"
+        },
+        "id": "log-start",
+        "name": "Log Start",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -720,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $json.system_prompt }}\n\n{{ $json.user_prompt }}",
+          "options": {
+            "maxIterations": 3
+          }
+        },
+        "id": "main-translate",
+        "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.7,
+        "position": [
+          -480,
+          304
+        ],
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "\u0420\u0415\u0417\u0415\u0420\u0412\u041d\u042b\u0419 \u041f\u0415\u0420\u0415\u0412\u041e\u0414.\n\n{{ $json.system_prompt }}\n\n{{ $json.user_prompt }}",
+          "options": {
+            "maxIterations": 3
+          }
+        },
+        "id": "fallback-translate",
+        "name": "\u0420\u0435\u0437\u0435\u0440\u0432\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.7,
+        "position": [
+          -16,
+          320
+        ],
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nconst output = input.output || '';\nconst hasContent = output.trim().length > 10;\nconst looksLikeKorean = /[\u3131-\u314e\u314f-\u3163\uac00-\ud7a3]/.test(output);\nif (!hasContent) return [{ json: { ...input, quality_check: 'empty', passed: false } }];\nif (looksLikeKorean) return [{ json: { ...input, quality_check: 'still_korean', passed: false } }];\nreturn [{ json: { ...input, quality_check: 'ok', passed: true } }];"
+        },
+        "id": "quality-check",
+        "name": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -16,
+          112
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nconst output = input.output || '';\nconst forbiddenWords = ['\uadf8\ub140\ub294', '\uadf8\ub294', '\ud588\ub2e4', '\ub9d0\ud588\ub2e4', '\uc0dd\uac01\ud588\ub2e4'];\nconst found = forbiddenWords.filter(w => output.includes(w));\nreturn [{ json: { ...input, has_forbidden_words: found.length > 0, forbidden_words_found: found, passed_forbidden: found.length === 0 } }];"
+        },
+        "id": "forbidden-words",
+        "name": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d\u043d\u044b\u0445 \u0441\u043b\u043e\u0432",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          544,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "1",
+                "leftValue": "={{ !$json.passed_forbidden }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals",
+                  "name": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "forbidden-if",
+        "name": "\u0415\u0441\u0442\u044c \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d\u043d\u044b\u0435?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.1,
+        "position": [
+          800,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { error: 'Translation failed', output: '', model_used: 'none', success: false } }];"
+        },
+        "id": "log-error",
+        "name": "\u041b\u043e\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u043e\u0448\u0438\u0431\u043a\u0438",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          560,
+          112
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nconst endTime = Date.now();\nreturn [{ json: { success: true, output: input.output, model_used: input.model_config.mainModelName, model_type: input.model_config.mainModel, quality_check: input.quality_check, forbidden_words: input.forbidden_words_found || [], duration_ms: endTime - input.start_time, output_length: (input.output || '').length, input_length: (input.chunk_text || '').length, attempt: input.attempt + 1, test_id: input.test_id } }];"
+        },
+        "id": "metrics",
+        "name": "\u0417\u0430\u043f\u0438\u0441\u044c \u043c\u0435\u0442\u0440\u0438\u043a",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1040,
+          320
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { success: false, error: $input.first().json.error || 'Translation failed', output: '' } }];"
+        },
+        "id": "return-error",
+        "name": "\u0412\u043e\u0437\u0432\u0440\u0430\u0442 \u043e\u0448\u0438\u0431\u043a\u0438",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          800,
+          112
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return $input.all();"
+        },
+        "id": "return-result",
+        "name": "\u0412\u043e\u0437\u0432\u0440\u0430\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1312,
+          176
+        ]
+      },
+      {
+        "parameters": {
+          "model": "llama3.2:3b",
+          "options": {
+            "temperature": 0.1
+          }
+        },
+        "id": "ollama-main",
+        "name": "Ollama llama3.2:3b",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+        "typeVersion": 1,
+        "position": [
+          -480,
+          528
+        ],
+        "credentials": {
+          "ollamaApi": {
+            "id": "j0V93P3JQ2OxewHn",
+            "name": "Ollama Local"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "model": "llama3.2:3b",
+          "options": {
+            "temperature": 0.1
+          }
+        },
+        "id": "ollama-fallback",
+        "name": "Ollama llama3.2:3b Fallback",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+        "typeVersion": 1,
+        "position": [
+          -16,
+          608
+        ],
+        "credentials": {
+          "ollamaApi": {
+            "id": "j0V93P3JQ2OxewHn",
+            "name": "Ollama Local"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Start Workflow": {
+        "main": [
+          [
+            {
+              "node": "\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log Start": {
+        "main": [
+          [
+            {
+              "node": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ollama llama3.2:3b": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ollama llama3.2:3b Fallback": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "\u0420\u0435\u0437\u0435\u0440\u0432\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445": {
+        "main": [
+          [
+            {
+              "node": "Log Start",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434": {
+        "main": [
+          [
+            {
+              "node": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "\u0420\u0435\u0437\u0435\u0440\u0432\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d\u043d\u044b\u0445 \u0441\u043b\u043e\u0432": {
+        "main": [
+          [
+            {
+              "node": "\u0415\u0441\u0442\u044c \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d\u043d\u044b\u0435?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0430": {
+        "main": [
+          [
+            {
+              "node": "\u041b\u043e\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u043e\u0448\u0438\u0431\u043a\u0438",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u0415\u0441\u0442\u044c \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d\u043d\u044b\u0435?": {
+        "main": [
+          [],
+          [
+            {
+              "node": "\u0417\u0430\u043f\u0438\u0441\u044c \u043c\u0435\u0442\u0440\u0438\u043a",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u041b\u043e\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u043e\u0448\u0438\u0431\u043a\u0438": {
+        "main": [
+          [
+            {
+              "node": "\u0412\u043e\u0437\u0432\u0440\u0430\u0442 \u043e\u0448\u0438\u0431\u043a\u0438",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u0420\u0435\u0437\u0435\u0440\u0432\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434": {
+        "main": [
+          [
+            {
+              "node": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d\u043d\u044b\u0445 \u0441\u043b\u043e\u0432",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "\u041b\u043e\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u043e\u0448\u0438\u0431\u043a\u0438",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u0417\u0430\u043f\u0438\u0441\u044c \u043c\u0435\u0442\u0440\u0438\u043a": {
+        "main": [
+          [
+            {
+              "node": "\u0412\u043e\u0437\u0432\u0440\u0430\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "\u0412\u043e\u0437\u0432\u0440\u0430\u0442 \u043e\u0448\u0438\u0431\u043a\u0438": {
+        "main": [
+          [
+            {
+              "node": "\u0412\u043e\u0437\u0432\u0440\u0430\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "saveDataErrorExecution": "all",
+      "saveDataSuccessExecution": "all",
+      "saveManualExecutions": true,
+      "saveExecutionProgress": true,
+      "callerPolicy": "workflowsFromSameOwner",
+      "availableInMCP": false,
+      "binaryMode": "separate"
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": {},
+    "versionId": "a5b2a591-3fe6-4d13-aba2-aab46002406f",
+    "activeVersionId": null,
+    "versionCounter": 38,
+    "triggerCount": 0,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-04-12T17:21:10.199Z",
+        "createdAt": "2026-04-12T17:21:10.199Z",
+        "role": "workflow:owner",
+        "workflowId": "uMaJIanCMJqosDXC",
+        "projectId": "laKLUPkuQseBWQhm",
+        "project": {
+          "updatedAt": "2026-03-24T19:39:31.833Z",
+          "createdAt": "2026-03-24T18:56:12.129Z",
+          "id": "laKLUPkuQseBWQhm",
+          "name": "\u0410\u043b\u0435\u043a\u0441\u0435\u0439 bigalex <alexei.bigalex@yandex.ru>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "72a067d6-c26f-4653-90ff-323299f21ddd"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
+    }
+  }
+]

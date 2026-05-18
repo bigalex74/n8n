@@ -12,3 +12,53 @@ To update, run: sudo apt-get update && sudo apt-get install infisical
 Вс 19 апр 2026 04:00:07 MSK - Cleaning /tmp directory...
 Вс 19 апр 2026 04:00:07 MSK - ✅ Cleanup completed!
 Вс 19 апр 2026 04:00:07 MSK - ✅ Telegram notification sent
+Вс 26 апр 2026 04:00:02 MSK - --- Starting System Cleanup ---
+Вс 26 апр 2026 04:00:02 MSK - Pruning Docker system...
+Вс 26 апр 2026 04:00:02 MSK - Cleaning old log files...
+Вс 26 апр 2026 04:00:02 MSK - Cleaning /tmp directory...
+Вс 26 апр 2026 04:00:02 MSK - ✅ Cleanup completed!
+Вс 26 апр 2026 04:00:03 MSK - ✅ Telegram notification sent
+--- Starting Monthly Cleanup: Пт 01 мая 2026 00:00:01 MSK ---
+Deleting old branch: bigalexn8n-10 (age: 32 days)
+Ветка bigalexn8n-10 удалена (была 61a8e5d).
+Deleting old branch: bigalexn8n-11 (age: 32 days)
+Ветка bigalexn8n-11 удалена (была 6d81916).
+Deleting old branch: bigalexn8n-12 (age: 32 days)
+Ветка bigalexn8n-12 удалена (была 5c50993).
+Deleting old branch: bigalexn8n-13 (age: 32 days)
+Ветка bigalexn8n-13 удалена (была 37bac8d).
+Deleting old branch: bigalexn8n-14 (age: 32 days)
+Ветка bigalexn8n-14 удалена (была 20c74eb).
+Deleting old branch: bigalexn8n-15 (age: 32 days)
+Ветка bigalexn8n-15 удалена (была fb592a2).
+Deleting old branch: bigalexn8n-16 (age: 31 days)
+Ветка bigalexn8n-16 удалена (была 6d9f1a1).
+Deleting old branch: bigalexn8n-17 (age: 31 days)
+Ветка bigalexn8n-17 удалена (была ad78361).
+Deleting old branch: bigalexn8n-18 (age: 31 days)
+Ветка bigalexn8n-18 удалена (была 47b2232).
+Deleting old branch: bigalexn8n-19 (age: 31 days)
+Ветка bigalexn8n-19 удалена (была f963946).
+Deleting old branch: bigalexn8n-2 (age: 32 days)
+Ветка bigalexn8n-2 удалена (была 8690e49).
+Deleting old branch: bigalexn8n-20 (age: 31 days)
+Ветка bigalexn8n-20 удалена (была a98fd7b).
+Deleting old branch: bigalexn8n-21 (age: 31 days)
+Ветка bigalexn8n-21 удалена (была 121a489).
+Deleting old branch: bigalexn8n-3 (age: 32 days)
+Ветка bigalexn8n-3 удалена (была 2c6baa8).
+Deleting old branch: bigalexn8n-4 (age: 32 days)
+Ветка bigalexn8n-4 удалена (была 70c7b7f).
+Deleting old branch: bigalexn8n-5 (age: 32 days)
+Ветка bigalexn8n-5 удалена (была 572d5a5).
+Deleting old branch: bigalexn8n-6 (age: 32 days)
+Ветка bigalexn8n-6 удалена (была 4a089b9).
+Deleting old branch: bigalexn8n-7 (age: 32 days)
+Ветка bigalexn8n-7 удалена (была ae7acf1).
+Deleting old branch: bigalexn8n-8 (age: 32 days)
+Ветка bigalexn8n-8 удалена (была b93eb5f).
+Deleting old branch: bigalexn8n-9 (age: 32 days)
+Ветка bigalexn8n-9 удалена (была 5f81e6c).
+✅ Cleanup completed!
+Your login session has expired, please run [infisical login] and try again
+Your login session has expired, please run [infisical login] and try again

@@ -1,9 +1,10 @@
 #!/bin/bash
+set -euo pipefail
 # ☁️ Yandex Disk Cloud Backup Script for n8n
 # Backs up local git repo data to Yandex Disk
 
 # Cloud token (from environment, injected by Infisical)
-TOKEN="${YANDEX_OAUTH_TOKEN}"
+TOKEN="${YANDEX_OAUTH_TOKEN:-}"
 BACKUP_DIR="/home/user/n8n-backups"
 CLOUD_ARCHIVE_DIR="$BACKUP_DIR/cloud_archives"
 DATE=$(date +"%Y-%m-%d_%H-%M-%S")
@@ -11,8 +12,8 @@ FILENAME="n8n_full_backup_$DATE.zip"
 ARCHIVE_PATH="$CLOUD_ARCHIVE_DIR/$FILENAME"
 
 # Telegram settings (from environment, injected by Infisical)
-BOT_TOKEN="${TELEGRAM_BOT_TOKEN}"
-CHAT_ID="${TELEGRAM_CHAT_ID}"
+BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+CHAT_ID="${TELEGRAM_CHAT_ID:-}"
 
 # Ensure proxy variables are set (use local proxy by default)
 export HTTP_PROXY="${HTTP_PROXY:-http://127.0.0.1:10808}"
@@ -27,6 +28,11 @@ fi
 
 
 log() { echo "$(date) - $1"; }
+
+if [ -z "$TOKEN" ]; then
+    log "❌ YANDEX_OAUTH_TOKEN is missing"
+    exit 1
+fi
 
 notify() {
     # Prefer env-provided bot token/chat; build curl options
@@ -55,12 +61,13 @@ notify() {
 # 1. Create Archive
 log "Creating ZIP archive..."
 cd "$BACKUP_DIR" || exit 1
+mkdir -p "$CLOUD_ARCHIVE_DIR"
 zip -r "$ARCHIVE_PATH" workflows system_db_backups infrastructure ai_config tools docs -x "*.log" > /dev/null
 
 # 2. Ensure Folder exists on Yandex Disk
 log "Ensuring Cloud folder exists..."
-curl $CURL_OPTS -X PUT "https://cloud-api.yandex.net/v1/disk/resources?path=Backups" -H "Authorization: OAuth $TOKEN" > /dev/null
-curl $CURL_OPTS -X PUT "https://cloud-api.yandex.net/v1/disk/resources?path=Backups/n8n" -H "Authorization: OAuth $TOKEN" > /dev/null
+curl $CURL_OPTS -X PUT "https://cloud-api.yandex.net/v1/disk/resources?path=Backups" -H "Authorization: OAuth $TOKEN" > /dev/null || true
+curl $CURL_OPTS -X PUT "https://cloud-api.yandex.net/v1/disk/resources?path=Backups/n8n" -H "Authorization: OAuth $TOKEN" > /dev/null || true
 
 # 3. Get Upload URL
 log "Getting upload URL..."
@@ -75,10 +82,15 @@ fi
 
 # 4. Upload file
 log "Uploading to Yandex Disk..."
-UPLOAD_STATUS=$(curl $CURL_OPTS -X PUT -T "$ARCHIVE_PATH" "$UPLOAD_URL" 2>&1) || true
+UPLOAD_RESPONSE=""
+if UPLOAD_RESPONSE=$(curl $CURL_OPTS --fail -X PUT -T "$ARCHIVE_PATH" "$UPLOAD_URL" 2>&1); then
+    UPLOAD_EXIT=0
+else
+    UPLOAD_EXIT=$?
+fi
 
 # 5. Verify and Cleanup
-if [ $? -eq 0 ]; then
+if [ "$UPLOAD_EXIT" -eq 0 ]; then
     log "✅ Successfully uploaded to Yandex Disk!"
     FILE_SIZE=$(du -h "$ARCHIVE_PATH" | cut -f1)
     notify "☁️ Yandex Disk Backup Completed!
@@ -90,8 +102,10 @@ if [ $? -eq 0 ]; then
     # Keep only last 7 local cloud archives
     ls -t "$CLOUD_ARCHIVE_DIR"/*.zip | tail -n +8 | xargs rm -f 2>/dev/null
 else
-    log "❌ Upload failed"
+    log "❌ Upload failed with curl exit $UPLOAD_EXIT: $UPLOAD_RESPONSE"
     notify "❌ Cloud Backup Failed during upload"
+    rm -f "$ARCHIVE_PATH"
+    exit "$UPLOAD_EXIT"
 fi
 
 rm -f "$ARCHIVE_PATH"
