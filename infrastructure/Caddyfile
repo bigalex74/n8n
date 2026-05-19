@@ -113,16 +113,6 @@ ai.bigalexn8n.ru {
 	}
 }
 
-draw.bigalexn8n.ru {
-	tls alexei.bigalex@yandex.ru
-	handle {
-		import masha_auth
-		reverse_proxy 127.0.0.1:24700 {
-			header_up Host {host}
-		}
-	}
-}
-
 docker.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
@@ -138,34 +128,6 @@ cron.bigalexn8n.ru {
 	handle {
 		import masha_auth
 		reverse_proxy 127.0.0.1:8001 {
-			header_up Host {host}
-		}
-	}
-}
-
-firecrawl.bigalexn8n.ru {
-	tls alexei.bigalex@yandex.ru
-	redir / /admin/30ca580d45d754fa7f22780c3ff69aa9/queues
-	@firecrawl_admin path /admin/*
-	handle @firecrawl_admin {
-		import masha_auth
-		reverse_proxy 127.0.0.1:3002 {
-			header_up Host {host}
-		}
-	}
-	handle {
-		import masha_auth
-		reverse_proxy 127.0.0.1:3002 {
-			header_up Host {host}
-		}
-	}
-}
-
-search.bigalexn8n.ru {
-	tls alexei.bigalex@yandex.ru
-	handle {
-		import masha_auth
-		reverse_proxy 127.0.0.1:8888 {
 			header_up Host {host}
 		}
 	}
