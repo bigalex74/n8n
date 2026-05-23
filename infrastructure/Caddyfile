@@ -239,14 +239,14 @@ hub.bigalexn8n.ru {
 
 	# Webhook — без auth, Telegram вызывает напрямую; защита — секрет в URL
 	handle /webhook/* {
-		reverse_proxy 127.0.0.1:8010 {
+		reverse_proxy 127.0.0.1:8000 {
 			header_up Host {host}
 		}
 	}
 
 	# API — без auth, вызывается из Telegram WebApp (не браузер пользователя)
 	handle /api/* {
-		reverse_proxy 127.0.0.1:8010 {
+		reverse_proxy 127.0.0.1:8000 {
 			header_up Host {host}
 		}
 	}
@@ -254,21 +254,21 @@ hub.bigalexn8n.ru {
 	# /docs и /health — за auth
 	handle /docs* {
 		import masha_auth
-		reverse_proxy 127.0.0.1:8010 {
+		reverse_proxy 127.0.0.1:8000 {
 			header_up Host {host}
 		}
 	}
 
 	handle /health* {
 		import masha_auth
-		reverse_proxy 127.0.0.1:8010 {
+		reverse_proxy 127.0.0.1:8000 {
 			header_up Host {host}
 		}
 	}
 
 	# Фронт (Telegram WebApp) — без auth, Telegram открывает в webview
 	handle {
-		reverse_proxy 127.0.0.1:8010 {
+		reverse_proxy 127.0.0.1:8000 {
 			header_up Host {host}
 		}
 	}
