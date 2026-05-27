@@ -1,14 +1,7 @@
-(masha_auth) {
-	basic_auth bcrypt "Masha System" {
-		bigalex {env.CADDY_BIGALEX_HASH}
-	}
-}
-
 bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 
 	handle /portal/* {
-		import masha_auth
 		uri strip_prefix /portal
 		root * /home/user/n8n-docker/portal
 		try_files {path} /index.html
@@ -17,7 +10,6 @@ bigalexn8n.ru {
 	}
 
 	handle /portal-api/* {
-		import masha_auth
 		uri strip_prefix /portal-api
 		reverse_proxy 127.0.0.1:3080 {
 			header_up Host {host}
@@ -36,7 +28,6 @@ bigalexn8n.ru {
 	}
 
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:5678 {
 			header_up Host {host}
 		}
@@ -46,7 +37,6 @@ bigalexn8n.ru {
 grafana.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		# import masha_auth
 		reverse_proxy 127.0.0.1:3000 {
 			header_up Host {host}
 		}
@@ -56,7 +46,6 @@ grafana.bigalexn8n.ru {
 pgadmin.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:5055 {
 			header_up Host {host}
 		}
@@ -66,7 +55,6 @@ pgadmin.bigalexn8n.ru {
 prometheus.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		# import masha_auth
 		reverse_proxy 127.0.0.1:9090 {
 			header_up Host {host}
 		}
@@ -96,7 +84,6 @@ kb.bigalexn8n.ru {
 ollama.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:11434 {
 			header_up Host {host}
 		}
@@ -106,7 +93,6 @@ ollama.bigalexn8n.ru {
 ai.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:8080 {
 			header_up Host {host}
 		}
@@ -116,7 +102,6 @@ ai.bigalexn8n.ru {
 docker.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:9000 {
 			header_up Host {host}
 		}
@@ -126,7 +111,6 @@ docker.bigalexn8n.ru {
 cron.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:8001 {
 			header_up Host {host}
 		}
@@ -160,7 +144,6 @@ www.bigalexn8n.ru {
 apps.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:8000 {
 			header_up Host {host}
 		}
@@ -179,26 +162,22 @@ secrets.bigalexn8n.ru {
 portal.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle /admin* {
-		import masha_auth
 		reverse_proxy 127.0.0.1:3080 {
 			header_up Host {host}
 		}
 	}
 	handle /api/* {
-		import masha_auth
 		reverse_proxy 127.0.0.1:3080 {
 			header_up Host {host}
 		}
 	}
 	handle /portal-api/* {
-		import masha_auth
 		uri strip_prefix /portal-api
 		reverse_proxy 127.0.0.1:3080 {
 			header_up Host {host}
 		}
 	}
 	handle {
-		import masha_auth
 		root * /home/user/n8n-docker/portal
 		try_files {path} /index.html
 		file_server
@@ -213,11 +192,9 @@ qdrant.bigalexn8n.ru {
 		path /
 	}
 	handle @browser {
-		import masha_auth
 		redir / /dashboard/ 308
 	}
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:6333 {
 			header_up Host {host}
 		}
@@ -227,7 +204,6 @@ qdrant.bigalexn8n.ru {
 video.bigalexn8n.ru {
 	tls alexei.bigalex@yandex.ru
 	handle {
-		import masha_auth
 		reverse_proxy 127.0.0.1:8002 {
 			header_up Host {host}
 		}
@@ -251,16 +227,14 @@ hub.bigalexn8n.ru {
 		}
 	}
 
-	# /docs и /health — за auth
+	# /docs и /health — без Caddy auth
 	handle /docs* {
-		import masha_auth
 		reverse_proxy 127.0.0.1:8000 {
 			header_up Host {host}
 		}
 	}
 
 	handle /health* {
-		import masha_auth
 		reverse_proxy 127.0.0.1:8000 {
 			header_up Host {host}
 		}
