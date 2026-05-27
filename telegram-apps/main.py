@@ -13,6 +13,8 @@ import shutil
 import telegram_polling
 import invest_logic
 from datetime import datetime
+from typing import Optional
+from urllib.parse import parse_qs, urlparse
 
 app = FastAPI(title="bigalexn8n Apps Hub")
 # telegram_polling.start_bot()
@@ -39,11 +41,21 @@ DB_CONFIG_RESEARCH = {
 
 def get_conn_research(): return psycopg2.connect(**DB_CONFIG_RESEARCH)
 
+@app.middleware("http")
+async def no_cache_ui(request: Request, call_next):
+    response = await call_next(request)
+    content_type = response.headers.get("content-type", "")
+    if content_type.startswith("text/html"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 class StartTranslationRequest(BaseModel):
-    file_id: str; file_name: str; chat_id: int = None
-    bp_file_id: str = None; bp_file_name: str = None
-    pp_file_id: str = None; pp_file_name: str = None
-    glossary_id: str = None; glossary_file_name: str = None
+    file_id: Optional[str] = ""; file_name: Optional[str] = ""; chat_id: Optional[int] = None
+    bp_file_id: Optional[str] = None; bp_file_name: Optional[str] = None
+    pp_file_id: Optional[str] = None; pp_file_name: Optional[str] = None
+    glossary_id: Optional[str] = None; glossary_file_name: Optional[str] = None
     create_glossary: bool = False
 
 # --- INVEST API ---
@@ -78,7 +90,23 @@ async def get_form_data(chat_id: int):
     if chat_id == 0: chat_id = 923741104 # FALLBACK FOR DEV
     conn = get_conn_pg()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT type, lang, message->'document'->>'file_name' as name, message->'document'->>'file_id' as file_id FROM telegram_messages WHERE (message->'chat'->>'id')::bigint = %s AND message->'document' IS NOT NULL AND (is_translate IS NULL OR is_translate = false) ORDER BY date_time DESC", (chat_id,))
+    cur.execute("""
+        SELECT type, lang, name, file_id
+        FROM (
+            SELECT DISTINCT ON (message->'document'->>'file_id')
+                type,
+                lang,
+                message->'document'->>'file_name' as name,
+                message->'document'->>'file_id' as file_id,
+                date_time
+            FROM telegram_messages
+            WHERE (message->'chat'->>'id')::bigint = %s
+              AND message->'document' IS NOT NULL
+              AND (is_translate IS NULL OR is_translate = false)
+            ORDER BY message->'document'->>'file_id', date_time DESC
+        ) latest_files
+        ORDER BY date_time DESC
+    """, (chat_id,))
     all_items = cur.fetchall()
     cur.close(); conn.close()
     return {"files_ko": [f for f in all_items if f['lang'] == 'ko'], "glossaries": [f for f in all_items if f['type'] == 'xlsx'], "prompts_ru": [f for f in all_items if f['lang'] == 'ru']}
@@ -92,6 +120,55 @@ async def hide_files(data: dict):
     conn.commit()
     cur.close(); conn.close()
     return {"status": "success"}
+
+def chat_id_from_request(data: dict, request: Request):
+    chat_id = data.get("chat_id")
+    if not chat_id:
+        referrer = request.headers.get("referer", "")
+        if referrer:
+            query = parse_qs(urlparse(referrer).query)
+            chat_id = (query.get("chat_id") or [None])[0]
+    try:
+        chat_id = int(chat_id or 0)
+    except (TypeError, ValueError):
+        chat_id = 0
+    return 923741104 if chat_id == 0 else chat_id
+
+def resolve_translation_file(
+    chat_id: int,
+    file_name: Optional[str] = None,
+    file_id: Optional[str] = None,
+):
+    conn = get_conn_pg()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    params = [chat_id]
+    file_filters = []
+    if file_name:
+        file_filters.append("message->'document'->>'file_name' = %s")
+        params.append(file_name)
+    if file_id:
+        file_filters.append("message->'document'->>'file_id' = %s")
+        params.append(file_id)
+    file_filter = ""
+    if file_filters:
+        file_filter = "AND (" + " OR ".join(file_filters) + ")"
+    cur.execute(f"""
+        SELECT
+            message->'document'->>'file_name' AS file_name,
+            message->'document'->>'file_id' AS file_id
+        FROM telegram_messages
+        WHERE (message->'chat'->>'id')::bigint = %s
+          AND message->'document' IS NOT NULL
+          AND type IN ('docx', 'txt')
+          AND lang = 'ko'
+          AND (is_translate IS NULL OR is_translate = false)
+          {file_filter}
+        ORDER BY date_time DESC
+        LIMIT 1
+    """, params)
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    return row
 
 @app.get("/api/prompts")
 async def get_prompts_db():
@@ -173,10 +250,52 @@ async def get_trade_league(division: str = "moex"):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/start-translation")
-async def start_translation(req: StartTranslationRequest):
+async def start_translation(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+
+    chat_id = chat_id_from_request(data, request)
+    try:
+        req = StartTranslationRequest(**data)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Некорректные данные формы: {exc}")
+
+    req.chat_id = req.chat_id or chat_id
+    req.file_id = (req.file_id or "").strip()
+    req.file_name = (req.file_name or "").strip()
+
+    if not req.file_id or not req.file_name:
+        recovered = resolve_translation_file(
+            chat_id,
+            req.file_name or None,
+            req.file_id or None,
+        )
+        if recovered:
+            req.file_id = req.file_id or recovered["file_id"]
+            req.file_name = req.file_name or recovered["file_name"]
+
+    if not req.file_id or not req.file_name:
+        raise HTTPException(status_code=400, detail="Не выбран файл для перевода. Закройте окно приложения, откройте его заново из сообщения бота и выберите файл.")
+
+    if not req.glossary_id and not req.create_glossary:
+        req.create_glossary = True
+
+    last_status = None
     async with httpx.AsyncClient() as client:
-        await client.post(N8N_WEBHOOK_URL, json=req.dict(), timeout=10.0)
-        return {"status": "success"}
+        for _ in range(3):
+            try:
+                resp = await client.post(N8N_WEBHOOK_URL, json=req.dict(), timeout=10.0)
+                last_status = resp.status_code
+                if 200 <= resp.status_code < 300:
+                    return {"status": "success"}
+            except httpx.HTTPError:
+                last_status = "network"
+
+    raise HTTPException(status_code=502, detail=f"n8n не принял запуск перевода. Ответ: {last_status}")
 
 @app.post("/api/upload-file")
 async def upload_file(file: UploadFile = File(...)):

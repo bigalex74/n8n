@@ -29,18 +29,34 @@
     <div class="section"><label class="label">🤖 Дополнительный промт</label><select id="sel-bp"><option value="">Выберите промпт...</option></select></div>
     <div class="section"><label class="label">✍️ Промт для постредактирования</label><select id="sel-pp"><option value="">Выберите промпт...</option></select></div>
     
-    <button id="btn-start" class="btn-start" onclick="submit()" disabled>🚀 Начать перевод</button>
-    <button class="btn-back" onclick="window.location.href='/'">⬅ Назад</button>
+    <button type="button" id="btn-start" class="btn-start" onclick="submitTranslation()" disabled>🚀 Начать перевод</button>
+    <button type="button" class="btn-back" onclick="window.location.href='/'">⬅ Назад</button>
 
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand();
+        function getChatId() {
+            const params = new URLSearchParams(window.location.search);
+            return tg.initDataUnsafe.user?.id || params.get('chat_id') || 0;
+        }
+        function appendOption(select, item) {
+            const option = new Option(item.name, item.file_id || "");
+            option.dataset.name = item.name || "";
+            select.add(option);
+        }
+        function selectedText(select) {
+            const option = select.options[select.selectedIndex];
+            return option?.dataset?.name || option?.text || "";
+        }
         function toggleGlossary() { document.getElementById('sel-glossary').style.display = (document.getElementById('glossary-mode').value === 'use_existing') ? 'block' : 'none'; validate(); }
         async function init() {
-            const data = await (await fetch('/api/get-form-data?chat_id=' + (tg.initDataUnsafe.user?.id || 0))).json();
-            data.files_ko.forEach(f => document.getElementById('sel-file').innerHTML += `<option value="${f.file_id}">${f.name}</option>`);
-            data.glossaries.forEach(g => document.getElementById('sel-glossary').innerHTML += `<option value="${g.file_id}">${g.name}</option>`);
-            data.prompts_ru.forEach(p => { [document.getElementById('sel-bp'), document.getElementById('sel-pp')].forEach(s => s.innerHTML += `<option value="${p.file_id}">${p.name}</option>`); });
+            const data = await (await fetch('/api/get-form-data?chat_id=' + getChatId())).json();
+            const fileSelect = document.getElementById('sel-file');
+            const glossarySelect = document.getElementById('sel-glossary');
+            data.files_ko.forEach(f => appendOption(fileSelect, f));
+            data.glossaries.forEach(g => appendOption(glossarySelect, g));
+            data.prompts_ru.forEach(p => { [document.getElementById('sel-bp'), document.getElementById('sel-pp')].forEach(s => appendOption(s, p)); });
+            validate();
         }
         function validate() { 
             const f = document.getElementById('sel-file').value;
@@ -49,22 +65,48 @@
             const glossValid = (mode === 'create_ai' || (mode === 'use_existing' && g !== ''));
             document.getElementById('btn-start').disabled = !(f && glossValid);
         }
-        async function submit() {
+        async function submitTranslation() {
             const f = document.getElementById('sel-file');
             const g = document.getElementById('sel-glossary');
             const bp = document.getElementById('sel-bp');
             const pp = document.getElementById('sel-pp');
+            const startBtn = document.getElementById('btn-start');
+            if (!f.value) {
+                tg.showAlert("Выберите файл для перевода");
+                return;
+            }
+            if (document.getElementById('glossary-mode').value === 'use_existing' && !g.value) {
+                tg.showAlert("Выберите глоссарий или режим создания нового");
+                return;
+            }
             const payload = {
-                file_id: f.value, file_name: f.options[f.selectedIndex].text,
-                chat_id: tg.initDataUnsafe.user?.id || 0,
-                bp_file_id: bp.value, bp_file_name: bp.value ? bp.options[bp.selectedIndex].text : "",
-                pp_file_id: pp.value, pp_file_name: pp.value ? pp.options[pp.selectedIndex].text : "",
+                file_id: f.value, file_name: selectedText(f),
+                chat_id: getChatId(),
+                bp_file_id: bp.value, bp_file_name: bp.value ? selectedText(bp) : "",
+                pp_file_id: pp.value, pp_file_name: pp.value ? selectedText(pp) : "",
                 glossary_id: document.getElementById('glossary-mode').value === 'use_existing' ? g.value : null,
-                glossary_file_name: document.getElementById('glossary-mode').value === 'use_existing' ? g.options[g.selectedIndex].text : null,
+                glossary_file_name: document.getElementById('glossary-mode').value === 'use_existing' ? selectedText(g) : null,
                 create_glossary: document.getElementById('glossary-mode').value === 'create_ai'
             };
-            const res = await fetch('/api/start-translation', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            if (res.ok) { tg.showAlert("Запущено!"); tg.close(); } else { tg.showAlert("Ошибка!"); }
+            startBtn.disabled = true;
+            startBtn.textContent = "Запускаю...";
+            try {
+                const res = await fetch('/api/start-translation', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                let body = {};
+                try { body = await res.json(); } catch (_) {}
+                if (res.ok) {
+                    tg.showAlert("Запущено!");
+                    tg.close();
+                } else {
+                    tg.showAlert(body.detail || "Не удалось запустить перевод");
+                    validate();
+                    startBtn.textContent = "🚀 Начать перевод";
+                }
+            } catch (_) {
+                tg.showAlert("Не удалось связаться с сервером приложения");
+                validate();
+                startBtn.textContent = "🚀 Начать перевод";
+            }
         }
         init();
     </script>

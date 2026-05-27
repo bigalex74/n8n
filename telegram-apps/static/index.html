@@ -63,8 +63,10 @@
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand();
-        const chat_id = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0;
-        document.getElementById('link-files').href = `/files?chat_id=${chat_id}`;
+        const appVersion = "20260527-translation-start-fix";
+        const params = new URLSearchParams(window.location.search);
+        const chat_id = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : (params.get('chat_id') || 0);
+        document.getElementById('link-files').href = `/files?chat_id=${chat_id}&v=${appVersion}`;
     </script>
 </body>
 </html>
