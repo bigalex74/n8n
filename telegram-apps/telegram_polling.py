@@ -14,6 +14,7 @@ logger = logging.getLogger("TMA-Polling-Raw")
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 N8N_WEBHOOK = "http://127.0.0.1:5678/webhook/trigger-translation"
+APPS_HUB_CALLBACK_URL = "http://127.0.0.1:8000/api/telegram-callback"
 PROXY = {"https": "http://127.0.0.1:10808"}
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 MY_CHAT_ID = 923741104
@@ -45,6 +46,42 @@ def send_message(chat_id: int, text: str) -> None:
         )
     except Exception as e:
         logger.error(f"send_message error: {e}")
+
+
+def answer_callback(callback_id: str, text: str) -> None:
+    try:
+        requests.post(
+            f"{BASE_URL}/answerCallbackQuery",
+            json={"callback_query_id": callback_id, "text": text, "show_alert": False},
+            proxies=PROXY,
+            timeout=10,
+        )
+    except Exception as e:
+        logger.error(f"answer_callback error: {e}")
+
+
+def handle_callback_query(callback_query: dict) -> None:
+    callback_id = callback_query.get("id")
+    callback_data = callback_query.get("data", "")
+    from_user = callback_query.get("from") or {}
+    logger.info(
+        "Forwarding callback query: data=%r from=%s",
+        callback_data,
+        from_user.get("id"),
+    )
+    try:
+        response = requests.post(
+            APPS_HUB_CALLBACK_URL,
+            json={"callback_query": callback_query},
+            timeout=15,
+        )
+        response.raise_for_status()
+        if callback_id:
+            answer_callback(callback_id, "Принято")
+    except Exception as e:
+        logger.error(f"callback_query forwarding error: {e}")
+        if callback_id:
+            answer_callback(callback_id, "Не удалось обработать кнопку")
 
 
 def parse_task_numbers(tokens: list) -> set:
@@ -144,6 +181,11 @@ def run_polling():
             if data.get("ok") and data.get("result"):
                 for update in data["result"]:
                     offset = update["update_id"] + 1
+                    callback_query = update.get("callback_query")
+                    if callback_query:
+                        handle_callback_query(callback_query)
+                        continue
+
                     message = update.get("message")
                     if message:
                         text = message.get("text", "")

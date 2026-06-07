@@ -10,6 +10,7 @@ import requests
 import httpx
 import docx
 import shutil
+import json
 import telegram_polling
 import invest_logic
 from datetime import datetime
@@ -57,6 +58,9 @@ class StartTranslationRequest(BaseModel):
     pp_file_id: Optional[str] = None; pp_file_name: Optional[str] = None
     glossary_id: Optional[str] = None; glossary_file_name: Optional[str] = None
     create_glossary: bool = False
+
+class TelegramCallbackRequest(BaseModel):
+    callback_query: dict
 
 # --- INVEST API ---
 @app.get("/api/invest/offers")
@@ -120,6 +124,35 @@ async def hide_files(data: dict):
     conn.commit()
     cur.close(); conn.close()
     return {"status": "success"}
+
+@app.post("/api/telegram-callback")
+async def save_telegram_callback(data: TelegramCallbackRequest):
+    callback = data.callback_query or {}
+    callback_data = (callback.get("data") or "").strip()
+    from_user = callback.get("from") or {}
+    message = callback.get("message") or {}
+    chat = message.get("chat") or {}
+    chat_id = from_user.get("id") or chat.get("id")
+
+    if not callback_data:
+        raise HTTPException(status_code=400, detail="callback_query.data is empty")
+    if not chat_id:
+        raise HTTPException(status_code=400, detail="callback chat id is missing")
+
+    conn = get_conn_pg()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO telegram_messages(chat, message, callback_data, date_time, is_translate)
+        VALUES (%s, %s::json, %s, now(), false)
+        RETURNING id
+        """,
+        (str(chat_id), json.dumps(callback, ensure_ascii=False), callback_data),
+    )
+    row_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close(); conn.close()
+    return {"status": "success", "id": row_id}
 
 def chat_id_from_request(data: dict, request: Request):
     chat_id = data.get("chat_id")
