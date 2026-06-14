@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict rKk2CsfZKU5vKsNXR9iuFO9zYLeudfiq5si8FTO8Phk5bHUv3cpYxE2VqfFHXjM
+\restrict IoMlOZ3rtKm6dlvuOoHHOh8t030bIpZFeH0B4mPERaQJMtRbtuf01ezrD19pZ3U
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -29,5 +29,5 @@ INSERT INTO public.project VALUES ('laKLUPkuQseBWQhm', 'Алексей bigalex <
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rKk2CsfZKU5vKsNXR9iuFO9zYLeudfiq5si8FTO8Phk5bHUv3cpYxE2VqfFHXjM
+\unrestrict IoMlOZ3rtKm6dlvuOoHHOh8t030bIpZFeH0B4mPERaQJMtRbtuf01ezrD19pZ3U
 
