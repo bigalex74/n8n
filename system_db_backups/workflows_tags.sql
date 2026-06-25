@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 00UtTu1pt056QcdLalRrikfhnRwVvv5bGXvyO10uFB4s1WKihUVEyToOq0uX6Ya
+\restrict BNtSzL3tMAriyijlzWzUtz3rIiazIovYHqtgCxjdp5I42qKcgEe9W3PHNcdE0kj
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -28,5 +28,5 @@ SET row_security = off;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 00UtTu1pt056QcdLalRrikfhnRwVvv5bGXvyO10uFB4s1WKihUVEyToOq0uX6Ya
+\unrestrict BNtSzL3tMAriyijlzWzUtz3rIiazIovYHqtgCxjdp5I42qKcgEe9W3PHNcdE0kj
 
