@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Obz6RHoypTuGhrvfbjYrAPSgeWEKKgMh6OoKxxr43z8qfruCTTgcvIPAXpmJz4l
+\restrict oGgYRDJcpsyGu9YxAognnEby24nNvI8AdRMI29drgvNY7hk7TRwjihv3RK4SYkz
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -49,5 +49,5 @@ INSERT INTO public.credentials_entity VALUES ('OpenRouter account', 'U2FsdGVkX1/
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Obz6RHoypTuGhrvfbjYrAPSgeWEKKgMh6OoKxxr43z8qfruCTTgcvIPAXpmJz4l
+\unrestrict oGgYRDJcpsyGu9YxAognnEby24nNvI8AdRMI29drgvNY7hk7TRwjihv3RK4SYkz
 
