@@ -197,7 +197,9 @@ def run_polling():
                             logger.info(f"Forwarding msg ID: {message.get('message_id')}")
                             requests.post(N8N_WEBHOOK, json={"message": message}, timeout=15)
         except Exception as e:
-            logger.error(f"Polling error: {e}")
+            # Никогда не логируем токен: вырезаем bot<digits>:<secret> из текста ошибки
+            safe_err = re.sub(r'bot\d+:[A-Za-z0-9_-]+', 'bot<redacted>', str(e))
+            logger.error(f"Polling error: {safe_err}")
             time.sleep(10)
 
 def start_bot():
