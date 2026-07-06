@@ -2857,7 +2857,7 @@
       },
       {
         "parameters": {
-          "url": "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates",
+          "url": "https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -2871,7 +2871,7 @@
       },
       {
         "parameters": {
-          "url": "=https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates?offset={{ $('HTTP Request').item.json.result.reduce((acc,item) => { \nreturn item.update_id > acc ? item.update_id : acc\n}, 0) + 1 }}",
+          "url": "=https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates?offset={{ $('HTTP Request').item.json.result.reduce((acc,item) => { \nreturn item.update_id > acc ? item.update_id : acc\n}, 0) + 1 }}",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -7597,7 +7597,7 @@
       },
       {
         "parameters": {
-          "url": "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates",
+          "url": "https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -7611,7 +7611,7 @@
       },
       {
         "parameters": {
-          "url": "=https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates?offset={{ $('HTTP Request').item.json.result.reduce((acc,item) => { \nreturn item.update_id > acc ? item.update_id : acc\n}, 0) + 1 }}",
+          "url": "=https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates?offset={{ $('HTTP Request').item.json.result.reduce((acc,item) => { \nreturn item.update_id > acc ? item.update_id : acc\n}, 0) + 1 }}",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -14732,7 +14732,7 @@
       },
       {
         "parameters": {
-          "url": "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates",
+          "url": "https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -14746,7 +14746,7 @@
       },
       {
         "parameters": {
-          "url": "=https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates?offset={{ $('HTTP Request').item.json.result.reduce((acc,item) => { \nreturn item.update_id > acc ? item.update_id : acc\n}, 0) + 1 }}",
+          "url": "=https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates?offset={{ $('HTTP Request').item.json.result.reduce((acc,item) => { \nreturn item.update_id > acc ? item.update_id : acc\n}, 0) + 1 }}",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -21658,7 +21658,7 @@
       },
       {
         "parameters": {
-          "url": "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates",
+          "url": "https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -25076,7 +25076,7 @@
       },
       {
         "parameters": {
-          "url": "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates",
+          "url": "https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -25157,7 +25157,7 @@
       },
       {
         "parameters": {
-          "url": "=https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates?offset={{ $('Опрос входящих в Telegram').first().json.result.reduce((acc,item) => { \nreturn item.update_id > acc ? item.update_id : acc\n}, 0) + 1 }}",
+          "url": "=https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates?offset={{ $('Опрос входящих в Telegram').first().json.result.reduce((acc,item) => { \nreturn item.update_id > acc ? item.update_id : acc\n}, 0) + 1 }}",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",
@@ -31062,7 +31062,7 @@
       {
         "parameters": {
           "method": "POST",
-          "url": "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/sendMessage",
+          "url": "https://api.telegram.org/botREVOKED_TOKEN_20260704/sendMessage",
           "sendBody": true,
           "specifyBody": "json",
           "jsonBody": "={\n  \"chat_id\": \"{{ $json.message.chats[0] }}\",\n  \"text\": \"{{ $json.message.text }}\",\n  \"parse_mode\": \"HTML\",\n  \"reply_markup\": {\n    \"inline_keyboard\": [\n      [{{ JSON.stringify($json.message.button1) }}, {{ JSON.stringify($json.message.button2) }}],\n      [{{ JSON.stringify($json.message.button3) }}]\n    ]\n  }\n}",
@@ -31764,7 +31764,7 @@
       {
         "parameters": {
           "method": "POST",
-          "url": "=https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/sendMessage",
+          "url": "=https://api.telegram.org/botREVOKED_TOKEN_20260704/sendMessage",
           "sendBody": true,
           "specifyBody": "json",
           "jsonBody": "={{ JSON.stringify($json) }}",
@@ -35180,7 +35180,7 @@
       {
         "parameters": {
           "method": "POST",
-          "url": "=https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/sendMessage",
+          "url": "=https://api.telegram.org/botREVOKED_TOKEN_20260704/sendMessage",
           "sendBody": true,
           "specifyBody": "json",
           "jsonBody": "={{ JSON.stringify($json) }}",

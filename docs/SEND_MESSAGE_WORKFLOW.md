@@ -361,7 +361,7 @@ GROUP BY type;
 
 3. Проверить Telegram API:
    ```bash
-   curl "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnS5sckR0/getMe"
+   curl "https://api.telegram.org/botREVOKED_TOKEN_20260704/getMe"
    ```
 
 ### Дублирование сообщений

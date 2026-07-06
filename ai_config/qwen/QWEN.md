@@ -94,7 +94,7 @@
 - setup_telegram_webhook.sh — вебхуки Telegram бота
 
 **Telegram бот:**
-- Token: 8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0
+- Token: REVOKED_TOKEN_20260704
 - n8n Workflow Import via PostgreSQL - пошаговый процесс:
 1. Подготовить JSON (исправить escape-символы, сгенерировать UUID)
 2. Вставить в workflow_entity с activeVersionId=NULL

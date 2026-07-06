@@ -31,7 +31,7 @@ cleanup() {
 }
 
 notify() {
-    curl -s -X POST "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/sendMessage" \
+    curl -s -X POST "https://api.telegram.org/botREVOKED_TOKEN_20260704/sendMessage" \
         -H "Content-Type: application/json" \
         -d "{\"chat_id\": 923741104, \"text\": \"$1\"}" 2>/dev/null
 }

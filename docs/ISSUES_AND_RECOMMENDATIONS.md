@@ -157,7 +157,7 @@ WHERE resolved_at IS NULL;
 
 **Найденные credentials:**
 ```
-Telegram Bot Token: 8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0
+Telegram Bot Token: REVOKED_TOKEN_20260704
 n8n Encryption Key: InqHY6REAuKYfnqDgmmcZGuSnLZJFl90
 polza.ai API Key: pza_PV5t0y6PTuE8GLcZ-jgvlpNDLlZm0mUT
 DB Password: n8n_db_password (в .env)
@@ -173,7 +173,7 @@ DB Password: n8n_db_password (в .env)
 1. **Использовать n8n Credentials Manager:**
 ```javascript
 // НЕПРАВИЛЬНО:
-const token = '8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0';
+const token = 'REVOKED_TOKEN_20260704';
 
 // ПРАВИЛЬНО:
 const credentials = await $credentials.get('telegramApi');

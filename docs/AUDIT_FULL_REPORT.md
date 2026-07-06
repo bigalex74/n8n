@@ -52,7 +52,7 @@
 **Конкретные ключи:**
 - Polza.ai: `pza_PV5t0y6PTuE8GLcZ-jgvlpNDLlZm0mUT`
 - NeuroAPI: `sk-JPPv8NvhqimYVBabJvm6fB5mlv80WnLV673tfVzFm6IYq67V`
-- Telegram Bot: `8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0`
+- Telegram Bot: `REVOKED_TOKEN_20260704`
 
 **Почему это проблема:** Любой, кто получит доступ к export workflow JSON или логам, сможет использовать эти ключи. Ключи нельзя ротировать без изменения workflow.
 

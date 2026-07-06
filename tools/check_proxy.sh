@@ -19,7 +19,7 @@ echo ""
 
 for proxy in "${PROXY_LIST[@]}"; do
     echo -n "Проверка $proxy ... "
-    RESULT=$(curl -s --max-time 5 -x "$proxy" "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getMe" 2>&1)
+    RESULT=$(curl -s --max-time 5 -x "$proxy" "https://api.telegram.org/botREVOKED_TOKEN_20260704/getMe" 2>&1)
     
     if echo "$RESULT" | grep -q '"ok":true'; then
         echo "✅ РАБОТАЕТ!"

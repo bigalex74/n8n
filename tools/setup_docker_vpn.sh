@@ -58,7 +58,7 @@ sleep 5
 
 if sudo docker exec n8n-docker-n8n-1 node -e "
 const https = require('https');
-const options = { hostname: 'api.telegram.org', port: 443, path: '/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getMe', method: 'GET', timeout: 10000 };
+const options = { hostname: 'api.telegram.org', port: 443, path: '/botREVOKED_TOKEN_20260704/getMe', method: 'GET', timeout: 10000 };
 const req = https.request(options, (res) => { console.log('✅ Telegram API:', res.statusCode); process.exit(0); });
 req.on('error', (e) => { console.log('❌ Ошибка:', e.message); process.exit(1); });
 req.on('timeout', () => { console.log('❌ Таймаут'); process.exit(1); });
@@ -73,7 +73,7 @@ else
     echo "Попробуйте:"
     echo "1. Переподключить VPN"
     echo "2. Проверить что VPN работает на хосте:"
-    echo "   curl https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getMe"
+    echo "   curl https://api.telegram.org/botREVOKED_TOKEN_20260704/getMe"
     echo "3. Использовать прокси вместо VPN"
 fi
 

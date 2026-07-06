@@ -157,7 +157,7 @@
 - **[MEDIUM]** Replace Me узел найден — забытый placeholder.
 
 #### D. Безопасность
-- **[HIGH]** Telegram API token захардкожен в HTTP Request: `https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/sendMessage`. Это критическая утечка.
+- **[HIGH]** Telegram API token захардкожен в HTTP Request: `https://api.telegram.org/botREVOKED_TOKEN_20260704/sendMessage`. Это критическая утечка.
 
 #### E. Best Practices
 - **[MEDIUM]** Множество "Delete a chat message" с одинаковой логикой.
@@ -393,7 +393,7 @@
 1. **[CRITICAL] Хардкод API ключей** — найдено в 5+ workflow:
    - Polza.ai: `pza_PV5t0y6PTuE8GLcZ-jgvlpNDLlZm0mUT`
    - NeuroAPI: `sk-JPPv8NvhqimYVBabJvm6fB5mlv80WnLV673tfVzFm6IYq67V`
-   - Telegram Bot: `8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0`
+   - Telegram Bot: `REVOKED_TOKEN_20260704`
    - **Рекомендация:** Перенести все в n8n Credential Manager и заменить ссылки в workflow.
 
 2. **[HIGH] SQL-инъекции** — минимум 3 места где данные вставляются напрямую в SQL через `{{ }}`:

@@ -29,7 +29,7 @@ handle_error() {
     git reset --hard origin/master 2>/dev/null
     
     log "📤 Sending error notification to Telegram..."
-    curl -s -X POST "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/sendMessage" \
+    curl -s -X POST "https://api.telegram.org/botREVOKED_TOKEN_20260704/sendMessage" \
         -H "Content-Type: application/json" \
         -d "{\"chat_id\": 923741104, \"text\": \"❌ Backup failed: $2\\n\\nBranch: $BRANCH_NAME\\nTime: $DATE\"}" 2>/dev/null
     
@@ -130,6 +130,6 @@ git branch -d "$BRANCH_NAME" 2>/dev/null
 
 log "✅ Sync $BRANCH_NAME completed successfully!"
 log "📤 Sending success notification..."
-curl -s -X POST "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/sendMessage" \
+curl -s -X POST "https://api.telegram.org/botREVOKED_TOKEN_20260704/sendMessage" \
     -H "Content-Type: application/json" \
     -d "{\"chat_id\": 923741104, \"text\": \"✅ Backup $BRANCH_NAME completed\\n\\nTime: $DATE\\nChanges: $(git log --oneline -1)\"}" 2>/dev/null
