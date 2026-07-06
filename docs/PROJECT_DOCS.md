@@ -449,7 +449,7 @@ SELECT chat_id, COUNT(*) FROM telegram_chats WHERE is_authorized = true;
 ## Credentials
 
 ### Telegram Bot
-- **Token:** 8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0
+- **Token:** REVOKED_TOKEN_20260704
 - **Chat ID:** 923741104 (1 авторизованный чат)
 - **Webhook:** https://bigalexn8n.ru/webhook/telegram
 
@@ -651,7 +651,7 @@ docker logs n8n-docker-db-1 --tail 50
 curl http://localhost:9090/api/v1/targets
 
 # Telegram webhook
-curl https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getWebhookInfo
+curl https://api.telegram.org/botREVOKED_TOKEN_20260704/getWebhookInfo
 ```
 
 ## Troubleshooting

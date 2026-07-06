@@ -236,7 +236,7 @@ echo "✅ Все тесты завершены"
 ### Шаг 1.1: Перенести Telegram API ключ в Credential Manager
 **Время:** 10 минут | **Риск:** Низкий | **Откат:** Вернуть хардкод
 
-Найти все workflow с хардкод `8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0`:
+Найти все workflow с хардкод `REVOKED_TOKEN_20260704`:
 -billing HTTP-запросы в Start, [Send] finish, [Send] processing
 
 **Действие:** Заменить хардкод на использование `Telegram account` credential (V4jPr27PQcfRRYRO)

@@ -651,7 +651,7 @@
       },
       {
         "parameters": {
-          "url": "https://api.telegram.org/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getUpdates",
+          "url": "https://api.telegram.org/botREVOKED_TOKEN_20260704/getUpdates",
           "options": {}
         },
         "type": "n8n-nodes-base.httpRequest",

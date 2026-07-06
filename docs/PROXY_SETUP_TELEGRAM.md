@@ -132,7 +132,7 @@ sudo docker exec n8n-docker-n8n-1 node -e "
 const https = require('https');
 const options = {
   hostname: 'api.telegram.org',
-  path: '/bot8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0/getMe'
+  path: '/botREVOKED_TOKEN_20260704/getMe'
 };
 https.get(options, (res) => {
   console.log('✅ Telegram API:', res.statusCode);
@@ -154,7 +154,7 @@ https.get(options, (res) => {
 1. Откройте https://bigalexn8n.ru/
 2. Создайте credentials для Telegram:
    - Type: Telegram API
-   - Token: `8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0`
+   - Token: `REVOKED_TOKEN_20260704`
 3. Создайте workflow с **Telegram Trigger**
 4. Активируйте workflow
 

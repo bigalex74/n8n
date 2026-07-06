@@ -463,7 +463,7 @@ VALUES (923741104, '⚠️ Alert: Health check failed - PostgreSQL connection ti
 
 ```javascript
 // Instead of hardcoded:
-// const token = '8591497428:AAEbVnPaXYe2E-WI2ni2cCuSGnmgS5sckR0';
+// const token = 'REVOKED_TOKEN_20260704';
 
 // Use credentials:
 const credentials = await $credentials.get('telegramApi');
