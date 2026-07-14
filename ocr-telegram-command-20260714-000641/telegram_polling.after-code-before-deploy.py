@@ -40,15 +40,13 @@ MASHA_TOKEN = _get_masha_token()
 
 def send_message(chat_id: int, text: str) -> None:
     try:
-        response = requests.post(
+        requests.post(
             f"https://api.telegram.org/bot{MASHA_TOKEN}/sendMessage",
             json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
             proxies=PROXY, timeout=10
         )
-        response.raise_for_status()
     except Exception as e:
-        safe_err = re.sub(r'bot\d+:[A-Za-z0-9_-]+', 'bot<redacted>', str(e))
-        logger.error("send_message error: %s", safe_err)
+        logger.error(f"send_message error: {e}")
 
 
 def is_ocr_command(text: str) -> bool:
@@ -78,6 +76,11 @@ def handle_ocr_command(message: dict) -> bool:
     try:
         response = requests.post(N8N_WEBHOOK, json={"message": message}, timeout=15)
         response.raise_for_status()
+        send_message(
+            chat_id,
+            "Команда OCR принята. Проверяю папку и очередь. "
+            "После завершения сюда придёт итоговый отчёт.",
+        )
     except Exception as exc:
         safe_err = re.sub(r'bot\d+:[A-Za-z0-9_-]+', 'bot<redacted>', str(exc))
         logger.error("OCR command forwarding error: %s", safe_err)

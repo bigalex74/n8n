@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict p9agZ5xMjUGQpZk3PfLMLngeOy43NAcf6Bjfm17lNjG4U8lvNcZUhAYlY6NVO44
+\restrict SvaIv5OhsUG7PoRe4KRmtHGBre2ss1c7Mw1sFs63wHMRNLg4ocAF2lphvr5hcp3
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -30,10 +30,12 @@ INSERT INTO public.credentials_entity VALUES ('Neuroapi', 'U2FsdGVkX18bjVjKtu+wX
 INSERT INTO public.credentials_entity VALUES ('Telegram account', 'U2FsdGVkX1/AtTQ4E2rhkB+wDVfAvMS+EPCkFuwKDL22h35qe67FXv/lBujZ7qBy9p/VuuvnhW0kviiNvdexfO0xiZ8bPdnDpPS0unoGnAf+ay+YwKjYzeelQs5rC7Zh', 'telegramApi', '2026-03-21 20:54:32.175+00', '2026-07-04 19:06:34.872+00', 'V4jPr27PQcfRRHY9', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Polza', 'U2FsdGVkX18jfB03BLBGzuc/QAhYJI0CmVqJXYBz67LtbNGH/o+o59yi+slQhhRwDpabZRYptxhatr1yIvqoRhiY0SgKWtyy+QianG5FQD8eODNXsOIFQ7g75D9D4YCzSw79WxvmpDjYQSlouyB1SQ==', 'openAiApi', '2026-03-22 08:14:05.55+00', '2026-03-22 08:14:37.405+00', 'dw2ygQ53RyVkCAva', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Postgres account', 'U2FsdGVkX19/3cTDBPT1TXS6STuKe/tUwbsSkLzLd9/Ya3Hhv4hE2/jYIOsyiiW8hu62foBNFeFBT1HUd4oO7Oi0sKUKfX4iZ5XamxCwiA8=', 'postgres', '2026-03-21 20:17:35.23+00', '2026-03-25 14:31:45.444+00', 'iGih4QSBWfmpkdGY', false, false, false, false, NULL);
+INSERT INTO public.credentials_entity VALUES ('Yandex Disk OAuth', 'U2FsdGVkX18MGECWbb7PgpJb2R28u4e1iDD1KzaAnCvH0wAVJvK5NyitJ1+m0lOTMcaqVvHz2cWgy4VL7LZdq1r8Mszs7vUhBtdpLL9ajNS2YtaKQ6SKCsm+d0x7s0CIZ3tX5ogAmiM7aZgvWTT2/O4kta7G7BOaFTy/6h7LLSU=', 'httpHeaderAuth', '2026-07-13 17:29:46.824+00', '2026-07-13 17:29:46.824+00', 'tOwdWfABKlP8ylhY', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('n8n account', 'U2FsdGVkX19cfZZ6+/chwEqQ6Ca3RTOrhbza+UrZaSNb1mhd1uh43VLrc64sihLpuSPimDDF+2/FpGlM53rW7pbfygea748c1XGJ7A3gKuFX/Q4+WV3pTiyVnGdhvM2q1eNwwIgsfuKFU/2yV2/W3bgoc2wrBAeBwuFgzgIJumGZPaeXVZPwbx08YHAnE3B7q0jS4lVTb11s9tRMMfMQ9lx4IuoYZw6lzeTWKUaA7HPsurS5R1nwnpgG0GlR+gSaHA2g3D5muGv7KnI/sfh5YQniOo7WmUoR7ORrPVUlbQMmIMb2fD2hJLSoKx9VHAVk/rqTbqNMMm1LgiT8j40vYzh5gi6jwCNwVrBc6F8lkrZOCYCstdg9C0hRjV0BrE0hw4CoF2L/bwKpH54Xr905XwenW8wX6R1yD8+8aN0d3YyEcbOO81xHuh+sD6GfTKgORv5a4HOww7/Sf7JWChDy7Q==', 'n8nApi', '2026-03-22 06:38:57.353+00', '2026-03-25 11:58:41.001+00', 'VP4X78ps0YqOb1RP', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Aihubmix', 'U2FsdGVkX18XEEoldg9zVotwegU1FOQYcuV7VdKiqYVWAmsOEiEON6PsJVy7j3VjQrgu5W3wk3EL5mh17DIV8sWvpoAS6Ajr7calhd6iLxxIFP9NFakA8H4wpJ7ZXMMBivvyznYf7N8LYWjX8RtNHDEWC61YHxzqPV8rXsNdqLk=', 'openAiApi', '2026-03-29 16:14:37.538+00', '2026-04-26 19:07:32.61+00', 'pr0cxHPL3Uk4gtSf', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('LightRag', 'U2FsdGVkX1+6Gk5zg/8q/RIZ7UIKhUVgkByiS7FWo2aJTY0ET7+ljRl92KzVB/8dGk1KfuymH5ihITvE659s/A==', 'httpHeaderAuth', '2026-03-31 19:06:49.623+00', '2026-03-31 19:07:09.4+00', '04F0dXlIVNesjJse', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Ollama account', 'U2FsdGVkX19Wt9o21teRompL3wZw9Oo2jJY9uiQp5pvwSJluHCHZVKnHrX6LaHd+gv0vRjLYj1ExaKBh9KVvVQ450vRm5bOPTBaXhHnsaso=', 'ollamaApi', '2026-04-11 06:25:54.968+00', '2026-04-11 06:29:54.25+00', 'UFgRdu0SIGkqO3Iz', false, false, false, false, NULL);
+INSERT INTO public.credentials_entity VALUES ('OCR Batch Trigger', 'U2FsdGVkX19ciPMh6ydZDfbdgRg/AK1UWoW218VB+I0dOZAw5HK/8Bl/VA0a5Hg/4m0y+f1PSl377upkzQeffuioXJtmUKestm+4ceViiGapMd6v4NtrCh27pkAfn/F8qeWGcXy443ytkqgml517KES7kardqbjkG6ILvLPcF+Q=', 'httpHeaderAuth', '2026-07-13 18:45:17.019+00', '2026-07-13 18:45:17.019+00', 'w6eQTrKmyY1Vtb6i', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Ollama Local', 'U2FsdGVkX19y+lVhjjlr/QFFjkFm1VjvimcR8rLetV16dP7XDrLZ/CWx+hRn4MqIgspnPctodldU/lm/XspaAQ==', 'ollamaApi', '2026-04-12 17:23:26.61+00', '2026-04-12 17:23:26.61+00', 'j0V93P3JQ2OxewHn', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Ollama', 'U2FsdGVkX19YU+hzXD/Gnq956iQOO6JKl49BKv444ItdD8YS7xaCHPbhstoZhU+MTivEyTgfdpHV90M4+daytR/gKCF/VVEG3MwSiAVJJYjeRRDCWdynuW6AcaTTOauc', 'openAiApi', '2026-04-12 18:56:43.892+00', '2026-04-12 18:56:43.892+00', 'JD2Nq8h0kULY7Ly3', false, false, false, false, NULL);
 INSERT INTO public.credentials_entity VALUES ('Ollama Test', 'U2FsdGVkX19YuGNeiMT1yseT7J4Aiekk1TF8f+6SiZupDPUXOvUtxdvtCdF9O4XGsii+DfOxhGNckk8K97vPQwwNlw1b598ZUUdZ6SIIQ6lcdW/U1NkVx5KlDWCKhNmy', 'openAiApi', '2026-04-14 18:29:35.871+00', '2026-04-14 18:29:35.871+00', 'UxOmwr19QNzUZL9q', false, false, false, false, NULL);
@@ -49,5 +51,5 @@ INSERT INTO public.credentials_entity VALUES ('OpenRouter account', 'U2FsdGVkX1/
 -- PostgreSQL database dump complete
 --
 
-\unrestrict p9agZ5xMjUGQpZk3PfLMLngeOy43NAcf6Bjfm17lNjG4U8lvNcZUhAYlY6NVO44
+\unrestrict SvaIv5OhsUG7PoRe4KRmtHGBre2ss1c7Mw1sFs63wHMRNLg4ocAF2lphvr5hcp3
 
