@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OCR изображений</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: var(--tg-theme-bg-color, #f2f3f5);
+            --surface: var(--tg-theme-secondary-bg-color, #ffffff);
+            --text: var(--tg-theme-text-color, #1f2328);
+            --muted: var(--tg-theme-hint-color, #6e7781);
+            --button: var(--tg-theme-button-color, #2481cc);
+            --button-text: var(--tg-theme-button-text-color, #ffffff);
+            --border: rgba(127, 127, 127, 0.22);
+            --ok: #219653;
+            --warn: #b7791f;
+            --danger: #c0392b;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        main { width: min(100%, 680px); margin: 0 auto; padding: 14px 14px 32px; }
+        .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .back {
+            border: 0;
+            background: transparent;
+            color: var(--button);
+            font-size: 16px;
+            padding: 10px 4px;
+            cursor: pointer;
+        }
+        h1 { margin: 0; font-size: 22px; line-height: 1.25; }
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; }
+        .row + .row { border-top: 1px solid var(--border); }
+        .label { color: var(--muted); }
+        .value { text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+        .status { display: inline-flex; align-items: center; gap: 8px; }
+        .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); flex: 0 0 auto; }
+        .status.ok .dot { background: var(--ok); }
+        .status.error .dot { background: var(--danger); }
+        .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+        .metric { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+        .metric strong { display: block; font-size: 22px; }
+        .metric span { color: var(--muted); font-size: 13px; }
+        .primary {
+            width: 100%;
+            min-height: 50px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--button);
+            color: var(--button-text);
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .primary:disabled { opacity: 0.48; cursor: default; }
+        .message { min-height: 22px; margin: 12px 2px 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+        .message.error { color: var(--danger); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<main>
+    <div class="topbar">
+        <button class="back" type="button" id="backButton" aria-label="Назад">← Назад</button>
+        <h1>OCR изображений</h1>
+    </div>
+
+    <section class="panel" aria-live="polite">
+        <div class="row">
+            <span class="label">Сервис</span>
+            <span class="value status" id="serviceStatus"><span class="dot"></span><span>Проверяю</span></span>
+        </div>
+        <div class="row">
+            <span class="label">Папка</span>
+            <span class="value" id="sourceFolder">протокол</span>
+        </div>
+        <div class="row">
+            <span class="label">Последний запуск</span>
+            <span class="value" id="batchStatus">Нет данных</span>
+        </div>
+    </section>
+
+    <section class="panel hidden" id="resultPanel">
+        <strong>Последний результат</strong>
+        <div class="metrics">
+            <div class="metric"><strong id="totalCount">0</strong><span>найдено</span></div>
+            <div class="metric"><strong id="processedCount">0</strong><span>распознано</span></div>
+            <div class="metric"><strong id="skippedCount">0</strong><span>без изменений</span></div>
+            <div class="metric"><strong id="failedCount">0</strong><span>ошибок</span></div>
+        </div>
+    </section>
+
+    <button class="primary" type="button" id="startButton" disabled>Запустить OCR</button>
+    <p class="message" id="message">Загружаю состояние…</p>
+</main>
+
+<script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    const initData = tg ? tg.initData : "";
+    const startButton = document.getElementById("startButton");
+    const message = document.getElementById("message");
+    let pollTimer = null;
+
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        tg.BackButton.show();
+        tg.BackButton.onClick(() => window.location.href = "/");
+    }
+
+    document.getElementById("backButton").addEventListener("click", () => {
+        window.location.href = "/";
+    });
+
+    const authHeaders = () => ({ "X-Telegram-Init-Data": initData });
+
+    function setMessage(text, isError = false) {
+        message.textContent = text;
+        message.classList.toggle("error", isError);
+    }
+
+    function formatDate(value) {
+        if (!value) return "—";
+        return new Intl.DateTimeFormat("ru-RU", {
+            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+        }).format(new Date(value));
+    }
+
+    function batchLabel(batch) {
+        if (!batch) return "Ещё не запускался";
+        const labels = {
+            running: "Выполняется",
+            done: "Завершён",
+            partial: "Завершён с ошибками",
+            failed: "Ошибка"
+        };
+        return `${labels[batch.status] || batch.status} · ${formatDate(batch.started_at)}`;
+    }
+
+    function renderStatus(data) {
+        const serviceStatus = document.getElementById("serviceStatus");
+        serviceStatus.className = `value status ${data.service.ready ? "ok" : "error"}`;
+        serviceStatus.innerHTML = `<span class="dot"></span><span>${data.service.ready ? "Готов" : "Недоступен"}</span>`;
+        document.getElementById("sourceFolder").textContent = data.source_folder;
+        document.getElementById("batchStatus").textContent = batchLabel(data.batch);
+
+        if (data.batch && data.batch.status !== "running") {
+            document.getElementById("resultPanel").classList.remove("hidden");
+            document.getElementById("totalCount").textContent = data.batch.total_discovered || 0;
+            document.getElementById("processedCount").textContent = data.batch.processed_count || 0;
+            document.getElementById("skippedCount").textContent = data.batch.skipped_count || 0;
+            document.getElementById("failedCount").textContent = data.batch.failed_count || 0;
+        }
+
+        startButton.disabled = !data.can_start;
+        if (data.batch && data.batch.status === "running") {
+            setMessage("Обработка идёт. Экран обновляется автоматически.");
+            schedulePoll();
+        } else if (data.service.ready) {
+            setMessage("Новые и изменённые изображения будут обработаны; готовые файлы пропустятся.");
+            stopPolling();
+        } else {
+            setMessage("OCR-сервис сейчас не готов. Попробуйте позже.", true);
+            schedulePoll();
+        }
+    }
+
+    async function loadStatus() {
+        if (!initData) {
+            startButton.disabled = true;
+            setMessage("Откройте приложение через Telegram-бота.", true);
+            return;
+        }
+        try {
+            const response = await fetch("/api/ocr/status", { headers: authHeaders() });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "Не удалось получить состояние OCR");
+            renderStatus(body);
+        } catch (error) {
+            startButton.disabled = true;
+            setMessage(error.message || "Ошибка связи с сервером", true);
+        }
+    }
+
+    function schedulePoll() {
+        if (pollTimer) return;
+        pollTimer = window.setInterval(loadStatus, 5000);
+    }
+
+    function stopPolling() {
+        if (pollTimer) window.clearInterval(pollTimer);
+        pollTimer = null;
+    }
+
+    function askConfirmation() {
+        return new Promise((resolve) => {
+            const text = "Запустить распознавание новых и изменённых изображений из папки «протокол»?";
+            if (tg && typeof tg.showConfirm === "function") tg.showConfirm(text, resolve);
+            else resolve(window.confirm(text));
+        });
+    }
+
+    startButton.addEventListener("click", async () => {
+        if (!(await askConfirmation())) return;
+        startButton.disabled = true;
+        setMessage("Передаю запуск…");
+        try {
+            const response = await fetch("/api/ocr/start", {
+                method: "POST",
+                headers: authHeaders()
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "OCR не был запущен");
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+            setMessage("Запуск принят. Проверяю очередь…");
+            schedulePoll();
+            window.setTimeout(loadStatus, 800);
+        } catch (error) {
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+            setMessage(error.message || "Не удалось запустить OCR", true);
+            window.setTimeout(loadStatus, 1500);
+        }
+    });
+
+    loadStatus();
+</script>
+</body>
+</html>

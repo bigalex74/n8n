@@ -16,12 +16,23 @@ import invest_logic
 from datetime import datetime
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
+from telegram_webapp_auth import TelegramInitDataError, verify_telegram_init_data
 
 app = FastAPI(title="bigalexn8n Apps Hub")
 # telegram_polling.start_bot()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 N8N_WEBHOOK_URL = "https://bigalexn8n.ru/webhook/trigger-translation"
+OCR_BATCH_WEBHOOK_URL = os.getenv(
+    "OCR_BATCH_WEBHOOK_URL",
+    "http://127.0.0.1:5678/webhook/ocr-yandex-korean-batch",
+)
+OCR_SERVICE_HEALTH_URL = os.getenv(
+    "OCR_SERVICE_HEALTH_URL", "http://127.0.0.1:8765/health"
+)
+TELEGRAM_INIT_DATA_MAX_AGE = int(
+    os.getenv("TELEGRAM_INIT_DATA_MAX_AGE", str(24 * 60 * 60))
+)
 DB_CONFIG_POSTGRES = {
     "host": os.getenv("DB_HOST", "127.0.0.1"),
     "database": os.getenv("DB_NAME", "postgres"),
@@ -61,6 +72,100 @@ class StartTranslationRequest(BaseModel):
 
 class TelegramCallbackRequest(BaseModel):
     callback_query: dict
+
+
+def verified_telegram_user(request: Request) -> dict:
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not bot_token:
+        raise HTTPException(status_code=503, detail="Telegram authentication is unavailable")
+    try:
+        return verify_telegram_init_data(
+            request.headers.get("X-Telegram-Init-Data", ""),
+            bot_token,
+            max_age_seconds=TELEGRAM_INIT_DATA_MAX_AGE,
+        )
+    except TelegramInitDataError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+def latest_ocr_batch() -> Optional[dict]:
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            cur.execute(
+                """
+                SELECT id, status, chat_id, requested_by, started_at, finished_at,
+                       total_discovered, processed_count, skipped_count,
+                       failed_count, failed_files, updated_at
+                FROM ocr_batch_runs
+                ORDER BY started_at DESC
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+
+
+async def ocr_service_health() -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(OCR_SERVICE_HEALTH_URL)
+            response.raise_for_status()
+            payload = response.json()
+            return {
+                "reachable": True,
+                "ready": bool(payload.get("ready")),
+                "status": payload.get("status", "unknown"),
+                "engine": payload.get("engine"),
+                "engine_version": payload.get("engine_version"),
+                "language": payload.get("language"),
+            }
+    except (httpx.HTTPError, ValueError):
+        return {"reachable": False, "ready": False, "status": "unavailable"}
+
+
+@app.get("/api/ocr/status")
+async def get_ocr_status(request: Request):
+    verified_telegram_user(request)
+    batch = latest_ocr_batch()
+    service = await ocr_service_health()
+    is_running = bool(batch and batch.get("status") == "running")
+    return {
+        "source_folder": "протокол",
+        "service": service,
+        "batch": batch,
+        "can_start": bool(service.get("ready")) and not is_running,
+    }
+
+
+@app.post("/api/ocr/start", status_code=202)
+async def start_ocr(request: Request):
+    user = verified_telegram_user(request)
+    trigger_token = os.getenv("OCR_BATCH_TRIGGER_TOKEN", "")
+    if not trigger_token:
+        raise HTTPException(status_code=503, detail="OCR launch is unavailable")
+
+    service = await ocr_service_health()
+    if not service.get("ready"):
+        raise HTTPException(status_code=503, detail="OCR service is not ready")
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                OCR_BATCH_WEBHOOK_URL,
+                headers={"X-OCR-Token": trigger_token},
+                json={"chat_id": user["id"], "requested_by": user["id"]},
+            )
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="n8n did not accept OCR launch") from exc
+
+    return {"accepted": True, "message": "OCR batch accepted"}
 
 # --- INVEST API ---
 @app.get("/api/invest/offers")
@@ -373,5 +478,9 @@ async def trade_page():
 @app.get("/invest", response_class=HTMLResponse)
 async def invest_page():
     with open("static/invest/index.html", "r", encoding="utf-8") as f: return f.read()
+
+@app.get("/ocr", response_class=HTMLResponse)
+async def ocr_page():
+    with open("static/ocr/index.html", "r", encoding="utf-8") as f: return f.read()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

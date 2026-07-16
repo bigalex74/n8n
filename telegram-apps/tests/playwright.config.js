@@ -5,8 +5,12 @@ module.exports = defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:8000',
     headless: true,
+    launchOptions: {
+      executablePath: '/usr/bin/google-chrome',
+    },
     proxy: {
       server: 'http://127.0.0.1:10808',
+      bypass: 'localhost,127.0.0.1',
     },
   },
 });

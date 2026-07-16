@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY main.py .
 COPY telegram_polling.py .
+COPY telegram_webapp_auth.py .
 COPY static ./static
 
 # Добавлен пакет requests
