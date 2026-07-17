@@ -11,13 +11,14 @@ BOT_TOKEN = "123456:test-token"
 NOW = 1_800_000_000
 
 
-def signed_init_data(*, user_id=923741104, auth_date=NOW):
+def signed_init_data(*, user_id=923741104, auth_date=NOW, username=None):
+    user = {"id": user_id, "first_name": "Test"}
+    if username:
+        user["username"] = username
     values = {
         "auth_date": str(auth_date),
         "query_id": "AAExample",
-        "user": json.dumps(
-            {"id": user_id, "first_name": "Test"}, separators=(",", ":")
-        ),
+        "user": json.dumps(user, separators=(",", ":")),
     }
     data_check_string = "\n".join(
         f"{key}={value}" for key, value in sorted(values.items())

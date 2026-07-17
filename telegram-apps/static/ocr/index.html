@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>OCR изображений</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -27,7 +27,7 @@
             color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
-        main { width: min(100%, 680px); margin: 0 auto; padding: 14px 14px 32px; }
+        main { width: min(100%, 680px); margin: 0 auto; padding: 10px 14px calc(24px + env(safe-area-inset-bottom)); }
         .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
         .back {
             border: 0;
@@ -45,6 +45,13 @@
             padding: 16px;
             margin-bottom: 12px;
         }
+        .status-strip { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -4px 0 12px; color: var(--muted); font-size: 13px; }
+        .tabs { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 5px; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(10px); }
+        .tab-button { min-height: 42px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+        .tab-button.active { color: var(--button-text); background: var(--button); }
+        .tab-panel[hidden] { display: none; }
+        .section-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+        .section-title small { color: var(--muted); font-weight: 400; }
         .row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; }
         .row + .row { border-top: 1px solid var(--border); }
         .label { color: var(--muted); }
@@ -57,6 +64,10 @@
         .metric { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
         .metric strong { display: block; font-size: 22px; }
         .metric span { color: var(--muted); font-size: 13px; }
+        .progress-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+        .progress-track { height: 12px; margin: 14px 0 10px; overflow: hidden; border-radius: 999px; background: var(--border); }
+        .progress-fill { width: 0; height: 100%; border-radius: inherit; background: var(--button); transition: width 240ms ease; }
+        .progress-detail { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
         .primary {
             width: 100%;
             min-height: 50px;
@@ -68,9 +79,76 @@
             font-weight: 700;
             cursor: pointer;
         }
+        .sticky-actions { position: sticky; bottom: 0; z-index: 15; margin: 12px -4px 0; padding: 10px 4px calc(4px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--bg) 18%, var(--bg)); }
+        .sticky-actions .secondary { background: var(--surface); }
         .primary:disabled { opacity: 0.48; cursor: default; }
+        .secondary {
+            width: 100%; min-height: 46px; margin-top: 10px;
+            border: 1px solid var(--button); border-radius: 10px;
+            background: transparent; color: var(--button); font-size: 15px;
+            font-weight: 700; cursor: pointer;
+        }
+        .secondary:disabled { opacity: 0.48; cursor: default; }
+        .danger { border-color: var(--danger); color: var(--danger); }
+        .file-list { margin-top: 12px; border-top: 1px solid var(--border); }
+        .file-item { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-bottom: 1px solid var(--border); border-left: 4px solid transparent; }
+        .file-item.quality-ok { border-left-color: var(--ok); background: rgba(33, 150, 83, 0.10); }
+        .file-item.quality-warning { border-left-color: var(--warn); background: rgba(183, 121, 31, 0.14); }
+        .file-item.quality-processing { border-left-color: var(--button); }
+        .file-item input { width: 18px; height: 18px; accent-color: var(--button); }
+        .file-name { flex: 1; overflow-wrap: anywhere; }
+        .file-state { color: var(--muted); font-size: 12px; }
+        .quality-ok .file-state { color: var(--ok); }
+        .quality-warning .file-state { color: var(--warn); }
+        .file-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+        .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+        .legend-dot { width: 9px; height: 9px; border: 1px solid var(--border); border-radius: 50%; background: transparent; }
+        .legend-dot.ok { border-color: var(--ok); background: var(--ok); }
+        .legend-dot.warning { border-color: var(--warn); background: var(--warn); }
         .message { min-height: 22px; margin: 12px 2px 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
         .message.error { color: var(--danger); }
+        .field { margin-top: 12px; }
+        .field label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 13px; }
+        select, textarea {
+            width: 100%; border: 1px solid var(--border); border-radius: 9px;
+            background: var(--bg); color: var(--text); font: inherit; padding: 11px;
+        }
+        select { min-height: 44px; }
+        textarea { min-height: 230px; resize: vertical; line-height: 1.45; }
+        .field-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+        .text-button { border: 0; background: transparent; color: var(--button); padding: 6px 0; cursor: pointer; }
+        .text-button:disabled { color: var(--muted); opacity: 0.55; cursor: default; }
+        .selection-actions { display: flex; justify-content: space-between; gap: 16px; margin-top: 8px; }
+        .selection-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; margin-top: 8px; color: var(--muted); font-size: 13px; }
+        .selection-summary strong { color: var(--text); }
+        .search-input { width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--text); font: inherit; padding: 11px; }
+        .filter-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; margin-top: 12px; }
+        .filter-row .field { margin-top: 0; }
+        .filter-count { color: var(--muted); font-size: 12px; white-space: nowrap; padding-bottom: 13px; }
+        .danger-zone { margin-top: 14px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border)); border-radius: 10px; padding: 10px; }
+        .danger-zone summary { color: var(--danger); cursor: pointer; font-weight: 700; }
+        .delete-txt { margin-top: 10px; }
+        .review-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); font: 12px/1.45 monospace; }
+        .review-grid { display: grid; gap: 10px; margin-top: 12px; }
+        .review-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+        .review-card h3 { margin: 0; font-size: 16px; }
+        .review-image { display: block; width: 100%; max-height: 520px; object-fit: contain; margin-top: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); }
+        .review-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .review-actions button { flex: 1 1 120px; }
+        .review-nav { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 8px; align-items: center; margin-top: 10px; }
+        .review-nav button { min-height: 42px; border: 1px solid var(--border); border-radius: 9px; background: transparent; color: var(--button); font-size: 18px; }
+        .review-nav span { text-align: center; color: var(--muted); font-size: 13px; }
+        .zoom-hint { display: block; width: 100%; border: 0; background: transparent; color: var(--button); padding: 8px 0 0; font: inherit; cursor: pointer; }
+        .image-dialog { width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 48px 0 0; border: 0; background: #111; overflow: auto; }
+        .image-dialog::backdrop { background: rgba(0,0,0,.88); }
+        .image-dialog img { display: block; width: auto; min-width: 100%; max-width: none; height: auto; margin: 0 auto; }
+        .dialog-close { position: fixed; top: 8px; right: 10px; z-index: 2; min-width: 44px; min-height: 40px; border: 0; border-radius: 999px; background: rgba(255,255,255,.92); color: #111; font-size: 22px; }
+        .merge-result { margin-top: 10px; }
+        .download-link { display: inline-flex; min-height: 44px; align-items: center; color: var(--button); font-weight: 700; }
+        details.settings > summary { cursor: pointer; font-weight: 700; }
+        .diff-line { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .diff-line.add { color: var(--ok); }
+        .diff-line.remove { color: var(--danger); }
         .hidden { display: none; }
     </style>
 </head>
@@ -81,41 +159,137 @@
         <h1>OCR изображений</h1>
     </div>
 
-    <section class="panel" aria-live="polite">
-        <div class="row">
-            <span class="label">Сервис</span>
-            <span class="value status" id="serviceStatus"><span class="dot"></span><span>Проверяю</span></span>
-        </div>
-        <div class="row">
-            <span class="label">Папка</span>
-            <span class="value" id="sourceFolder">протокол</span>
-        </div>
-        <div class="row">
-            <span class="label">Последний запуск</span>
-            <span class="value" id="batchStatus">Нет данных</span>
+    <div class="status-strip" aria-live="polite">
+        <span class="status" id="serviceStatus"><span class="dot"></span><span>Проверяю сервис</span></span>
+        <span id="sourceFolder">протокол</span>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Разделы OCR">
+        <button class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="recognizeTab" data-tab="recognize">Распознать</button>
+        <button class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="repeatTab" data-tab="repeat">Повторно</button>
+        <button class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="reviewTab" data-tab="review">Проверить <span id="reviewBadge"></span></button>
+    </nav>
+
+    <section class="tab-panel" id="recognizeTab" role="tabpanel">
+        <section class="panel">
+            <div class="section-title"><strong>Состояние</strong><small id="batchStatus">Нет данных</small></div>
+            <section class="hidden" id="progressPanel" aria-live="polite">
+                <div class="progress-head"><strong>Обработка</strong><strong id="progressPercent">0%</strong></div>
+                <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
+                <p class="progress-detail" id="progressDetail">Подготавливаю список изображений…</p>
+            </section>
+            <section class="hidden" id="resultPanel">
+                <div class="metrics">
+                    <div class="metric"><strong id="totalCount">0</strong><span>найдено</span></div>
+                    <div class="metric"><strong id="processedCount">0</strong><span>распознано</span></div>
+                    <div class="metric"><strong id="skippedCount">0</strong><span>без изменений</span></div>
+                    <div class="metric"><strong id="failedCount">0</strong><span>ошибок</span></div>
+                </div>
+            </section>
+        </section>
+
+        <section class="panel" id="enginePanel">
+            <details class="settings">
+                <summary>Настройки распознавания</summary>
+                <div class="field">
+                    <label for="engineSelect">Движок</label>
+                    <select id="engineSelect"><option value="paddle">PaddleOCR — локально</option><option value="ai">ИИ через Codex CLI</option></select>
+                </div>
+                <div id="aiOptions" class="hidden">
+                    <div class="field"><label for="modelSelect">Модель</label><select id="modelSelect"></select></div>
+                    <div class="field">
+                        <label for="promptInput">Промпт распознавания</label>
+                        <textarea id="promptInput" spellcheck="false"></textarea>
+                        <div class="field-actions"><button class="text-button" type="button" id="resetPromptButton">Вернуть исходный промпт</button></div>
+                    </div>
+                </div>
+                <p class="progress-detail" id="engineHint">Локальное распознавание без обращения к внешней модели.</p>
+            </details>
+        </section>
+
+        <section class="panel" id="mergePanel">
+            <div class="section-title"><strong>Общий TXT</strong><small id="mergeCount">0 файлов</small></div>
+            <p class="progress-detail">Собрать актуальные распознанные TXT в порядке имён картинок. Между страницами останется пустая строка.</p>
+            <button class="secondary" type="button" id="mergeTxtButton" disabled>Объединить TXT</button>
+            <div class="merge-result hidden" id="mergeResult"></div>
+        </section>
+
+        <div class="sticky-actions">
+            <button class="primary" type="button" id="startButton" disabled>Запустить OCR</button>
+            <button class="secondary danger hidden" type="button" id="stopButton">Остановить OCR</button>
         </div>
     </section>
 
-    <section class="panel hidden" id="resultPanel">
-        <strong>Последний результат</strong>
-        <div class="metrics">
-            <div class="metric"><strong id="totalCount">0</strong><span>найдено</span></div>
-            <div class="metric"><strong id="processedCount">0</strong><span>распознано</span></div>
-            <div class="metric"><strong id="skippedCount">0</strong><span>без изменений</span></div>
-            <div class="metric"><strong id="failedCount">0</strong><span>ошибок</span></div>
-        </div>
+    <section class="tab-panel" id="repeatTab" role="tabpanel" hidden>
+        <section class="panel" id="filesPanel">
+            <div class="section-title"><strong>Текущие картинки</strong><small id="filterCount">0 из 0</small></div>
+            <div class="file-legend" aria-label="Обозначения статусов файлов">
+                <span class="legend-item"><span class="legend-dot"></span>не распознан</span>
+                <span class="legend-item"><span class="legend-dot ok"></span>без автопредупреждений</span>
+                <span class="legend-item"><span class="legend-dot warning"></span>нужна проверка</span>
+            </div>
+            <div class="field"><label for="fileSearch">Найти по имени</label><input class="search-input" id="fileSearch" type="search" inputmode="search" placeholder="Например, 145"></div>
+            <div class="field">
+                <label for="statusFilter">Статус</label>
+                <select id="statusFilter"><option value="all">Все статусы</option><option value="unrecognized">Не распознаны</option><option value="ok">Без автопредупреждений</option><option value="warning">Нужна проверка</option><option value="processing">Обрабатываются</option></select>
+            </div>
+            <div class="selection-summary"><span id="selectedCount">Выбрано: <strong>0</strong></span><span><button class="text-button" type="button" id="selectAllButton">Выделить все</button> · <button class="text-button" type="button" id="clearSelectionButton" disabled>Снять</button></span></div>
+            <div class="file-list" id="fileList"><p class="progress-detail">Загружаю список…</p></div>
+            <button class="text-button hidden" type="button" id="showMoreFilesButton">Показать ещё</button>
+            <div class="sticky-actions">
+                <button class="secondary" type="button" id="reprocessButton" disabled>Повторить OCR</button>
+                <button class="secondary" type="button" id="createCandidatesButton" disabled>Создать ИИ-кандидаты</button>
+            </div>
+            <details class="danger-zone">
+                <summary>Опасная зона</summary>
+                <p class="progress-detail" id="deleteHint">Все распознанные TXT будут перемещены в Корзину. Изображения останутся.</p>
+                <button class="secondary danger delete-txt" type="button" id="deleteTxtButton" disabled>Переместить TXT в Корзину</button>
+            </details>
+        </section>
     </section>
 
-    <button class="primary" type="button" id="startButton" disabled>Запустить OCR</button>
-    <p class="message" id="message">Загружаю состояние…</p>
+    <section class="tab-panel" id="reviewTab" role="tabpanel" hidden>
+        <section class="panel" id="reviewsPanel">
+            <div class="section-title"><strong>Проверка текста</strong><small>оригинал не перезаписывается</small></div>
+            <p class="progress-detail">Сравните изображение, исходный текст и вариант ИИ. Публикация произойдёт только после подтверждения.</p>
+            <div class="review-nav hidden" id="reviewNav"><button type="button" id="previousReview" aria-label="Предыдущий файл">←</button><span id="reviewPosition"></span><button type="button" id="nextReview" aria-label="Следующий файл">→</button></div>
+            <div class="review-grid" id="reviewList"><p class="progress-detail">Загружаю кандидаты…</p></div>
+        </section>
+    </section>
+
+    <p class="message" id="message" aria-live="polite">Загружаю состояние…</p>
+
+    <dialog class="image-dialog" id="imageDialog"><button class="dialog-close" type="button" id="closeImageDialog" aria-label="Закрыть изображение">×</button><img id="zoomedImage" alt="Увеличенное исходное изображение"></dialog>
 </main>
 
 <script>
     const tg = window.Telegram && window.Telegram.WebApp;
     const initData = tg ? tg.initData : "";
     const startButton = document.getElementById("startButton");
+    const reprocessButton = document.getElementById("reprocessButton");
+    const selectAllButton = document.getElementById("selectAllButton");
+    const clearSelectionButton = document.getElementById("clearSelectionButton");
+    const deleteTxtButton = document.getElementById("deleteTxtButton");
+    const mergeTxtButton = document.getElementById("mergeTxtButton");
+    const createCandidatesButton = document.getElementById("createCandidatesButton");
+    const statusFilter = document.getElementById("statusFilter");
+    const fileSearch = document.getElementById("fileSearch");
+    const stopButton = document.getElementById("stopButton");
+    const engineSelect = document.getElementById("engineSelect");
+    const modelSelect = document.getElementById("modelSelect");
+    const promptInput = document.getElementById("promptInput");
     const message = document.getElementById("message");
     let pollTimer = null;
+    let canStart = false;
+    let canDelete = false;
+    let lastStatus = null;
+    let defaultAiPrompt = "";
+    let currentFileNames = [];
+    let allFiles = [];
+    let visibleFileLimit = 30;
+    let currentReviews = [];
+    let currentReviewIndex = 0;
+    const selectedFiles = new Set();
 
     if (tg) {
         tg.ready();
@@ -130,9 +304,38 @@
 
     const authHeaders = () => ({ "X-Telegram-Init-Data": initData });
 
+    function activateTab(name) {
+        document.querySelectorAll(".tab-button").forEach(button => {
+            const active = button.dataset.tab === name;
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-selected", String(active));
+        });
+        document.querySelectorAll(".tab-panel").forEach(panel => {
+            panel.hidden = panel.id !== `${name}Tab`;
+        });
+        localStorage.setItem("ocr-active-tab", name);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    document.querySelectorAll(".tab-button").forEach(button => {
+        button.addEventListener("click", () => activateTab(button.dataset.tab));
+    });
+
     function setMessage(text, isError = false) {
         message.textContent = text;
         message.classList.toggle("error", isError);
+    }
+
+    function updateSelectionControls() {
+        reprocessButton.disabled = !canStart || selectedFiles.size === 0;
+        const warningNames = new Set(allFiles.filter(file => file.quality === "warning" && file.output_exists).map(file => file.source_name));
+        createCandidatesButton.disabled = !canStart || ![...selectedFiles].some(name => warningNames.has(name));
+        selectAllButton.disabled = currentFileNames.length === 0 || currentFileNames.every(name => selectedFiles.has(name));
+        clearSelectionButton.disabled = selectedFiles.size === 0;
+        document.querySelector("#selectedCount strong").textContent = selectedFiles.size;
+        reprocessButton.textContent = selectedFiles.size ? `Повторить OCR для ${selectedFiles.size}` : "Повторить OCR";
+        const warningSelected = [...selectedFiles].filter(name => warningNames.has(name)).length;
+        createCandidatesButton.textContent = warningSelected ? `Создать ИИ-кандидаты: ${warningSelected}` : "Создать ИИ-кандидаты";
     }
 
     function formatDate(value) {
@@ -148,17 +351,57 @@
             running: "Выполняется",
             done: "Завершён",
             partial: "Завершён с ошибками",
-            failed: "Ошибка"
+            failed: "Ошибка",
+            cancelled: "Остановлен"
         };
-        return `${labels[batch.status] || batch.status} · ${formatDate(batch.started_at)}`;
+        const engine = batch.ocr_engine === "ai"
+            ? ` · ${batch.ai_model || "ИИ"}`
+            : " · PaddleOCR";
+        return `${labels[batch.status] || batch.status} · ${formatDate(batch.started_at)}${engine}`;
+    }
+
+    function selectedService(data) {
+        return data.services && data.services[engineSelect.value]
+            ? data.services[engineSelect.value]
+            : data.service;
+    }
+
+    function renderEngineChoice() {
+        const isAi = engineSelect.value === "ai";
+        document.getElementById("aiOptions").classList.toggle("hidden", !isAi);
+        document.getElementById("engineHint").textContent = isAi
+            ? "Изображение отправляется выбранной модели через авторизованный Codex CLI."
+            : "Локальное распознавание без обращения к внешней модели.";
+        if (lastStatus) renderStatus(lastStatus);
+    }
+
+    function renderProgress(batch) {
+        const panel = document.getElementById("progressPanel");
+        const total = Number(batch && batch.progress_total || 0);
+        const completed = Number(batch && batch.progress_completed || 0);
+        const failed = Number(batch && batch.progress_failed || 0);
+        const finished = completed + failed;
+        const percent = total > 0 ? Math.min(100, Math.floor(finished * 100 / total)) : 0;
+        panel.classList.toggle("hidden", !(batch && batch.status === "running"));
+        document.getElementById("progressPercent").textContent = `${percent}%`;
+        document.getElementById("progressFill").style.width = `${percent}%`;
+        const track = document.getElementById("progressTrack");
+        track.setAttribute("aria-valuenow", String(percent));
+        const current = batch && batch.progress_current_file ? ` · сейчас ${batch.progress_current_file}` : "";
+        document.getElementById("progressDetail").textContent = total > 0
+            ? `Готово ${finished} из ${total} · ошибок ${failed}${current}`
+            : "Подготавливаю список изображений…";
     }
 
     function renderStatus(data) {
+        lastStatus = data;
+        const service = selectedService(data);
         const serviceStatus = document.getElementById("serviceStatus");
-        serviceStatus.className = `value status ${data.service.ready ? "ok" : "error"}`;
-        serviceStatus.innerHTML = `<span class="dot"></span><span>${data.service.ready ? "Готов" : "Недоступен"}</span>`;
+        serviceStatus.className = `status ${service.ready ? "ok" : "error"}`;
+        serviceStatus.innerHTML = `<span class="dot"></span><span>${service.ready ? "OCR готов" : "OCR недоступен"}</span>`;
         document.getElementById("sourceFolder").textContent = data.source_folder;
         document.getElementById("batchStatus").textContent = batchLabel(data.batch);
+        renderProgress(data.batch);
 
         if (data.batch && data.batch.status !== "running") {
             document.getElementById("resultPanel").classList.remove("hidden");
@@ -166,24 +409,331 @@
             document.getElementById("processedCount").textContent = data.batch.processed_count || 0;
             document.getElementById("skippedCount").textContent = data.batch.skipped_count || 0;
             document.getElementById("failedCount").textContent = data.batch.failed_count || 0;
+        } else {
+            document.getElementById("resultPanel").classList.add("hidden");
         }
 
-        startButton.disabled = !data.can_start;
+        canStart = Boolean(data.can_start && service.ready && !(data.batch && data.batch.status === "running"));
+        canDelete = Boolean(!(data.batch && data.batch.status === "running"));
+        startButton.disabled = !canStart;
+        deleteTxtButton.disabled = !canDelete;
+        mergeTxtButton.disabled = !canDelete || !allFiles.some(file => file.output_exists);
+        updateSelectionControls();
+        stopButton.classList.toggle("hidden", !(data.batch && data.batch.status === "running"));
+        stopButton.disabled = !data.can_stop;
         if (data.batch && data.batch.status === "running") {
-            setMessage("Обработка идёт. Экран обновляется автоматически.");
+            setMessage(data.batch.cancel_requested
+                ? "Останавливаю после текущей картинки…"
+                : "Обработка идёт. Экран обновляется автоматически.");
             schedulePoll();
-        } else if (data.service.ready) {
-            setMessage("Новые и изменённые изображения будут обработаны; готовые файлы пропустятся.");
+        } else if (service.ready) {
+            setMessage(engineSelect.value === "ai"
+                ? "ИИ-распознавание готово. Проверьте модель и промпт перед запуском."
+                : "Новые и изменённые изображения будут обработаны; готовые файлы пропустятся.");
             stopPolling();
         } else {
-            setMessage("OCR-сервис сейчас не готов. Попробуйте позже.", true);
+            setMessage("Выбранный OCR-сервис сейчас не готов. Попробуйте позже.", true);
             schedulePoll();
+        }
+    }
+
+    async function loadConfig() {
+        if (!initData) return;
+        try {
+            const response = await fetch("/api/ocr/config", { headers: authHeaders() });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "Не удалось загрузить настройки OCR");
+            modelSelect.replaceChildren();
+            for (const model of body.ai_models || []) {
+                const option = document.createElement("option");
+                option.value = model.id;
+                option.textContent = model.label;
+                modelSelect.appendChild(option);
+            }
+            defaultAiPrompt = body.default_ai_prompt || "";
+            engineSelect.value = localStorage.getItem("ocr-engine") || "paddle";
+            modelSelect.value = localStorage.getItem("ocr-ai-model") || body.default_ai_model || "gpt-5.6-luna";
+            promptInput.value = localStorage.getItem("ocr-ai-prompt") || defaultAiPrompt;
+            renderEngineChoice();
+        } catch (error) {
+            setMessage(error.message || "Не удалось загрузить настройки OCR", true);
+        }
+    }
+
+    function renderFiles(files) {
+        const list = document.getElementById("fileList");
+        list.replaceChildren();
+        allFiles = files;
+        const currentNames = new Set(allFiles.map(file => file.source_name));
+        for (const selected of selectedFiles) {
+            if (!currentNames.has(selected)) selectedFiles.delete(selected);
+        }
+        const filter = statusFilter.value;
+        const query = fileSearch.value.trim().toLowerCase();
+        const filteredFiles = filter === "all"
+            ? allFiles
+            : allFiles.filter(file => file.quality === filter);
+        const visibleFiles = query
+            ? filteredFiles.filter(file => file.source_name.toLowerCase().includes(query))
+            : filteredFiles;
+        currentFileNames = visibleFiles.map(file => file.source_name);
+        document.getElementById("filterCount").textContent = `${visibleFiles.length} из ${allFiles.length}`;
+        const outputCount = allFiles.filter(file => file.output_exists).length;
+        document.getElementById("mergeCount").textContent = `${outputCount} ${outputCount === 1 ? "файл" : "файлов"}`;
+        document.getElementById("deleteHint").textContent = outputCount
+            ? `${outputCount} TXT будут перемещены в Корзину. Изображения останутся.`
+            : "Распознанных TXT сейчас нет.";
+        mergeTxtButton.textContent = outputCount ? `Объединить ${outputCount} TXT` : "Объединить TXT";
+        mergeTxtButton.disabled = !canDelete || outputCount === 0;
+        updateSelectionControls();
+        if (!visibleFiles.length) {
+            const empty = document.createElement("p");
+            empty.className = "progress-detail";
+            empty.textContent = allFiles.length
+                ? "Файлов с таким статусом нет."
+                : "Картинок пока нет.";
+            list.appendChild(empty);
+            return;
+        }
+        const renderedFiles = visibleFiles.slice(0, visibleFileLimit);
+        const showMore = document.getElementById("showMoreFilesButton");
+        showMore.classList.toggle("hidden", renderedFiles.length === visibleFiles.length);
+        showMore.textContent = `Показать ещё (${visibleFiles.length - renderedFiles.length})`;
+        for (const file of renderedFiles) {
+            const label = document.createElement("label");
+            const quality = ["ok", "warning", "processing"].includes(file.quality) ? file.quality : "unrecognized";
+            label.className = `file-item quality-${quality}`;
+            label.dataset.quality = quality;
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.value = file.source_name;
+            checkbox.checked = selectedFiles.has(file.source_name);
+            checkbox.addEventListener("change", () => {
+                if (checkbox.checked) selectedFiles.add(file.source_name);
+                else selectedFiles.delete(file.source_name);
+                updateSelectionControls();
+            });
+            const name = document.createElement("span");
+            name.className = "file-name";
+            name.textContent = file.source_name;
+            const state = document.createElement("span");
+            state.className = "file-state";
+            state.textContent = file.quality_label || (file.status === "done"
+                ? "без автопредупреждений"
+                : (file.status === "new" ? "не обработано" : file.status));
+            label.append(checkbox, name, state);
+            list.appendChild(label);
+        }
+    }
+
+    async function loadFiles() {
+        if (!initData) return;
+        try {
+            const response = await fetch("/api/ocr/files", { headers: authHeaders() });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "Не удалось получить список файлов");
+            renderFiles(body.files || []);
+        } catch (error) {
+            document.getElementById("fileList").textContent = error.message;
+        }
+    }
+
+    function appendReviewText(container, title, text, className = "") {
+        const heading = document.createElement("p");
+        heading.className = "progress-detail";
+        heading.textContent = title;
+        const block = document.createElement("div");
+        block.className = `review-text ${className}`.trim();
+        block.textContent = text || "—";
+        container.append(heading, block);
+    }
+
+    async function reviewAction(id, action) {
+        const labels = { accept: "Опубликовать кандидата?", reject: "Оставить исходный TXT?", defer: "Отложить решение?", rollback: "Вернуть baseline и заменить опубликованный TXT?" };
+        if (!(await askConfirmation(labels[action] || "Выполнить действие?"))) return;
+        setMessage("Сохраняю решение…");
+        try {
+            const response = await fetch(`/api/ocr/reviews/${id}/action`, {
+                method: "POST",
+                headers: { ...authHeaders(), "Content-Type": "application/json" },
+                body: JSON.stringify({ action })
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "Решение не сохранено");
+            setMessage(action === "accept" ? "Кандидат опубликован; baseline сохранён для отката." : action === "rollback" ? "Baseline восстановлен." : "Решение сохранено.");
+            await Promise.all([loadReviews(), loadFiles()]);
+        } catch (error) {
+            setMessage(error.message || "Не удалось сохранить решение", true);
+        }
+    }
+
+    function openReviewImage(url, alt) {
+        const dialog = document.getElementById("imageDialog");
+        const image = document.getElementById("zoomedImage");
+        image.src = url;
+        image.alt = alt;
+        dialog.showModal();
+    }
+
+    function renderReviews(reviews, keepIndex = false) {
+        const list = document.getElementById("reviewList");
+        list.replaceChildren();
+        currentReviews = reviews;
+        if (!keepIndex) currentReviewIndex = Math.min(currentReviewIndex, Math.max(0, reviews.length - 1));
+        const actionable = reviews.filter(review => ["candidate_ready", "needs_review", "deferred"].includes(review.status)).length;
+        document.getElementById("reviewBadge").textContent = actionable ? `(${actionable})` : "";
+        document.getElementById("reviewNav").classList.toggle("hidden", reviews.length < 2);
+        if (!reviews.length) {
+            const empty = document.createElement("p");
+            empty.className = "progress-detail";
+            empty.textContent = "Кандидатов пока нет. Выберите жёлтые файлы выше.";
+            list.appendChild(empty);
+            return;
+        }
+        const statusLabels = { processing: "обрабатывается", candidate_ready: "готов к подтверждению", needs_review: "ручная проверка", accepted: "принят", rejected: "оставлен исходный", deferred: "отложен", rolled_back: "откачен", failed: "ошибка" };
+        const review = reviews[currentReviewIndex];
+        document.getElementById("reviewPosition").textContent = `${currentReviewIndex + 1} из ${reviews.length} · ${review.source_name}`;
+        document.getElementById("previousReview").disabled = currentReviewIndex === 0;
+        document.getElementById("nextReview").disabled = currentReviewIndex === reviews.length - 1;
+            const card = document.createElement("article");
+            card.className = "review-card";
+            const heading = document.createElement("h3");
+            heading.textContent = `${review.source_name} · ${statusLabels[review.status] || review.status}`;
+            card.appendChild(heading);
+            const reason = document.createElement("p");
+            reason.className = "progress-detail";
+            reason.textContent = review.decision_reason || review.error_message || `Модель: ${review.model}`;
+            card.appendChild(reason);
+            if (review.source_url) {
+                const sourceImage = document.createElement("img");
+                sourceImage.className = "review-image";
+                sourceImage.src = review.source_url;
+                sourceImage.alt = `Исходное изображение ${review.source_name}`;
+                sourceImage.loading = "lazy";
+                card.appendChild(sourceImage);
+                const zoomButton = document.createElement("button");
+                zoomButton.type = "button";
+                zoomButton.className = "zoom-hint";
+                zoomButton.textContent = "Открыть изображение крупно";
+                zoomButton.addEventListener("click", () => openReviewImage(review.source_url, sourceImage.alt));
+                card.appendChild(zoomButton);
+            }
+            appendReviewText(card, "Исходный текст", review.baseline_text);
+            appendReviewText(card, "Вариант ИИ", review.candidate_text);
+            const diffLines = (review.diff_json && review.diff_json.diff || []).filter(line => !line.startsWith("---") && !line.startsWith("+++"));
+            const diff = document.createElement("div");
+            diff.className = "review-text";
+            for (const line of diffLines) {
+                const span = document.createElement("span");
+                span.className = `diff-line ${line.startsWith("+") && !line.startsWith("+++") ? "add" : line.startsWith("-") && !line.startsWith("---") ? "remove" : ""}`;
+                span.textContent = line;
+                diff.appendChild(span);
+            }
+            const diffHeading = document.createElement("p");
+            diffHeading.className = "progress-detail";
+            diffHeading.textContent = "Изменения: красное удалено, зелёное добавлено";
+            card.append(diffHeading, diff);
+            const actions = document.createElement("div");
+            actions.className = "review-actions";
+            if (["candidate_ready", "needs_review", "deferred"].includes(review.status)) {
+                for (const [action, label] of [["accept", "Принять"], ["reject", "Оставить исходный"], ["defer", "Отложить"]]) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = action === "accept" ? "secondary" : "text-button";
+                    button.textContent = label;
+                    button.addEventListener("click", () => reviewAction(review.id, action));
+                    actions.appendChild(button);
+                }
+            } else if (review.status === "accepted") {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "secondary danger";
+                button.textContent = "Откатить к baseline";
+                button.addEventListener("click", () => reviewAction(review.id, "rollback"));
+                actions.appendChild(button);
+            }
+            card.appendChild(actions);
+            list.appendChild(card);
+    }
+
+    async function loadReviews() {
+        if (!initData) return;
+        try {
+            const response = await fetch("/api/ocr/reviews", { headers: authHeaders() });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "Не удалось получить кандидаты");
+            renderReviews(body.reviews || []);
+        } catch (error) {
+            document.getElementById("reviewList").textContent = error.message;
+        }
+    }
+
+    async function createCandidates() {
+        const warningNames = new Set(allFiles.filter(file => file.quality === "warning" && file.output_exists).map(file => file.source_name));
+        const names = [...selectedFiles].filter(name => warningNames.has(name)).slice(0, 10);
+        if (!names.length) return;
+        const model = modelSelect.value || "gpt-5.6-terra";
+        const modelLabel = modelSelect.options[modelSelect.selectedIndex]?.text || model;
+        if (!(await askConfirmation(`Создать через ${modelLabel} отдельные ИИ-кандидаты для ${names.length} файлов? Основные TXT не изменятся.`))) return;
+        createCandidatesButton.disabled = true;
+        const prompt = (promptInput.value || defaultAiPrompt).trim();
+        let completed = 0;
+        for (const sourceName of names) {
+            setMessage(`Постобработка: ${completed + 1} из ${names.length} · ${sourceName}`);
+            try {
+                const response = await fetch("/api/ocr/reviews/candidate", {
+                    method: "POST",
+                    headers: { ...authHeaders(), "Content-Type": "application/json" },
+                    body: JSON.stringify({ source_name: sourceName, model, prompt })
+                });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(body.detail || `Не удалось обработать ${sourceName}`);
+                completed += 1;
+                await loadReviews();
+            } catch (error) {
+                setMessage(`${sourceName}: ${error.message}`, true);
+                break;
+            }
+        }
+        setMessage(`Кандидаты созданы: ${completed} из ${names.length}. Проверьте baseline, кандидат и diff.`);
+        updateSelectionControls();
+    }
+
+    async function mergeTxtFiles() {
+        const count = allFiles.filter(file => file.output_exists).length;
+        if (!count) return;
+        if (!(await askConfirmation(`Объединить ${count} актуальных TXT в порядке имён и прислать файлом в этот чат?`))) return;
+        mergeTxtButton.disabled = true;
+        setMessage(`Объединяю ${count} TXT и отправляю файл в Telegram…`);
+        try {
+            const response = await fetch("/api/ocr/merge-txt", {
+                method: "POST",
+                headers: { ...authHeaders(), "Content-Type": "application/json" },
+                body: JSON.stringify({ confirmation: "MERGE_CURRENT_OCR_TXT" })
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "TXT не удалось объединить");
+            const result = document.getElementById("mergeResult");
+            result.replaceChildren();
+            result.classList.remove("hidden");
+            const summary = document.createElement("p");
+            summary.className = "progress-detail";
+            summary.textContent = `${body.output_name}: ${body.source_count} файлов, ${body.size} байт. Файл отправлен в этот чат, SHA-256 проверен.`;
+            result.appendChild(summary);
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+            setMessage(`Готово: ${body.output_name} собран, проверен и отправлен в чат.`);
+        } catch (error) {
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+            setMessage(error.message || "Не удалось объединить TXT", true);
+        } finally {
+            mergeTxtButton.disabled = !canDelete || !allFiles.some(file => file.output_exists);
         }
     }
 
     async function loadStatus() {
         if (!initData) {
             startButton.disabled = true;
+            deleteTxtButton.disabled = true;
             setMessage("Откройте приложение через Telegram-бота.", true);
             return;
         }
@@ -194,6 +744,7 @@
             renderStatus(body);
         } catch (error) {
             startButton.disabled = true;
+            deleteTxtButton.disabled = true;
             setMessage(error.message || "Ошибка связи с сервером", true);
         }
     }
@@ -208,22 +759,37 @@
         pollTimer = null;
     }
 
-    function askConfirmation() {
+    function askConfirmation(text) {
         return new Promise((resolve) => {
-            const text = "Запустить распознавание новых и изменённых изображений из папки «протокол»?";
             if (tg && typeof tg.showConfirm === "function") tg.showConfirm(text, resolve);
             else resolve(window.confirm(text));
         });
     }
 
-    startButton.addEventListener("click", async () => {
-        if (!(await askConfirmation())) return;
+    async function startBatch(forceFiles = []) {
+        const isAi = engineSelect.value === "ai";
+        if (isAi && promptInput.value.trim().length < 20) {
+            setMessage("Промпт для ИИ слишком короткий.", true);
+            return;
+        }
+        const method = isAi ? `ИИ (${modelSelect.options[modelSelect.selectedIndex]?.text || modelSelect.value})` : "PaddleOCR";
+        const confirmation = forceFiles.length
+            ? `Повторно распознать выбранные картинки (${forceFiles.length}) через ${method} и перезаписать их TXT?`
+            : `Запустить ${method} для новых, изменённых и оставшихся без TXT изображений из папки «протокол»?`;
+        if (!(await askConfirmation(confirmation))) return;
         startButton.disabled = true;
+        reprocessButton.disabled = true;
         setMessage("Передаю запуск…");
         try {
             const response = await fetch("/api/ocr/start", {
                 method: "POST",
-                headers: authHeaders()
+                headers: { ...authHeaders(), "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    force_files: forceFiles,
+                    engine: engineSelect.value,
+                    model: isAi ? modelSelect.value : null,
+                    prompt: isAi ? promptInput.value.trim() : null
+                })
             });
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.detail || "OCR не был запущен");
@@ -236,9 +802,105 @@
             setMessage(error.message || "Не удалось запустить OCR", true);
             window.setTimeout(loadStatus, 1500);
         }
+    }
+
+    startButton.addEventListener("click", () => startBatch());
+    reprocessButton.addEventListener("click", () => startBatch([...selectedFiles]));
+    createCandidatesButton.addEventListener("click", createCandidates);
+    mergeTxtButton.addEventListener("click", mergeTxtFiles);
+    selectAllButton.addEventListener("click", () => {
+        for (const name of currentFileNames) selectedFiles.add(name);
+        document.querySelectorAll("#fileList input[type=checkbox]").forEach(input => { input.checked = true; });
+        updateSelectionControls();
+    });
+    clearSelectionButton.addEventListener("click", () => {
+        selectedFiles.clear();
+        document.querySelectorAll("#fileList input[type=checkbox]").forEach(input => { input.checked = false; });
+        updateSelectionControls();
+    });
+    statusFilter.addEventListener("change", () => {
+        selectedFiles.clear();
+        visibleFileLimit = 30;
+        localStorage.setItem("ocr-status-filter", statusFilter.value);
+        renderFiles(allFiles);
+    });
+    fileSearch.addEventListener("input", () => {
+        visibleFileLimit = 30;
+        renderFiles(allFiles);
+    });
+    document.getElementById("showMoreFilesButton").addEventListener("click", () => {
+        visibleFileLimit += 30;
+        renderFiles(allFiles);
+    });
+    deleteTxtButton.addEventListener("click", async () => {
+        if (!(await askConfirmation("Удалить все TXT из папки «протокол»? Изображения останутся без изменений."))) return;
+        if (!(await askConfirmation("Подтвердите ещё раз: переместить все TXT в Корзину Яндекс Диска?"))) return;
+        deleteTxtButton.disabled = true;
+        setMessage("Удаляю TXT, изображения не затрагиваются…");
+        try {
+            const response = await fetch("/api/ocr/delete-txt", {
+                method: "POST",
+                headers: { ...authHeaders(), "Content-Type": "application/json" },
+                body: JSON.stringify({ confirmation: "DELETE_ALL_OCR_TXT" })
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "TXT не удалось удалить");
+            selectedFiles.clear();
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+            setMessage(`Удалено TXT: ${body.deleted_count}. Изображения сохранены.`);
+            window.setTimeout(loadFiles, 800);
+        } catch (error) {
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+            setMessage(error.message || "Не удалось удалить TXT", true);
+        } finally {
+            deleteTxtButton.disabled = !canDelete;
+        }
+    });
+    stopButton.addEventListener("click", async () => {
+        if (!(await askConfirmation("Остановить OCR после завершения текущей картинки?"))) return;
+        stopButton.disabled = true;
+        setMessage("Передаю остановку…");
+        try {
+            const response = await fetch("/api/ocr/stop", { method: "POST", headers: authHeaders() });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "OCR не удалось остановить");
+            setMessage("Останавливаю после текущей картинки…");
+            schedulePoll();
+            window.setTimeout(loadStatus, 500);
+        } catch (error) {
+            setMessage(error.message || "Не удалось остановить OCR", true);
+            window.setTimeout(loadStatus, 1000);
+        }
     });
 
+    engineSelect.addEventListener("change", () => {
+        localStorage.setItem("ocr-engine", engineSelect.value);
+        renderEngineChoice();
+    });
+    modelSelect.addEventListener("change", () => localStorage.setItem("ocr-ai-model", modelSelect.value));
+    promptInput.addEventListener("input", () => localStorage.setItem("ocr-ai-prompt", promptInput.value));
+    document.getElementById("resetPromptButton").addEventListener("click", () => {
+        promptInput.value = defaultAiPrompt;
+        localStorage.setItem("ocr-ai-prompt", promptInput.value);
+        setMessage("Исходный промпт восстановлен.");
+    });
+
+    document.getElementById("previousReview").addEventListener("click", () => {
+        if (currentReviewIndex > 0) currentReviewIndex -= 1;
+        renderReviews(currentReviews, true);
+    });
+    document.getElementById("nextReview").addEventListener("click", () => {
+        if (currentReviewIndex < currentReviews.length - 1) currentReviewIndex += 1;
+        renderReviews(currentReviews, true);
+    });
+    document.getElementById("closeImageDialog").addEventListener("click", () => document.getElementById("imageDialog").close());
+
+    statusFilter.value = localStorage.getItem("ocr-status-filter") || "all";
+    activateTab(localStorage.getItem("ocr-active-tab") || "recognize");
+    loadConfig();
     loadStatus();
+    loadFiles();
+    loadReviews();
 </script>
 </body>
 </html>
