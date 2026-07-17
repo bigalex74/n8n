@@ -40,7 +40,13 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:?Resolve TELEGRAM_BOT_TOKEN at deploy time}
       - OCR_BATCH_TRIGGER_TOKEN=${OCR_BATCH_TRIGGER_TOKEN:?Resolve OCR_BATCH_TRIGGER_TOKEN at deploy time}
       - OCR_BATCH_WEBHOOK_URL=http://127.0.0.1:5678/webhook/ocr-yandex-korean-batch
+      - OCR_DELETE_TXT_WEBHOOK_URL=http://127.0.0.1:5678/webhook/ocr-yandex-delete-txt
+      - OCR_REVIEW_PUBLISH_WEBHOOK_URL=http://127.0.0.1:5678/webhook/ocr-yandex-review-publish
+      - OCR_OWNER_ID=923741104
+      - OCR_OWNER_USERNAME=bigalex_an
+      - OCR_OPERATOR_IDS=1011396552
       - OCR_SERVICE_HEALTH_URL=http://127.0.0.1:8765/health
+      - AI_OCR_SERVICE_HEALTH_URL=http://127.0.0.1:8766/health
       - TELEGRAM_INIT_DATA_MAX_AGE=86400
     depends_on:
       - ollama
