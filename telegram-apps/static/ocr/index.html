@@ -94,17 +94,27 @@
         .file-item { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-bottom: 1px solid var(--border); border-left: 4px solid transparent; }
         .file-item.quality-ok { border-left-color: var(--ok); background: rgba(33, 150, 83, 0.10); }
         .file-item.quality-warning { border-left-color: var(--warn); background: rgba(183, 121, 31, 0.14); }
+        .file-item.quality-error { border-left-color: var(--danger); background: rgba(192, 57, 43, 0.12); }
+        .file-item.quality-ai { border-left-color: #2a6fd6; background: rgba(42, 111, 214, 0.12); }
         .file-item.quality-processing { border-left-color: var(--button); }
         .file-item input { width: 18px; height: 18px; accent-color: var(--button); }
         .file-name { flex: 1; overflow-wrap: anywhere; }
         .file-state { color: var(--muted); font-size: 12px; }
         .quality-ok .file-state { color: var(--ok); }
         .quality-warning .file-state { color: var(--warn); }
+        .quality-error .file-state { color: var(--danger); }
+        .quality-ai .file-state { color: #2a6fd6; }
         .file-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; color: var(--muted); font-size: 12px; }
         .legend-item { display: inline-flex; align-items: center; gap: 6px; }
         .legend-dot { width: 9px; height: 9px; border: 1px solid var(--border); border-radius: 50%; background: transparent; }
         .legend-dot.ok { border-color: var(--ok); background: var(--ok); }
         .legend-dot.warning { border-color: var(--warn); background: var(--warn); }
+        .legend-dot.error { border-color: var(--danger); background: var(--danger); }
+        .legend-dot.ai { border-color: #2a6fd6; background: #2a6fd6; }
+        .subtabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 4px; margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; }
+        .subtab-button { min-height: 38px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .subtab-button.active { color: var(--button-text); background: var(--button); }
+        .baseline-editor { min-height: 180px; font: 12px/1.45 monospace; }
         .message { min-height: 22px; margin: 12px 2px 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
         .message.error { color: var(--danger); }
         .field { margin-top: 12px; }
@@ -214,6 +224,16 @@
             <div class="merge-result hidden" id="mergeResult"></div>
         </section>
 
+        <section class="panel">
+            <details class="danger-zone">
+                <summary>Опасная зона</summary>
+                <p class="progress-detail" id="deleteHint">Все распознанные TXT будут перемещены в Корзину. Изображения останутся.</p>
+                <button class="secondary danger delete-txt" type="button" id="deleteTxtButton" disabled>Переместить TXT в Корзину</button>
+                <p class="progress-detail" id="clearAllHint" style="margin-top:12px">Полная очистка удалит и PNG, и TXT из папки «протокол» (в Корзину).</p>
+                <button class="secondary danger delete-txt" type="button" id="clearAllButton" disabled>Полностью очистить (PNG и TXT)</button>
+            </details>
+        </section>
+
         <div class="sticky-actions">
             <button class="primary" type="button" id="startButton" disabled>Запустить OCR</button>
             <button class="secondary danger hidden" type="button" id="stopButton">Остановить OCR</button>
@@ -227,33 +247,50 @@
                 <span class="legend-item"><span class="legend-dot"></span>не распознан</span>
                 <span class="legend-item"><span class="legend-dot ok"></span>без автопредупреждений</span>
                 <span class="legend-item"><span class="legend-dot warning"></span>нужна проверка</span>
+                <span class="legend-item"><span class="legend-dot error"></span>ошибка</span>
+                <span class="legend-item"><span class="legend-dot ai"></span>обработано ИИ</span>
             </div>
             <div class="field"><label for="fileSearch">Найти по имени</label><input class="search-input" id="fileSearch" type="search" inputmode="search" placeholder="Например, 145"></div>
             <div class="field">
                 <label for="statusFilter">Статус</label>
-                <select id="statusFilter"><option value="all">Все статусы</option><option value="unrecognized">Не распознаны</option><option value="ok">Без автопредупреждений</option><option value="warning">Нужна проверка</option><option value="processing">Обрабатываются</option></select>
+                <select id="statusFilter"><option value="all">Все статусы</option><option value="unrecognized">Не распознаны</option><option value="ok">Без автопредупреждений</option><option value="warning">Нужна проверка</option><option value="error">Ошибки</option><option value="ai">Обработано ИИ</option><option value="processing">Обрабатываются</option></select>
             </div>
             <div class="selection-summary"><span id="selectedCount">Выбрано: <strong>0</strong></span><span><button class="text-button" type="button" id="selectAllButton">Выделить все</button> · <button class="text-button" type="button" id="clearSelectionButton" disabled>Снять</button></span></div>
             <div class="file-list" id="fileList"><p class="progress-detail">Загружаю список…</p></div>
             <button class="text-button hidden" type="button" id="showMoreFilesButton">Показать ещё</button>
-            <div class="sticky-actions">
-                <button class="secondary" type="button" id="reprocessButton" disabled>Повторить OCR</button>
-                <button class="secondary" type="button" id="createCandidatesButton" disabled>Создать ИИ-кандидаты</button>
+            <div class="field">
+                <label for="repeatEngineSelect">Движок для выделенных файлов</label>
+                <select id="repeatEngineSelect"><option value="paddle">PaddleOCR — повторное распознавание</option><option value="ai">ИИ — отправить на обработку</option></select>
             </div>
-            <details class="danger-zone">
-                <summary>Опасная зона</summary>
-                <p class="progress-detail" id="deleteHint">Все распознанные TXT будут перемещены в Корзину. Изображения останутся.</p>
-                <button class="secondary danger delete-txt" type="button" id="deleteTxtButton" disabled>Переместить TXT в Корзину</button>
-            </details>
+            <div class="field hidden" id="repeatAiOptions">
+                <label for="repeatModelSelect">Модель ИИ</label>
+                <select id="repeatModelSelect"></select>
+            </div>
+            <p class="progress-detail" id="repeatHint">Выбран PaddleOCR: выделенные файлы будут распознаны заново, их TXT перезапишутся.</p>
+            <div class="sticky-actions">
+                <button class="primary" type="button" id="processSelectedButton" disabled>Обработать выделенные</button>
+            </div>
         </section>
     </section>
 
     <section class="tab-panel" id="reviewTab" role="tabpanel" hidden>
         <section class="panel" id="reviewsPanel">
             <div class="section-title"><strong>Проверка текста</strong><small>оригинал не перезаписывается</small></div>
-            <p class="progress-detail">Сравните изображение, исходный текст и вариант ИИ. Публикация произойдёт только после подтверждения.</p>
-            <div class="review-nav hidden" id="reviewNav"><button type="button" id="previousReview" aria-label="Предыдущий файл">←</button><span id="reviewPosition"></span><button type="button" id="nextReview" aria-label="Следующий файл">→</button></div>
-            <div class="review-grid" id="reviewList"><p class="progress-detail">Загружаю кандидаты…</p></div>
+            <p class="progress-detail">Здесь проверяются файлы, отправленные в ИИ: для каждого показаны изображение, исходный текст, вариант ИИ и отличия между ними. Вы решаете, какой текст оставить, — только после этого TXT обновляется.</p>
+            <div class="subtabs" role="tablist" aria-label="Разделы проверки">
+                <button class="subtab-button active" type="button" role="tab" data-subtab="candidates">Кандидаты ИИ</button>
+                <button class="subtab-button" type="button" role="tab" data-subtab="browse">Все файлы</button>
+            </div>
+            <div id="candidatesSubtab">
+                <div class="field"><label for="reviewSelect">Файл на проверке</label><select id="reviewSelect"></select></div>
+                <div class="review-nav hidden" id="reviewNav"><button type="button" id="previousReview" aria-label="Предыдущий файл">←</button><span id="reviewPosition"></span><button type="button" id="nextReview" aria-label="Следующий файл">→</button></div>
+                <div class="review-grid" id="reviewList"><p class="progress-detail">Загружаю кандидаты…</p></div>
+            </div>
+            <div id="browseSubtab" class="hidden">
+                <p class="progress-detail">Просмотр любого файла из папки: изображение и его текущий текст.</p>
+                <div class="field"><label for="browseSelect">Файл</label><select id="browseSelect"></select></div>
+                <div id="browseContent"><p class="progress-detail">Выберите файл из списка.</p></div>
+            </div>
         </section>
     </section>
 
@@ -266,18 +303,22 @@
     const tg = window.Telegram && window.Telegram.WebApp;
     const initData = tg ? tg.initData : "";
     const startButton = document.getElementById("startButton");
-    const reprocessButton = document.getElementById("reprocessButton");
+    const processSelectedButton = document.getElementById("processSelectedButton");
     const selectAllButton = document.getElementById("selectAllButton");
     const clearSelectionButton = document.getElementById("clearSelectionButton");
     const deleteTxtButton = document.getElementById("deleteTxtButton");
+    const clearAllButton = document.getElementById("clearAllButton");
     const mergeTxtButton = document.getElementById("mergeTxtButton");
-    const createCandidatesButton = document.getElementById("createCandidatesButton");
     const statusFilter = document.getElementById("statusFilter");
     const fileSearch = document.getElementById("fileSearch");
     const stopButton = document.getElementById("stopButton");
     const engineSelect = document.getElementById("engineSelect");
     const modelSelect = document.getElementById("modelSelect");
+    const repeatEngineSelect = document.getElementById("repeatEngineSelect");
+    const repeatModelSelect = document.getElementById("repeatModelSelect");
     const promptInput = document.getElementById("promptInput");
+    const reviewSelect = document.getElementById("reviewSelect");
+    const browseSelect = document.getElementById("browseSelect");
     const message = document.getElementById("message");
     let pollTimer = null;
     let canStart = false;
@@ -290,6 +331,26 @@
     let currentReviews = [];
     let currentReviewIndex = 0;
     const selectedFiles = new Set();
+    const imageUrlCache = new Map();
+
+    function naturalNameKey(name) {
+        return String(name || "").split(/(\d+)/).map(part => (/^\d+$/.test(part) ? part.padStart(12, "0") : part.toLowerCase())).join("");
+    }
+
+    async function loadAuthImage(imgElement, sourceName, fallbackUrl) {
+        const cached = imageUrlCache.get(sourceName);
+        if (cached) { imgElement.src = cached; return; }
+        try {
+            const response = await fetch(`/api/ocr/image/${encodeURIComponent(sourceName)}`, { headers: authHeaders() });
+            if (!response.ok) throw new Error("image fetch failed");
+            const objectUrl = URL.createObjectURL(await response.blob());
+            imageUrlCache.set(sourceName, objectUrl);
+            imgElement.src = objectUrl;
+        } catch (error) {
+            if (fallbackUrl) imgElement.src = fallbackUrl;
+            else imgElement.alt = "Изображение недоступно";
+        }
+    }
 
     if (tg) {
         tg.ready();
@@ -327,15 +388,23 @@
     }
 
     function updateSelectionControls() {
-        reprocessButton.disabled = !canStart || selectedFiles.size === 0;
-        const warningNames = new Set(allFiles.filter(file => file.quality === "warning" && file.output_exists).map(file => file.source_name));
-        createCandidatesButton.disabled = !canStart || ![...selectedFiles].some(name => warningNames.has(name));
+        const isAi = repeatEngineSelect.value === "ai";
+        processSelectedButton.disabled = !canStart || selectedFiles.size === 0;
         selectAllButton.disabled = currentFileNames.length === 0 || currentFileNames.every(name => selectedFiles.has(name));
         clearSelectionButton.disabled = selectedFiles.size === 0;
         document.querySelector("#selectedCount strong").textContent = selectedFiles.size;
-        reprocessButton.textContent = selectedFiles.size ? `Повторить OCR для ${selectedFiles.size}` : "Повторить OCR";
-        const warningSelected = [...selectedFiles].filter(name => warningNames.has(name)).length;
-        createCandidatesButton.textContent = warningSelected ? `Создать ИИ-кандидаты: ${warningSelected}` : "Создать ИИ-кандидаты";
+        processSelectedButton.textContent = isAi
+            ? (selectedFiles.size ? `Отправить в ИИ: ${selectedFiles.size}` : "Отправить в ИИ")
+            : (selectedFiles.size ? `Повторить OCR: ${selectedFiles.size}` : "Повторить OCR");
+    }
+
+    function renderRepeatEngineChoice() {
+        const isAi = repeatEngineSelect.value === "ai";
+        document.getElementById("repeatAiOptions").classList.toggle("hidden", !isAi);
+        document.getElementById("repeatHint").textContent = isAi
+            ? "Выбран ИИ: для файлов с TXT будут созданы кандидаты во вкладке «Проверить», файлы без TXT распознаются моделью напрямую."
+            : "Выбран PaddleOCR: выделенные файлы будут распознаны заново, их TXT перезапишутся.";
+        updateSelectionControls();
     }
 
     function formatDate(value) {
@@ -417,6 +486,7 @@
         canDelete = Boolean(!(data.batch && data.batch.status === "running"));
         startButton.disabled = !canStart;
         deleteTxtButton.disabled = !canDelete;
+        clearAllButton.disabled = !canDelete;
         mergeTxtButton.disabled = !canDelete || !allFiles.some(file => file.output_exists);
         updateSelectionControls();
         stopButton.classList.toggle("hidden", !(data.batch && data.batch.status === "running"));
@@ -444,17 +514,22 @@
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.detail || "Не удалось загрузить настройки OCR");
             modelSelect.replaceChildren();
+            repeatModelSelect.replaceChildren();
             for (const model of body.ai_models || []) {
                 const option = document.createElement("option");
                 option.value = model.id;
                 option.textContent = model.label;
                 modelSelect.appendChild(option);
+                repeatModelSelect.appendChild(option.cloneNode(true));
             }
             defaultAiPrompt = body.default_ai_prompt || "";
             engineSelect.value = localStorage.getItem("ocr-engine") || "paddle";
             modelSelect.value = localStorage.getItem("ocr-ai-model") || body.default_ai_model || "gpt-5.6-luna";
+            repeatEngineSelect.value = localStorage.getItem("ocr-repeat-engine") || "paddle";
+            repeatModelSelect.value = modelSelect.value;
             promptInput.value = localStorage.getItem("ocr-ai-prompt") || defaultAiPrompt;
             renderEngineChoice();
+            renderRepeatEngineChoice();
         } catch (error) {
             setMessage(error.message || "Не удалось загрузить настройки OCR", true);
         }
@@ -501,7 +576,7 @@
         showMore.textContent = `Показать ещё (${visibleFiles.length - renderedFiles.length})`;
         for (const file of renderedFiles) {
             const label = document.createElement("label");
-            const quality = ["ok", "warning", "processing"].includes(file.quality) ? file.quality : "unrecognized";
+            const quality = ["ok", "warning", "error", "ai", "processing"].includes(file.quality) ? file.quality : "unrecognized";
             label.className = `file-item quality-${quality}`;
             label.dataset.quality = quality;
             const checkbox = document.createElement("input");
@@ -533,8 +608,71 @@
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.detail || "Не удалось получить список файлов");
             renderFiles(body.files || []);
+            renderBrowseOptions();
         } catch (error) {
             document.getElementById("fileList").textContent = error.message;
+        }
+    }
+
+    function activateSubtab(name) {
+        document.querySelectorAll(".subtab-button").forEach(button => {
+            button.classList.toggle("active", button.dataset.subtab === name);
+        });
+        document.getElementById("candidatesSubtab").classList.toggle("hidden", name !== "candidates");
+        document.getElementById("browseSubtab").classList.toggle("hidden", name !== "browse");
+    }
+
+    function renderBrowseOptions() {
+        const previous = browseSelect.value;
+        browseSelect.replaceChildren();
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = allFiles.length ? "— выберите файл —" : "файлов нет";
+        browseSelect.appendChild(placeholder);
+        for (const file of allFiles) {
+            const option = document.createElement("option");
+            option.value = file.source_name;
+            option.textContent = `${file.source_name} · ${file.quality_label || file.status}`;
+            browseSelect.appendChild(option);
+        }
+        if (previous && allFiles.some(file => file.source_name === previous)) browseSelect.value = previous;
+    }
+
+    async function renderBrowseFile(sourceName) {
+        const container = document.getElementById("browseContent");
+        container.replaceChildren();
+        if (!sourceName) {
+            const hint = document.createElement("p");
+            hint.className = "progress-detail";
+            hint.textContent = "Выберите файл из списка.";
+            container.appendChild(hint);
+            return;
+        }
+        const image = document.createElement("img");
+        image.className = "review-image";
+        image.alt = `Изображение ${sourceName}`;
+        container.appendChild(image);
+        loadAuthImage(image, sourceName);
+        const zoomButton = document.createElement("button");
+        zoomButton.type = "button";
+        zoomButton.className = "zoom-hint";
+        zoomButton.textContent = "Открыть изображение крупно";
+        zoomButton.addEventListener("click", () => { if (image.src) openReviewImage(image.src, image.alt); });
+        container.appendChild(zoomButton);
+        const textBlock = document.createElement("div");
+        textBlock.className = "review-text";
+        textBlock.textContent = "Загружаю текст…";
+        const heading = document.createElement("p");
+        heading.className = "progress-detail";
+        heading.textContent = "Текущий текст";
+        container.append(heading, textBlock);
+        try {
+            const response = await fetch(`/api/ocr/text/${encodeURIComponent(sourceName)}`, { headers: authHeaders() });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "Не удалось получить текст");
+            textBlock.textContent = body.exists ? (body.text || "— пустой файл —") : "TXT для этого файла ещё не создан.";
+        } catch (error) {
+            textBlock.textContent = error.message;
         }
     }
 
@@ -548,20 +686,33 @@
         container.append(heading, block);
     }
 
-    async function reviewAction(id, action) {
-        const labels = { accept: "Опубликовать кандидата?", reject: "Оставить исходный TXT?", defer: "Отложить решение?", rollback: "Вернуть baseline и заменить опубликованный TXT?" };
+    async function reviewAction(id, action, editedText = null) {
+        const edited = editedText !== null;
+        const labels = {
+            accept: "Заменить TXT вариантом ИИ?",
+            reject: edited ? "Сохранить исходный текст с вашими правками?" : "Оставить исходный TXT без изменений?",
+            defer: "Отложить решение?",
+            rollback: "Вернуть baseline и заменить опубликованный TXT?"
+        };
         if (!(await askConfirmation(labels[action] || "Выполнить действие?"))) return;
         setMessage("Сохраняю решение…");
         try {
+            const payload = { action };
+            if (action === "reject" && edited) payload.edited_text = editedText;
             const response = await fetch(`/api/ocr/reviews/${id}/action`, {
                 method: "POST",
                 headers: { ...authHeaders(), "Content-Type": "application/json" },
-                body: JSON.stringify({ action })
+                body: JSON.stringify(payload)
             });
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.detail || "Решение не сохранено");
-            setMessage(action === "accept" ? "Кандидат опубликован; baseline сохранён для отката." : action === "rollback" ? "Baseline восстановлен." : "Решение сохранено.");
-            await Promise.all([loadReviews(), loadFiles()]);
+            setMessage(action === "accept"
+                ? "Кандидат опубликован; исходник сохранён для отката."
+                : action === "rollback" ? "Baseline восстановлен."
+                : action === "reject" && edited ? "Исходный текст с правками сохранён и опубликован."
+                : "Решение сохранено.");
+            const advance = ["accept", "reject", "defer"].includes(action);
+            await Promise.all([loadReviews(advance), loadFiles()]);
         } catch (error) {
             setMessage(error.message || "Не удалось сохранить решение", true);
         }
@@ -575,111 +726,172 @@
         dialog.showModal();
     }
 
+    const REVIEW_ACTIONABLE = ["candidate_ready", "needs_review", "deferred", "processing", "failed"];
+    const REVIEW_DECIDABLE = ["candidate_ready", "needs_review", "deferred"];
+    const REVIEW_STATUS_LABELS = { processing: "обрабатывается", candidate_ready: "готов к подтверждению", needs_review: "ручная проверка", accepted: "принят вариант ИИ", rejected: "оставлен исходный", deferred: "отложен", rolled_back: "откачен", failed: "ошибка" };
+
+    function renderReviewSelect(reviews) {
+        reviewSelect.replaceChildren();
+        if (!reviews.length) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "кандидатов нет";
+            reviewSelect.appendChild(option);
+            return;
+        }
+        reviews.forEach((review, index) => {
+            const option = document.createElement("option");
+            option.value = String(index);
+            option.textContent = `${review.source_name} · ${REVIEW_STATUS_LABELS[review.status] || review.status}`;
+            reviewSelect.appendChild(option);
+        });
+        reviewSelect.value = String(currentReviewIndex);
+    }
+
     function renderReviews(reviews, keepIndex = false) {
         const list = document.getElementById("reviewList");
         list.replaceChildren();
+        reviews = [...reviews].sort((a, b) => naturalNameKey(a.source_name).localeCompare(naturalNameKey(b.source_name)));
         currentReviews = reviews;
         if (!keepIndex) currentReviewIndex = Math.min(currentReviewIndex, Math.max(0, reviews.length - 1));
-        const actionable = reviews.filter(review => ["candidate_ready", "needs_review", "deferred"].includes(review.status)).length;
-        document.getElementById("reviewBadge").textContent = actionable ? `(${actionable})` : "";
+        const decidable = reviews.filter(review => REVIEW_DECIDABLE.includes(review.status)).length;
+        document.getElementById("reviewBadge").textContent = decidable ? `(${decidable})` : "";
         document.getElementById("reviewNav").classList.toggle("hidden", reviews.length < 2);
+        renderReviewSelect(reviews);
         if (!reviews.length) {
             const empty = document.createElement("p");
             empty.className = "progress-detail";
-            empty.textContent = "Кандидатов пока нет. Выберите жёлтые файлы выше.";
+            empty.textContent = "Кандидатов пока нет. Во вкладке «Повторно» выделите файлы, выберите движок «ИИ» и отправьте их на обработку.";
             list.appendChild(empty);
             return;
         }
-        const statusLabels = { processing: "обрабатывается", candidate_ready: "готов к подтверждению", needs_review: "ручная проверка", accepted: "принят", rejected: "оставлен исходный", deferred: "отложен", rolled_back: "откачен", failed: "ошибка" };
         const review = reviews[currentReviewIndex];
         document.getElementById("reviewPosition").textContent = `${currentReviewIndex + 1} из ${reviews.length} · ${review.source_name}`;
         document.getElementById("previousReview").disabled = currentReviewIndex === 0;
         document.getElementById("nextReview").disabled = currentReviewIndex === reviews.length - 1;
-            const card = document.createElement("article");
-            card.className = "review-card";
-            const heading = document.createElement("h3");
-            heading.textContent = `${review.source_name} · ${statusLabels[review.status] || review.status}`;
-            card.appendChild(heading);
-            const reason = document.createElement("p");
-            reason.className = "progress-detail";
-            reason.textContent = review.decision_reason || review.error_message || `Модель: ${review.model}`;
-            card.appendChild(reason);
-            if (review.source_url) {
-                const sourceImage = document.createElement("img");
-                sourceImage.className = "review-image";
-                sourceImage.src = review.source_url;
-                sourceImage.alt = `Исходное изображение ${review.source_name}`;
-                sourceImage.loading = "lazy";
-                card.appendChild(sourceImage);
-                const zoomButton = document.createElement("button");
-                zoomButton.type = "button";
-                zoomButton.className = "zoom-hint";
-                zoomButton.textContent = "Открыть изображение крупно";
-                zoomButton.addEventListener("click", () => openReviewImage(review.source_url, sourceImage.alt));
-                card.appendChild(zoomButton);
-            }
+        const card = document.createElement("article");
+        card.className = "review-card";
+        const heading = document.createElement("h3");
+        heading.textContent = `${review.source_name} · ${REVIEW_STATUS_LABELS[review.status] || review.status}`;
+        card.appendChild(heading);
+        const reason = document.createElement("p");
+        reason.className = "progress-detail";
+        reason.textContent = review.decision_reason || review.error_message || `Модель: ${review.model}`;
+        card.appendChild(reason);
+        const sourceImage = document.createElement("img");
+        sourceImage.className = "review-image";
+        sourceImage.alt = `Исходное изображение ${review.source_name}`;
+        sourceImage.loading = "lazy";
+        card.appendChild(sourceImage);
+        loadAuthImage(sourceImage, review.source_name, review.source_url);
+        const zoomButton = document.createElement("button");
+        zoomButton.type = "button";
+        zoomButton.className = "zoom-hint";
+        zoomButton.textContent = "Открыть изображение крупно";
+        zoomButton.addEventListener("click", () => { if (sourceImage.src) openReviewImage(sourceImage.src, sourceImage.alt); });
+        card.appendChild(zoomButton);
+
+        const decidableNow = REVIEW_DECIDABLE.includes(review.status);
+        let baselineEditor = null;
+        if (decidableNow) {
+            const editHeading = document.createElement("p");
+            editHeading.className = "progress-detail";
+            editHeading.textContent = "Исходный текст (можно править вручную)";
+            baselineEditor = document.createElement("textarea");
+            baselineEditor.className = "baseline-editor";
+            baselineEditor.value = review.baseline_text || "";
+            baselineEditor.spellcheck = false;
+            card.append(editHeading, baselineEditor);
+        } else {
             appendReviewText(card, "Исходный текст", review.baseline_text);
-            appendReviewText(card, "Вариант ИИ", review.candidate_text);
-            const diffLines = (review.diff_json && review.diff_json.diff || []).filter(line => !line.startsWith("---") && !line.startsWith("+++"));
-            const diff = document.createElement("div");
-            diff.className = "review-text";
-            for (const line of diffLines) {
-                const span = document.createElement("span");
-                span.className = `diff-line ${line.startsWith("+") && !line.startsWith("+++") ? "add" : line.startsWith("-") && !line.startsWith("---") ? "remove" : ""}`;
-                span.textContent = line;
-                diff.appendChild(span);
-            }
-            const diffHeading = document.createElement("p");
-            diffHeading.className = "progress-detail";
-            diffHeading.textContent = "Изменения: красное удалено, зелёное добавлено";
-            card.append(diffHeading, diff);
-            const actions = document.createElement("div");
-            actions.className = "review-actions";
-            if (["candidate_ready", "needs_review", "deferred"].includes(review.status)) {
-                for (const [action, label] of [["accept", "Принять"], ["reject", "Оставить исходный"], ["defer", "Отложить"]]) {
-                    const button = document.createElement("button");
-                    button.type = "button";
-                    button.className = action === "accept" ? "secondary" : "text-button";
-                    button.textContent = label;
-                    button.addEventListener("click", () => reviewAction(review.id, action));
-                    actions.appendChild(button);
-                }
-            } else if (review.status === "accepted") {
+        }
+        appendReviewText(card, "Вариант ИИ", review.candidate_text);
+        const diffLines = (review.diff_json && review.diff_json.diff || []).filter(line =>
+            !line.startsWith("---") && !line.startsWith("+++") && !line.startsWith("@@"));
+        const diff = document.createElement("div");
+        diff.className = "review-text";
+        for (const line of diffLines) {
+            const span = document.createElement("span");
+            span.className = `diff-line ${line.startsWith("+") ? "add" : line.startsWith("-") ? "remove" : ""}`;
+            span.textContent = line;
+            diff.appendChild(span);
+        }
+        const diffHeading = document.createElement("p");
+        diffHeading.className = "progress-detail";
+        diffHeading.textContent = "Изменения: красное удалено, зелёное добавлено (в итоговый файл попадает только выбранный текст)";
+        card.append(diffHeading, diff);
+        const actions = document.createElement("div");
+        actions.className = "review-actions";
+        if (decidableNow) {
+            for (const [action, label] of [["accept", "Принять"], ["reject", "Оставить исходный"], ["defer", "Отложить"]]) {
                 const button = document.createElement("button");
                 button.type = "button";
-                button.className = "secondary danger";
-                button.textContent = "Откатить к baseline";
-                button.addEventListener("click", () => reviewAction(review.id, "rollback"));
+                button.className = action === "accept" ? "secondary" : "text-button";
+                button.textContent = label;
+                button.addEventListener("click", () => {
+                    const edited = baselineEditor && baselineEditor.value !== (review.baseline_text || "")
+                        ? baselineEditor.value
+                        : null;
+                    reviewAction(review.id, action, action === "reject" ? edited : null);
+                });
                 actions.appendChild(button);
             }
-            card.appendChild(actions);
-            list.appendChild(card);
+        } else if (review.status === "accepted") {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "secondary danger";
+            button.textContent = "Откатить к baseline";
+            button.addEventListener("click", () => reviewAction(review.id, "rollback"));
+            actions.appendChild(button);
+        }
+        card.appendChild(actions);
+        list.appendChild(card);
     }
 
-    async function loadReviews() {
+    function advanceToNextDecidable() {
+        if (!currentReviews.length) return;
+        for (let step = 1; step <= currentReviews.length; step += 1) {
+            const index = (currentReviewIndex + step) % currentReviews.length;
+            if (REVIEW_DECIDABLE.includes(currentReviews[index].status)) {
+                currentReviewIndex = index;
+                renderReviews(currentReviews, true);
+                return;
+            }
+        }
+        renderReviews(currentReviews, true);
+        setMessage("Все кандидаты проверены. Вернитесь во вкладку «Распознать» и объедините TXT.");
+    }
+
+    async function loadReviews(advanceAfter = false) {
         if (!initData) return;
         try {
             const response = await fetch("/api/ocr/reviews", { headers: authHeaders() });
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.detail || "Не удалось получить кандидаты");
-            renderReviews(body.reviews || []);
+            renderReviews(body.reviews || [], true);
+            if (advanceAfter) advanceToNextDecidable();
         } catch (error) {
             document.getElementById("reviewList").textContent = error.message;
         }
     }
 
-    async function createCandidates() {
-        const warningNames = new Set(allFiles.filter(file => file.quality === "warning" && file.output_exists).map(file => file.source_name));
-        const names = [...selectedFiles].filter(name => warningNames.has(name)).slice(0, 10);
-        if (!names.length) return;
-        const model = modelSelect.value || "gpt-5.6-terra";
-        const modelLabel = modelSelect.options[modelSelect.selectedIndex]?.text || model;
-        if (!(await askConfirmation(`Создать через ${modelLabel} отдельные ИИ-кандидаты для ${names.length} файлов? Основные TXT не изменятся.`))) return;
-        createCandidatesButton.disabled = true;
+    async function sendSelectedToAi() {
+        const selected = [...selectedFiles];
+        const byName = new Map(allFiles.map(file => [file.source_name, file]));
+        const withTxt = selected.filter(name => byName.get(name)?.output_exists);
+        const withoutTxt = selected.filter(name => !byName.get(name)?.output_exists);
+        const model = repeatModelSelect.value || modelSelect.value || "gpt-5.6-terra";
+        const modelLabel = repeatModelSelect.options[repeatModelSelect.selectedIndex]?.text || model;
+        const parts = [];
+        if (withTxt.length) parts.push(`${withTxt.length} с TXT — станут кандидатами во вкладке «Проверить»`);
+        if (withoutTxt.length) parts.push(`${withoutTxt.length} без TXT — будут распознаны моделью напрямую`);
+        if (!(await askConfirmation(`Отправить в ИИ (${modelLabel}) ${selected.length} файлов? ${parts.join("; ")}.`))) return;
+        processSelectedButton.disabled = true;
         const prompt = (promptInput.value || defaultAiPrompt).trim();
         let completed = 0;
-        for (const sourceName of names) {
-            setMessage(`Постобработка: ${completed + 1} из ${names.length} · ${sourceName}`);
+        let failedName = null;
+        for (const sourceName of withTxt) {
+            setMessage(`Отправляю в ИИ: ${completed + 1} из ${withTxt.length} · ${sourceName}`);
             try {
                 const response = await fetch("/api/ocr/reviews/candidate", {
                     method: "POST",
@@ -689,14 +901,32 @@
                 const body = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(body.detail || `Не удалось обработать ${sourceName}`);
                 completed += 1;
-                await loadReviews();
+                await Promise.all([loadReviews(), loadFiles()]);
             } catch (error) {
+                failedName = sourceName;
                 setMessage(`${sourceName}: ${error.message}`, true);
                 break;
             }
         }
-        setMessage(`Кандидаты созданы: ${completed} из ${names.length}. Проверьте baseline, кандидат и diff.`);
+        if (!failedName && withoutTxt.length) {
+            await startBatch(withoutTxt, "ai", model, true);
+        }
+        if (!failedName) {
+            const summary = [];
+            if (withTxt.length) summary.push(`кандидаты: ${completed} из ${withTxt.length} — проверьте их во вкладке «Проверить»`);
+            if (withoutTxt.length) summary.push(`распознавание ИИ запущено для ${withoutTxt.length} файлов`);
+            setMessage(`Готово. ${summary.join("; ")}.`);
+        }
         updateSelectionControls();
+    }
+
+    async function processSelected() {
+        if (!selectedFiles.size) {
+            setMessage("Сначала выделите файлы в списке выше.", true);
+            return;
+        }
+        if (repeatEngineSelect.value === "ai") await sendSelectedToAi();
+        else await startBatch([...selectedFiles], "paddle");
     }
 
     async function mergeTxtFiles() {
@@ -766,19 +996,22 @@
         });
     }
 
-    async function startBatch(forceFiles = []) {
-        const isAi = engineSelect.value === "ai";
-        if (isAi && promptInput.value.trim().length < 20) {
+    async function startBatch(forceFiles = [], engineOverride = null, modelOverride = null, skipConfirm = false) {
+        const engine = engineOverride || engineSelect.value;
+        const isAi = engine === "ai";
+        const model = modelOverride || modelSelect.value;
+        const prompt = (promptInput.value || defaultAiPrompt).trim();
+        if (isAi && prompt.length < 20) {
             setMessage("Промпт для ИИ слишком короткий.", true);
             return;
         }
-        const method = isAi ? `ИИ (${modelSelect.options[modelSelect.selectedIndex]?.text || modelSelect.value})` : "PaddleOCR";
+        const method = isAi ? `ИИ (${model})` : "PaddleOCR";
         const confirmation = forceFiles.length
             ? `Повторно распознать выбранные картинки (${forceFiles.length}) через ${method} и перезаписать их TXT?`
             : `Запустить ${method} для новых, изменённых и оставшихся без TXT изображений из папки «протокол»?`;
-        if (!(await askConfirmation(confirmation))) return;
+        if (!skipConfirm && !(await askConfirmation(confirmation))) return;
         startButton.disabled = true;
-        reprocessButton.disabled = true;
+        processSelectedButton.disabled = true;
         setMessage("Передаю запуск…");
         try {
             const response = await fetch("/api/ocr/start", {
@@ -786,9 +1019,9 @@
                 headers: { ...authHeaders(), "Content-Type": "application/json" },
                 body: JSON.stringify({
                     force_files: forceFiles,
-                    engine: engineSelect.value,
-                    model: isAi ? modelSelect.value : null,
-                    prompt: isAi ? promptInput.value.trim() : null
+                    engine,
+                    model: isAi ? model : null,
+                    prompt: isAi ? prompt : null
                 })
             });
             const body = await response.json().catch(() => ({}));
@@ -805,8 +1038,47 @@
     }
 
     startButton.addEventListener("click", () => startBatch());
-    reprocessButton.addEventListener("click", () => startBatch([...selectedFiles]));
-    createCandidatesButton.addEventListener("click", createCandidates);
+    processSelectedButton.addEventListener("click", processSelected);
+    repeatEngineSelect.addEventListener("change", () => {
+        localStorage.setItem("ocr-repeat-engine", repeatEngineSelect.value);
+        renderRepeatEngineChoice();
+    });
+    repeatModelSelect.addEventListener("change", () => localStorage.setItem("ocr-ai-model", repeatModelSelect.value));
+    document.querySelectorAll(".subtab-button").forEach(button => {
+        button.addEventListener("click", () => activateSubtab(button.dataset.subtab));
+    });
+    reviewSelect.addEventListener("change", () => {
+        const index = Number(reviewSelect.value);
+        if (Number.isInteger(index) && currentReviews[index]) {
+            currentReviewIndex = index;
+            renderReviews(currentReviews, true);
+        }
+    });
+    browseSelect.addEventListener("change", () => renderBrowseFile(browseSelect.value));
+    clearAllButton.addEventListener("click", async () => {
+        if (!(await askConfirmation("Полностью очистить папку «протокол»? Будут удалены и PNG, и TXT."))) return;
+        if (!(await askConfirmation("Подтвердите ещё раз: переместить ВСЕ файлы папки в Корзину Яндекс Диска?"))) return;
+        clearAllButton.disabled = true;
+        setMessage("Очищаю папку: перемещаю PNG и TXT в Корзину…");
+        try {
+            const response = await fetch("/api/ocr/clear-all", {
+                method: "POST",
+                headers: { ...authHeaders(), "Content-Type": "application/json" },
+                body: JSON.stringify({ confirmation: "DELETE_ALL_OCR_FILES" })
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.detail || "Папку не удалось очистить");
+            selectedFiles.clear();
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+            setMessage(`Папка очищена: удалено файлов ${body.deleted_count} (PNG и TXT в Корзине).`);
+            window.setTimeout(loadFiles, 800);
+        } catch (error) {
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+            setMessage(error.message || "Не удалось очистить папку", true);
+        } finally {
+            clearAllButton.disabled = !canDelete;
+        }
+    });
     mergeTxtButton.addEventListener("click", mergeTxtFiles);
     selectAllButton.addEventListener("click", () => {
         for (const name of currentFileNames) selectedFiles.add(name);

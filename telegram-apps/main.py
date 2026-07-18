@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -117,6 +117,10 @@ class OcrDeleteTxtRequest(BaseModel):
     confirmation: str = Field(default="", max_length=64)
 
 
+class OcrClearAllRequest(BaseModel):
+    confirmation: str = Field(default="", max_length=64)
+
+
 class OcrMergeTxtRequest(BaseModel):
     confirmation: str = Field(default="", max_length=64)
 
@@ -129,6 +133,7 @@ class OcrReviewCandidateRequest(BaseModel):
 
 class OcrReviewActionRequest(BaseModel):
     action: str = Field(min_length=1, max_length=32)
+    edited_text: Optional[str] = Field(default=None, max_length=2_000_000)
 
 
 def verified_telegram_user(request: Request) -> dict:
@@ -393,6 +398,27 @@ def latest_ocr_public_key() -> str:
     if not row or not row[0]:
         raise HTTPException(status_code=503, detail="OCR source is not configured")
     return str(row[0])
+
+
+def latest_reviews_by_source() -> dict:
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            cur.execute(
+                """
+                SELECT DISTINCT ON (lower(source_name))
+                       id, source_name, source_md5, status, updated_at
+                FROM ocr_postprocess_reviews
+                ORDER BY lower(source_name), updated_at DESC, id DESC
+                """
+            )
+            rows = [dict(row) for row in cur.fetchall()]
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+    return {str(row["source_name"]).casefold(): row for row in rows}
 
 
 def existing_ocr_review(job: dict) -> Optional[dict]:
@@ -718,6 +744,7 @@ async def get_ocr_files(request: Request):
     current_names = source_listing["images"]
     txt_names = source_listing["txt_names"]
     jobs = {row["source_name"].casefold(): row for row in rows}
+    reviews = latest_reviews_by_source()
     files = []
     for name in current_names:
         job = jobs.get(name.casefold())
@@ -741,11 +768,28 @@ async def get_ocr_files(request: Request):
             quality = "warning" if has_quality_warning else "ok"
             quality_label = "нужна проверка" if has_quality_warning else "без автопредупреждений"
         elif status in {"retry", "failed"}:
-            quality = "warning"
+            quality = "error"
             quality_label = "ошибка OCR"
         elif status in {"pending", "processing"}:
             quality = "processing"
             quality_label = "обрабатывается"
+        review = reviews.get(name.casefold())
+        review_status = None
+        if review and output_exists:
+            listing_item = (source_listing.get("files") or {}).get(name.casefold()) or {}
+            current_md5 = listing_item.get("md5")
+            if not current_md5 or review.get("source_md5") == current_md5:
+                review_status = review["status"]
+                if review_status == "processing":
+                    quality, quality_label = "ai", "обрабатывается ИИ"
+                elif review_status in {"candidate_ready", "needs_review", "deferred"}:
+                    quality, quality_label = "ai", "обработано ИИ — ждёт проверки"
+                elif review_status == "accepted":
+                    quality, quality_label = "ok", "принят вариант ИИ"
+                elif review_status == "rejected":
+                    quality, quality_label = "ok", "оставлен исходный"
+                elif review_status == "failed":
+                    quality, quality_label = "error", "ошибка ИИ"
         files.append(
             {
                 "source_name": name,
@@ -755,9 +799,48 @@ async def get_ocr_files(request: Request):
                 "attempts": job["attempts"] if job else 0,
                 "completed_at": job["completed_at"] if job else None,
                 "output_exists": output_exists,
+                "review_status": review_status,
             }
         )
     return {"files": files}
+
+
+def validated_ocr_source_name(source_name: str) -> str:
+    name = source_name.strip()
+    if not name or len(name) > 512 or "/" in name or "\\" in name or name.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid OCR file name")
+    return name
+
+
+@app.get("/api/ocr/image/{source_name}")
+async def get_ocr_image(source_name: str, request: Request):
+    verified_telegram_user(request)
+    name = validated_ocr_source_name(source_name)
+    listing = await current_ocr_source_listing(latest_ocr_public_key())
+    item = (listing.get("files") or {}).get(name.casefold())
+    if not item or not item.get("file"):
+        raise HTTPException(status_code=404, detail="Current image was not found")
+    if not re.fullmatch(r"image/\w+", item.get("mime_type") or "", re.IGNORECASE):
+        raise HTTPException(status_code=415, detail="Requested file is not an image")
+    content = await download_public_bytes(item["file"])
+    return Response(
+        content=content,
+        media_type=item.get("mime_type") or "application/octet-stream",
+        headers={"Cache-Control": "private, max-age=600"},
+    )
+
+
+@app.get("/api/ocr/text/{source_name}")
+async def get_ocr_text(source_name: str, request: Request):
+    verified_telegram_user(request)
+    name = validated_ocr_source_name(source_name)
+    listing = await current_ocr_source_listing(latest_ocr_public_key())
+    txt_name = re.sub(r"\.[^.]+$", ".txt", name)
+    item = (listing.get("files") or {}).get(txt_name.casefold())
+    if not item or not item.get("file"):
+        return {"exists": False, "txt_name": txt_name, "text": ""}
+    text = await download_public_text(item["file"])
+    return {"exists": True, "txt_name": item["name"], "text": text}
 
 
 @app.post("/api/ocr/delete-txt", status_code=200)
@@ -805,6 +888,56 @@ async def delete_ocr_txt(request: Request, payload: OcrDeleteTxtRequest):
         "moved_to_trash": True,
         "verified_absent": True,
         "previous_count": before_count,
+    }
+
+
+@app.post("/api/ocr/clear-all", status_code=200)
+async def clear_ocr_folder(request: Request, payload: OcrClearAllRequest):
+    user = verified_telegram_user(request)
+    if not is_ocr_operator(user):
+        raise HTTPException(status_code=403, detail="Only an OCR operator can clear the folder")
+    if payload.confirmation != "DELETE_ALL_OCR_FILES":
+        raise HTTPException(status_code=400, detail="Full clear was not confirmed")
+    batch = latest_ocr_batch()
+    if batch and batch.get("status") == "running":
+        raise HTTPException(status_code=409, detail="Stop the active OCR batch before clearing the folder")
+    trigger_token = os.getenv("OCR_BATCH_TRIGGER_TOKEN", "")
+    if not trigger_token:
+        raise HTTPException(status_code=503, detail="OCR deletion is not configured")
+    public_key = latest_ocr_public_key()
+    before = await current_ocr_source_listing(public_key)
+    before_images = len(before["images"])
+    before_txt = len(before["txt_names"])
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            response = await client.post(
+                OCR_DELETE_TXT_WEBHOOK_URL,
+                headers={"X-OCR-Token": trigger_token},
+                json={"confirmation": payload.confirmation, "scope": "all", "dry_run": False},
+            )
+            response.raise_for_status()
+            result = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail="Folder could not be cleared") from exc
+    remaining = before_images + before_txt
+    for attempt in range(6):
+        listing = await current_ocr_source_listing(public_key)
+        remaining = len(listing["images"]) + len(listing["txt_names"])
+        if remaining == 0:
+            break
+        if attempt < 5:
+            await asyncio.sleep(1)
+    if remaining:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Yandex Disk still contains {remaining} files after full clear",
+        )
+    return {
+        "deleted_count": int(result.get("deleted_count", 0)),
+        "moved_to_trash": True,
+        "verified_absent": True,
+        "previous_images": before_images,
+        "previous_txt": before_txt,
     }
 
 
@@ -966,12 +1099,22 @@ async def act_on_ocr_review(review_id: int, request: Request, payload: OcrReview
             if job.get("source_md5") != row.get("source_md5"):
                 raise HTTPException(status_code=409, detail="Image changed; this review is stale")
             publish_text = None
+            new_baseline = None
             next_status = {"reject": "rejected", "defer": "deferred"}.get(action)
             if action == "accept":
                 if row.get("status") not in {"candidate_ready", "needs_review", "deferred"}:
                     raise HTTPException(status_code=409, detail="Candidate is not ready")
                 publish_text = row.get("candidate_text")
                 next_status = "accepted"
+            elif action == "reject":
+                edited = payload.edited_text
+                if (
+                    edited is not None
+                    and edited.strip()
+                    and edited != (row.get("baseline_text") or "")
+                ):
+                    publish_text = edited
+                    new_baseline = edited
             elif action == "rollback":
                 if row.get("status") != "accepted":
                     raise HTTPException(status_code=409, detail="Only an accepted review can be rolled back")
@@ -982,16 +1125,23 @@ async def act_on_ocr_review(review_id: int, request: Request, payload: OcrReview
                 expected_hash = hashlib.sha256(publish_text.encode("utf-8")).hexdigest()
                 if result.get("sha256") != expected_hash:
                     raise HTTPException(status_code=502, detail="Published TXT could not be verified")
+            new_baseline_hash = (
+                hashlib.sha256(new_baseline.encode("utf-8")).hexdigest()
+                if new_baseline is not None
+                else None
+            )
             cur.execute(
                 """
                 UPDATE ocr_postprocess_reviews
                 SET status = %s,
+                    baseline_text = COALESCE(%s, baseline_text),
+                    baseline_sha256 = COALESCE(%s, baseline_sha256),
                     accepted_at = CASE WHEN %s = 'accepted' THEN now() ELSE accepted_at END,
                     updated_at = now()
                 WHERE id = %s
                 RETURNING *
                 """,
-                (next_status, next_status, review_id),
+                (next_status, new_baseline, new_baseline_hash, next_status, review_id),
             )
             updated = dict(cur.fetchone())
             conn.commit()

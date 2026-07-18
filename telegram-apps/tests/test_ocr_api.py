@@ -567,6 +567,271 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("cancel_requested = true", cursor.execute.call_args.args[0])
         connection.commit.assert_called_once()
 
+    async def test_files_marks_ai_review_status_blue_and_failed_red(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [
+            {
+                "source_public_key": "public-key",
+                "source_name": "145.png",
+                "status": "done",
+                "attempts": 1,
+                "completed_at": "now",
+                "confidence": 0.93,
+                "min_confidence": 0.39,
+                "ocr_engine": "PaddleOCR",
+                "error_message": None,
+            },
+            {
+                "source_public_key": "public-key",
+                "source_name": "146.png",
+                "status": "failed",
+                "attempts": 2,
+                "completed_at": None,
+                "confidence": None,
+                "min_confidence": None,
+                "ocr_engine": "PaddleOCR",
+                "error_message": "boom",
+            },
+        ]
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        reviews = {
+            "145.png": {"id": 5, "source_name": "145.png", "source_md5": "m1", "status": "needs_review"},
+        }
+        listing = {
+            "images": ["145.png", "146.png"],
+            "txt_names": {"145.txt"},
+            "files": {"145.png": {"md5": "m1"}},
+        }
+
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
+            main, "get_conn_pg", return_value=connection
+        ), patch.object(
+            main, "latest_reviews_by_source", return_value=reviews
+        ), patch.object(
+            main, "current_ocr_source_listing", AsyncMock(return_value=listing)
+        ):
+            result = await main.get_ocr_files(
+                request_with_init_data(signed_init_data(auth_date=int(time.time())))
+            )
+
+        by_name = {row["source_name"]: row for row in result["files"]}
+        self.assertEqual(by_name["145.png"]["quality"], "ai")
+        self.assertEqual(by_name["145.png"]["quality_label"], "обработано ИИ — ждёт проверки")
+        self.assertEqual(by_name["145.png"]["review_status"], "needs_review")
+        self.assertEqual(by_name["146.png"]["quality"], "error")
+        self.assertEqual(by_name["146.png"]["quality_label"], "ошибка OCR")
+
+    async def test_files_ignores_stale_review_when_image_md5_changed(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [
+            {
+                "source_public_key": "public-key",
+                "source_name": "145.png",
+                "status": "done",
+                "attempts": 1,
+                "completed_at": "now",
+                "confidence": 0.99,
+                "min_confidence": 0.90,
+                "ocr_engine": "PaddleOCR",
+                "error_message": None,
+            }
+        ]
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        reviews = {
+            "145.png": {"id": 5, "source_name": "145.png", "source_md5": "old-md5", "status": "accepted"},
+        }
+        listing = {
+            "images": ["145.png"],
+            "txt_names": {"145.txt"},
+            "files": {"145.png": {"md5": "new-md5"}},
+        }
+
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
+            main, "get_conn_pg", return_value=connection
+        ), patch.object(
+            main, "latest_reviews_by_source", return_value=reviews
+        ), patch.object(
+            main, "current_ocr_source_listing", AsyncMock(return_value=listing)
+        ):
+            result = await main.get_ocr_files(
+                request_with_init_data(signed_init_data(auth_date=int(time.time())))
+            )
+
+        self.assertIsNone(result["files"][0]["review_status"])
+        self.assertEqual(result["files"][0]["quality"], "ok")
+
+    async def test_reject_with_edited_text_publishes_and_saves_new_baseline(self):
+        review_row = {
+            "id": 7,
+            "source_name": "145.png",
+            "source_md5": "image-md5",
+            "status": "needs_review",
+            "baseline_text": "старый текст",
+            "candidate_text": "вариант ИИ",
+            "created_at": None,
+            "updated_at": None,
+            "accepted_at": None,
+        }
+        updated_row = dict(review_row, status="rejected", baseline_text="исправленный текст")
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [review_row, updated_row]
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        publish = AsyncMock(
+            return_value={"sha256": main.hashlib.sha256("исправленный текст".encode()).hexdigest()}
+        )
+
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
+            main, "get_conn_pg", return_value=connection
+        ), patch.object(
+            main, "latest_ocr_job", return_value={"source_md5": "image-md5"}
+        ), patch.object(main, "publish_review_text", publish):
+            result = await main.act_on_ocr_review(
+                7,
+                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
+                main.OcrReviewActionRequest(action="reject", edited_text="исправленный текст"),
+            )
+
+        publish.assert_awaited_once_with("145.png", "исправленный текст")
+        self.assertEqual(result["review"]["status"], "rejected")
+        update_sql = cursor.execute.call_args.args[0]
+        self.assertIn("baseline_text = COALESCE", update_sql)
+        update_params = cursor.execute.call_args.args[1]
+        self.assertEqual(update_params[1], "исправленный текст")
+
+    async def test_reject_without_edits_does_not_publish(self):
+        review_row = {
+            "id": 7,
+            "source_name": "145.png",
+            "source_md5": "image-md5",
+            "status": "needs_review",
+            "baseline_text": "старый текст",
+            "candidate_text": "вариант ИИ",
+            "created_at": None,
+            "updated_at": None,
+            "accepted_at": None,
+        }
+        updated_row = dict(review_row, status="rejected")
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [review_row, updated_row]
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        publish = AsyncMock()
+
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
+            main, "get_conn_pg", return_value=connection
+        ), patch.object(
+            main, "latest_ocr_job", return_value={"source_md5": "image-md5"}
+        ), patch.object(main, "publish_review_text", publish):
+            result = await main.act_on_ocr_review(
+                7,
+                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
+                main.OcrReviewActionRequest(action="reject", edited_text="старый текст"),
+            )
+
+        publish.assert_not_awaited()
+        self.assertEqual(result["review"]["status"], "rejected")
+
+    async def test_clear_all_requires_exact_confirmation(self):
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False):
+            with self.assertRaises(HTTPException) as caught:
+                await main.clear_ocr_folder(
+                    request_with_init_data(signed_init_data(auth_date=int(time.time()))),
+                    main.OcrClearAllRequest(confirmation="DELETE_ALL_OCR_TXT"),
+                )
+        self.assertEqual(caught.exception.status_code, 400)
+
+    async def test_clear_all_moves_png_and_txt_to_trash_and_verifies_empty(self):
+        response = MagicMock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"deleted_count": 4}
+        client = MagicMock()
+        client.post = AsyncMock(return_value=response)
+        context = MagicMock()
+        context.__aenter__ = AsyncMock(return_value=client)
+        context.__aexit__ = AsyncMock(return_value=False)
+        with patch.dict(
+            os.environ,
+            {"TELEGRAM_BOT_TOKEN": BOT_TOKEN, "OCR_BATCH_TRIGGER_TOKEN": "ocr-test-secret"},
+            clear=False,
+        ), patch.object(main, "latest_ocr_batch", return_value=None), patch.object(
+            main.httpx, "AsyncClient", return_value=context
+        ), patch.object(main, "latest_ocr_public_key", return_value="public-key"), patch.object(
+            main,
+            "current_ocr_source_listing",
+            AsyncMock(side_effect=[
+                {"images": ["1.png", "2.png"], "txt_names": {"1.txt", "2.txt"}},
+                {"images": [], "txt_names": set()},
+            ]),
+        ):
+            result = await main.clear_ocr_folder(
+                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
+                main.OcrClearAllRequest(confirmation="DELETE_ALL_OCR_FILES"),
+            )
+
+        self.assertEqual(result["deleted_count"], 4)
+        self.assertTrue(result["verified_absent"])
+        self.assertEqual(result["previous_images"], 2)
+        sent = client.post.call_args.kwargs["json"]
+        self.assertEqual(sent["scope"], "all")
+        self.assertEqual(sent["confirmation"], "DELETE_ALL_OCR_FILES")
+
+    async def test_text_endpoint_returns_current_txt_or_absence(self):
+        listing = {
+            "images": ["145.png"],
+            "txt_names": {"145.txt"},
+            "files": {"145.txt": {"name": "145.txt", "file": "https://example/text"}},
+        }
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
+            main, "latest_ocr_public_key", return_value="public-key"
+        ), patch.object(
+            main, "current_ocr_source_listing", AsyncMock(return_value=listing)
+        ), patch.object(
+            main, "download_public_text", AsyncMock(return_value="распознанный текст")
+        ):
+            found = await main.get_ocr_text(
+                "145.png",
+                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
+            )
+            missing = await main.get_ocr_text(
+                "999.png",
+                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
+            )
+
+        self.assertTrue(found["exists"])
+        self.assertEqual(found["text"], "распознанный текст")
+        self.assertFalse(missing["exists"])
+        self.assertEqual(missing["txt_name"], "999.txt")
+
+    async def test_image_endpoint_streams_current_image_and_rejects_traversal(self):
+        listing = {
+            "images": ["145.png"],
+            "txt_names": set(),
+            "files": {"145.png": {"name": "145.png", "file": "https://example/image", "mime_type": "image/png"}},
+        }
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
+            main, "latest_ocr_public_key", return_value="public-key"
+        ), patch.object(
+            main, "current_ocr_source_listing", AsyncMock(return_value=listing)
+        ), patch.object(
+            main, "download_public_bytes", AsyncMock(return_value=b"png-bytes")
+        ):
+            response = await main.get_ocr_image(
+                "145.png",
+                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
+            )
+            with self.assertRaises(HTTPException) as caught:
+                await main.get_ocr_image(
+                    "../secret.png",
+                    request_with_init_data(signed_init_data(auth_date=int(time.time()))),
+                )
+
+        self.assertEqual(response.body, b"png-bytes")
+        self.assertEqual(response.media_type, "image/png")
+        self.assertEqual(caught.exception.status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()
