@@ -1,0 +1,94 @@
+import tempfile
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from fastapi import HTTPException
+
+import app
+
+
+class AiOcrServiceTests(unittest.TestCase):
+    def test_health_lists_allowlisted_models(self):
+        with (
+            patch.object(app.Path, "is_file", return_value=True),
+            patch.object(app.os, "access", return_value=True),
+            patch.object(app, "_auth_ready", return_value=True),
+        ):
+            payload = app.health()
+        self.assertTrue(payload["ready"])
+        self.assertEqual([item["id"] for item in payload["models"]], list(app.MODELS))
+
+    def test_run_codex_rejects_unknown_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaises(HTTPException) as error:
+                app._run_codex(root / "image.png", root, "unknown", "x" * 20)
+        self.assertEqual(error.exception.status_code, 400)
+
+    def test_run_codex_uses_ephemeral_image_mode(self):
+        commands = []
+
+        def fake_run(command, **_kwargs):
+            commands.append(command)
+            output = Path(command[command.index("--output-last-message") + 1])
+            output.write_text("첫째 줄\n둘째 줄", encoding="utf-8")
+            return SimpleNamespace(returncode=0, stderr="")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "image.png"
+            image.write_bytes(b"png")
+            with patch.object(app.subprocess, "run", side_effect=fake_run):
+                text = app._run_codex(
+                    image, root, "gpt-5.6-luna", "transcribe this image exactly"
+                )
+            instructions = (root / "instructions.md").read_text(encoding="utf-8")
+
+        self.assertEqual(text, "첫째 줄\n둘째 줄")
+        self.assertIn("--image", commands[0])
+        self.assertIn("--ephemeral", commands[0])
+        self.assertIn("Never call tools", instructions)
+
+    def test_run_codex_reports_expired_oauth_as_unavailable(self):
+        def fake_run(_command, **_kwargs):
+            return SimpleNamespace(
+                returncode=1,
+                stderr="ERROR: refresh_token_invalidated; Please log in again.",
+            )
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "image.png"
+            image.write_bytes(b"png")
+            with patch.object(app.subprocess, "run", side_effect=fake_run):
+                with self.assertRaises(HTTPException) as error:
+                    app._run_codex(
+                        image, root, "gpt-5.6-luna", "transcribe this image exactly"
+                    )
+
+        self.assertEqual(error.exception.status_code, 503)
+        self.assertIn("sign in again", error.exception.detail)
+
+    def test_response_shape(self):
+        request = app.AiOcrRequest(
+            url="https://example.com/image.png",
+            source_name="1.png",
+            model="gpt-5.6-luna",
+            prompt="transcribe visible text exactly",
+        )
+        with (
+            patch.object(app, "_auth_ready", return_value=True),
+            patch.object(app, "_download_image", side_effect=lambda _url, path: path.write_bytes(b"x")),
+            patch.object(app, "_normalize_image", side_effect=lambda _source, path: path.write_bytes(b"png")),
+            patch.object(app, "_run_codex", return_value="가\n\n나"),
+        ):
+            result = app._process(request)
+        self.assertEqual(result.text, "가\n\n나")
+        self.assertEqual(result.line_count, 2)
+        self.assertEqual(result.engine, "Codex CLI")
+
+
+if __name__ == "__main__":
+    unittest.main()

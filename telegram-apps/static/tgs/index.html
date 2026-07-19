@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SVG to TGS</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: var(--tg-theme-bg-color, #f4f6f8);
+            --panel: var(--tg-theme-secondary-bg-color, #ffffff);
+            --text: var(--tg-theme-text-color, #1f2933);
+            --muted: var(--tg-theme-hint-color, #6b7280);
+            --button: var(--tg-theme-button-color, #2481cc);
+            --danger: #d92d20;
+            --border: rgba(15, 23, 42, 0.12);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 16px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .back {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel);
+            color: var(--text);
+            font-size: 22px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            line-height: 1.2;
+        }
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .stat {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .label {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        .value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .folder {
+            color: var(--muted);
+            font-size: 13px;
+            overflow-wrap: anywhere;
+            margin-top: 10px;
+        }
+        .actions {
+            display: grid;
+            gap: 10px;
+        }
+        button.action {
+            width: 100%;
+            min-height: 48px;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 14px;
+            background: var(--button);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+        }
+        button.action.danger { background: var(--danger); }
+        button.action.secondary {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        button.action:disabled {
+            opacity: 0.55;
+        }
+        .message {
+            display: none;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 14px;
+            line-height: 1.35;
+            background: rgba(36, 129, 204, 0.12);
+            color: var(--text);
+        }
+        .message.error {
+            background: rgba(217, 45, 32, 0.12);
+            color: var(--danger);
+        }
+        .files {
+            margin: 10px 0 0;
+            padding: 0;
+            list-style: none;
+            color: var(--muted);
+            font-size: 13px;
+            max-height: 190px;
+            overflow: auto;
+        }
+        .files li {
+            padding: 7px 0;
+            border-top: 1px solid var(--border);
+            overflow-wrap: anywhere;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <button class="back" type="button" id="backBtn" aria-label="Назад">←</button>
+        <h1>SVG → TGS</h1>
+    </div>
+
+    <section class="panel">
+        <div class="stats">
+            <div class="stat">
+                <div class="label">SVG</div>
+                <div class="value" id="svgCount">0</div>
+            </div>
+            <div class="stat">
+                <div class="label">TGS</div>
+                <div class="value" id="tgsCount">0</div>
+            </div>
+        </div>
+        <div class="folder" id="folderPath"></div>
+        <ul class="files" id="fileList"></ul>
+    </section>
+
+    <section class="panel">
+        <div class="actions">
+            <button class="action" type="button" id="convertBtn">Конвертировать в tgs</button>
+            <button class="action danger" type="button" id="deleteSvgBtn">Удалить все файлы svg</button>
+            <button class="action danger" type="button" id="deleteTgsBtn">Удалить все файлы tgs</button>
+            <button class="action danger" type="button" id="clearBtn">Очистить папку</button>
+            <button class="action secondary" type="button" id="refreshBtn">Обновить</button>
+        </div>
+        <div class="message" id="message"></div>
+    </section>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const authHeaders = () => ({
+            "Content-Type": "application/json",
+            "X-Telegram-Init-Data": tg.initData || ""
+        });
+
+        const buttons = [
+            "convertBtn",
+            "deleteSvgBtn",
+            "deleteTgsBtn",
+            "clearBtn",
+            "refreshBtn"
+        ].map((id) => document.getElementById(id));
+
+        function goHome() {
+            window.location.href = "/";
+        }
+
+        function setBusy(isBusy) {
+            buttons.forEach((button) => { button.disabled = isBusy; });
+            if (isBusy) tg.MainButton.showProgress(false);
+            else tg.MainButton.hideProgress();
+        }
+
+        function showMessage(text, isError = false) {
+            const node = document.getElementById("message");
+            node.textContent = text;
+            node.className = `message${isError ? " error" : ""}`;
+            node.style.display = "block";
+        }
+
+        async function askConfirmation(text) {
+            if (tg.showConfirm) {
+                return await new Promise((resolve) => tg.showConfirm(text, resolve));
+            }
+            return window.confirm(text);
+        }
+
+        function parseError(body, fallback) {
+            if (!body) return fallback;
+            if (typeof body.detail === "string") return body.detail;
+            if (body.detail && body.detail.message) return body.detail.message;
+            return fallback;
+        }
+
+        async function refreshStatus() {
+            setBusy(true);
+            try {
+                const response = await fetch("/api/tgs/status", { headers: authHeaders() });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(parseError(body, "Не удалось получить список файлов"));
+                document.getElementById("svgCount").textContent = body.svg_count || 0;
+                document.getElementById("tgsCount").textContent = body.tgs_count || 0;
+                document.getElementById("folderPath").textContent = body.folder_path || "";
+                const list = document.getElementById("fileList");
+                list.innerHTML = "";
+                (body.files || []).forEach((file) => {
+                    const item = document.createElement("li");
+                    item.textContent = file.name;
+                    list.appendChild(item);
+                });
+            } catch (error) {
+                showMessage(error.message || "Не удалось обновить состояние", true);
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        async function convertAll() {
+            setBusy(true);
+            showMessage("Конвертирую SVG в TGS...");
+            try {
+                const response = await fetch("/api/tgs/convert", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({})
+                });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(parseError(body, "Не удалось сконвертировать SVG"));
+                showMessage(`Все файлы сконвертированы: ${body.converted_count || 0}`);
+                await refreshStatus();
+            } catch (error) {
+                showMessage(error.message || "Не удалось сконвертировать SVG", true);
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        async function deleteByScope(scope, confirmation, question, doneText) {
+            if (!(await askConfirmation(question))) return;
+            setBusy(true);
+            try {
+                const response = await fetch("/api/tgs/delete", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ scope, confirmation })
+                });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(parseError(body, "Не удалось удалить файлы"));
+                showMessage(`${doneText}: ${body.deleted_count || 0}`);
+                await refreshStatus();
+            } catch (error) {
+                showMessage(error.message || "Не удалось удалить файлы", true);
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        document.getElementById("backBtn").addEventListener("click", goHome);
+        document.getElementById("convertBtn").addEventListener("click", convertAll);
+        document.getElementById("deleteSvgBtn").addEventListener("click", () => deleteByScope(
+            "svg",
+            "DELETE_ALL_SVG",
+            "Переместить все SVG из папки в Корзину?",
+            "SVG перемещены в Корзину"
+        ));
+        document.getElementById("deleteTgsBtn").addEventListener("click", () => deleteByScope(
+            "tgs",
+            "DELETE_ALL_TGS",
+            "Переместить все TGS из папки в Корзину?",
+            "TGS перемещены в Корзину"
+        ));
+        document.getElementById("clearBtn").addEventListener("click", () => deleteByScope(
+            "all",
+            "CLEAR_TGS_FOLDER",
+            "Полностью очистить папку: переместить SVG и TGS в Корзину?",
+            "Папка очищена"
+        ));
+        document.getElementById("refreshBtn").addEventListener("click", refreshStatus);
+
+        tg.BackButton.show();
+        tg.BackButton.onClick(goHome);
+        refreshStatus();
+    </script>
+</body>
+</html>

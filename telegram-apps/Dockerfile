@@ -7,13 +7,15 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY main.py .
 COPY telegram_polling.py .
 COPY telegram_webapp_auth.py .
+COPY ocr_review.py .
+COPY invest_logic.py .
 COPY static ./static
-
-# Добавлен пакет requests
-RUN pip install fastapi uvicorn psycopg2-binary pydantic requests python-docx python-multipart httpx pyTelegramBotAPI
 
 EXPOSE 8000
 
