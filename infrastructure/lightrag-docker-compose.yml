@@ -42,6 +42,8 @@ services:
       - OCR_BATCH_WEBHOOK_URL=http://127.0.0.1:5678/webhook/ocr-yandex-korean-batch
       - OCR_DELETE_TXT_WEBHOOK_URL=http://127.0.0.1:5678/webhook/ocr-yandex-delete-txt
       - OCR_REVIEW_PUBLISH_WEBHOOK_URL=http://127.0.0.1:5678/webhook/ocr-yandex-review-publish
+      - YANDEX_OAUTH_TOKEN=${YANDEX_OAUTH_TOKEN:?Resolve YANDEX_OAUTH_TOKEN at deploy time}
+      - TGS_FOLDER_PATH=/Yulia/+ Test/tgs
       - OCR_OWNER_ID=923741104
       - OCR_OWNER_USERNAME=bigalex_an
       - OCR_OPERATOR_IDS=1011396552

@@ -114,10 +114,7 @@
         .subtabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 4px; margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; }
         .subtab-button { min-height: 38px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
         .subtab-button.active { color: var(--button-text); background: var(--button); }
-        .review-editor { min-height: 180px; font: 12px/1.45 monospace; }
-        .review-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
-        .review-editor-head .progress-detail { margin: 0; }
-        .review-editor-head .text-button { flex: 0 0 auto; padding: 4px 0; font-size: 13px; }
+        .baseline-editor { min-height: 180px; font: 12px/1.45 monospace; }
         .message { min-height: 22px; margin: 12px 2px 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
         .message.error { color: var(--danger); }
         .field { margin-top: 12px; }
@@ -336,27 +333,6 @@
     const selectedFiles = new Set();
     const imageUrlCache = new Map();
 
-    function goHome() {
-        try {
-            window.location.assign("/");
-        } catch (error) {
-            window.location.href = "/";
-        }
-    }
-
-    function handleBackNavigation() {
-        const dialog = document.getElementById("imageDialog");
-        if (dialog && dialog.open) {
-            dialog.close();
-            return;
-        }
-        if (!document.getElementById("reviewTab").hidden && !document.getElementById("browseSubtab").classList.contains("hidden")) {
-            activateSubtab("candidates");
-            return;
-        }
-        goHome();
-    }
-
     function naturalNameKey(name) {
         return String(name || "").split(/(\d+)/).map(part => (/^\d+$/.test(part) ? part.padStart(12, "0") : part.toLowerCase())).join("");
     }
@@ -380,11 +356,11 @@
         tg.ready();
         tg.expand();
         tg.BackButton.show();
-        tg.BackButton.onClick(handleBackNavigation);
+        tg.BackButton.onClick(() => window.location.href = "/");
     }
 
     document.getElementById("backButton").addEventListener("click", () => {
-        goHome();
+        window.location.href = "/";
     });
 
     const authHeaders = () => ({ "X-Telegram-Init-Data": initData });
@@ -411,37 +387,9 @@
         message.classList.toggle("error", isError);
     }
 
-    function launchErrorMessage(error) {
-        const text = String(error && error.message ? error.message : "");
-        if (text === "Failed to fetch" || text === "NetworkError when attempting to fetch resource.") {
-            return "Не удалось связаться с сервером OCR. Откройте мини-приложение заново и повторите запуск.";
-        }
-        return text || "Не удалось запустить OCR";
-    }
-
-    function serviceMessage(service, engine) {
-        if (service && service.ready) {
-            return engine === "ai"
-                ? "ИИ-распознавание готово. Проверьте модель и промпт перед запуском."
-                : "Новые и изменённые изображения будут обработаны; готовые файлы пропустятся.";
-        }
-        if (engine === "ai") {
-            if (service && (service.error_code === "codex_oauth_unavailable" || service.auth === "missing")) {
-                return service.user_message || "Авторизация AI OCR истекла. Требуется повторный вход Codex.";
-            }
-            return "AI OCR сейчас недоступен. Можно переключиться на PaddleOCR.";
-        }
-        return "PaddleOCR сейчас недоступен. Можно переключиться на ИИ, если он готов.";
-    }
-
     function updateSelectionControls() {
         const isAi = repeatEngineSelect.value === "ai";
-        const repeatService = lastStatus && lastStatus.services && lastStatus.services[repeatEngineSelect.value]
-            ? lastStatus.services[repeatEngineSelect.value]
-            : (lastStatus ? lastStatus.service : null);
-        const repeatReady = Boolean(repeatService && repeatService.ready);
-        const canProcessSelected = Boolean(lastStatus && lastStatus.can_start && repeatReady);
-        processSelectedButton.disabled = !canProcessSelected || selectedFiles.size === 0;
+        processSelectedButton.disabled = !canStart || selectedFiles.size === 0;
         selectAllButton.disabled = currentFileNames.length === 0 || currentFileNames.every(name => selectedFiles.has(name));
         clearSelectionButton.disabled = selectedFiles.size === 0;
         document.querySelector("#selectedCount strong").textContent = selectedFiles.size;
@@ -517,10 +465,9 @@
     function renderStatus(data) {
         lastStatus = data;
         const service = selectedService(data);
-        const engine = engineSelect.value;
         const serviceStatus = document.getElementById("serviceStatus");
         serviceStatus.className = `status ${service.ready ? "ok" : "error"}`;
-        serviceStatus.innerHTML = `<span class="dot"></span><span>${service.ready ? "OCR готов" : (engine === "ai" ? "AI OCR недоступен" : "OCR недоступен")}</span>`;
+        serviceStatus.innerHTML = `<span class="dot"></span><span>${service.ready ? "OCR готов" : "OCR недоступен"}</span>`;
         document.getElementById("sourceFolder").textContent = data.source_folder;
         document.getElementById("batchStatus").textContent = batchLabel(data.batch);
         renderProgress(data.batch);
@@ -550,10 +497,12 @@
                 : "Обработка идёт. Экран обновляется автоматически.");
             schedulePoll();
         } else if (service.ready) {
-            setMessage(serviceMessage(service, engine));
+            setMessage(engineSelect.value === "ai"
+                ? "ИИ-распознавание готово. Проверьте модель и промпт перед запуском."
+                : "Новые и изменённые изображения будут обработаны; готовые файлы пропустятся.");
             stopPolling();
         } else {
-            setMessage(serviceMessage(service, engine), true);
+            setMessage("Выбранный OCR-сервис сейчас не готов. Попробуйте позже.", true);
             schedulePoll();
         }
     }
@@ -737,39 +686,10 @@
         container.append(heading, block);
     }
 
-    function appendReviewEditor(container, title, initialText) {
-        const head = document.createElement("div");
-        head.className = "review-editor-head";
-        const heading = document.createElement("p");
-        heading.className = "progress-detail";
-        heading.textContent = title;
-        const reset = document.createElement("button");
-        reset.type = "button";
-        reset.className = "text-button";
-        reset.textContent = "Отменить изменения";
-        reset.disabled = true;
-        const editor = document.createElement("textarea");
-        editor.className = "review-editor";
-        editor.value = initialText || "";
-        editor.spellcheck = false;
-        editor.addEventListener("input", () => {
-            reset.disabled = editor.value === (initialText || "");
-        });
-        reset.addEventListener("click", () => {
-            editor.value = initialText || "";
-            reset.disabled = true;
-            editor.focus();
-        });
-        head.append(heading, reset);
-        container.append(head, editor);
-        return editor;
-    }
-
-    async function reviewAction(id, action, editedText = null, editedCandidateText = null) {
-        const startIndex = currentReviewIndex;
-        const edited = editedText !== null || editedCandidateText !== null;
+    async function reviewAction(id, action, editedText = null) {
+        const edited = editedText !== null;
         const labels = {
-            accept: editedCandidateText !== null ? "Заменить TXT отредактированным вариантом ИИ?" : "Заменить TXT вариантом ИИ?",
+            accept: "Заменить TXT вариантом ИИ?",
             reject: edited ? "Сохранить исходный текст с вашими правками?" : "Оставить исходный TXT без изменений?",
             defer: "Отложить решение?",
             rollback: "Вернуть baseline и заменить опубликованный TXT?"
@@ -779,7 +699,6 @@
         try {
             const payload = { action };
             if (action === "reject" && edited) payload.edited_text = editedText;
-            if (action === "accept" && editedCandidateText !== null) payload.edited_candidate_text = editedCandidateText;
             const response = await fetch(`/api/ocr/reviews/${id}/action`, {
                 method: "POST",
                 headers: { ...authHeaders(), "Content-Type": "application/json" },
@@ -787,17 +706,13 @@
             });
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.detail || "Решение не сохранено");
-            const successMessage = action === "accept"
-                ? (editedCandidateText !== null ? "Отредактированный вариант ИИ опубликован; исходник сохранён для отката." : "Кандидат опубликован; исходник сохранён для отката.")
+            setMessage(action === "accept"
+                ? "Кандидат опубликован; исходник сохранён для отката."
                 : action === "rollback" ? "Baseline восстановлен."
                 : action === "reject" && edited ? "Исходный текст с правками сохранён и опубликован."
-                : "Решение сохранено.";
-            setMessage(successMessage);
-            await Promise.all([loadReviews(), loadFiles()]);
-            if (["accept", "reject", "defer"].includes(action)) {
-                focusNextReviewAfterAction(startIndex, id);
-            }
-            if (action === "accept") setMessage(successMessage);
+                : "Решение сохранено.");
+            const advance = ["accept", "reject", "defer"].includes(action);
+            await Promise.all([loadReviews(advance), loadFiles()]);
         } catch (error) {
             setMessage(error.message || "Не удалось сохранить решение", true);
         }
@@ -813,7 +728,6 @@
 
     const REVIEW_ACTIONABLE = ["candidate_ready", "needs_review", "deferred", "processing", "failed"];
     const REVIEW_DECIDABLE = ["candidate_ready", "needs_review", "deferred"];
-    const REVIEW_VISIBLE = new Set(REVIEW_DECIDABLE);
     const REVIEW_STATUS_LABELS = { processing: "обрабатывается", candidate_ready: "готов к подтверждению", needs_review: "ручная проверка", accepted: "принят вариант ИИ", rejected: "оставлен исходный", deferred: "отложен", rolled_back: "откачен", failed: "ошибка" };
 
     function renderReviewSelect(reviews) {
@@ -837,14 +751,11 @@
     function renderReviews(reviews, keepIndex = false) {
         const list = document.getElementById("reviewList");
         list.replaceChildren();
-        reviews = [...reviews]
-            .filter(review => REVIEW_VISIBLE.has(review.status))
-            .sort((a, b) => naturalNameKey(a.source_name).localeCompare(naturalNameKey(b.source_name)));
+        reviews = [...reviews].sort((a, b) => naturalNameKey(a.source_name).localeCompare(naturalNameKey(b.source_name)));
         currentReviews = reviews;
-        if (!keepIndex || currentReviewIndex >= reviews.length) {
-            currentReviewIndex = reviews.length ? currentReviewIndex % reviews.length : 0;
-        }
-        document.getElementById("reviewBadge").textContent = reviews.length ? `(${reviews.length})` : "";
+        if (!keepIndex) currentReviewIndex = Math.min(currentReviewIndex, Math.max(0, reviews.length - 1));
+        const decidable = reviews.filter(review => REVIEW_DECIDABLE.includes(review.status)).length;
+        document.getElementById("reviewBadge").textContent = decidable ? `(${decidable})` : "";
         document.getElementById("reviewNav").classList.toggle("hidden", reviews.length < 2);
         renderReviewSelect(reviews);
         if (!reviews.length) {
@@ -882,17 +793,19 @@
 
         const decidableNow = REVIEW_DECIDABLE.includes(review.status);
         let baselineEditor = null;
-        let candidateEditor = null;
         if (decidableNow) {
-            baselineEditor = appendReviewEditor(card, "Исходный текст (можно править вручную)", review.baseline_text);
+            const editHeading = document.createElement("p");
+            editHeading.className = "progress-detail";
+            editHeading.textContent = "Исходный текст (можно править вручную)";
+            baselineEditor = document.createElement("textarea");
+            baselineEditor.className = "baseline-editor";
+            baselineEditor.value = review.baseline_text || "";
+            baselineEditor.spellcheck = false;
+            card.append(editHeading, baselineEditor);
         } else {
             appendReviewText(card, "Исходный текст", review.baseline_text);
         }
-        if (decidableNow) {
-            candidateEditor = appendReviewEditor(card, "Вариант ИИ (можно править вручную)", review.candidate_text);
-        } else {
-            appendReviewText(card, "Вариант ИИ", review.candidate_text);
-        }
+        appendReviewText(card, "Вариант ИИ", review.candidate_text);
         const diffLines = (review.diff_json && review.diff_json.diff || []).filter(line =>
             !line.startsWith("---") && !line.startsWith("+++") && !line.startsWith("@@"));
         const diff = document.createElement("div");
@@ -919,15 +832,7 @@
                     const edited = baselineEditor && baselineEditor.value !== (review.baseline_text || "")
                         ? baselineEditor.value
                         : null;
-                    const editedCandidate = candidateEditor && candidateEditor.value !== (review.candidate_text || "")
-                        ? candidateEditor.value
-                        : null;
-                    reviewAction(
-                        review.id,
-                        action,
-                        action === "reject" ? edited : null,
-                        action === "accept" ? editedCandidate : null
-                    );
+                    reviewAction(review.id, action, action === "reject" ? edited : null);
                 });
                 actions.appendChild(button);
             }
@@ -957,22 +862,6 @@
         setMessage("Все кандидаты проверены. Вернитесь во вкладку «Распознать» и объедините TXT.");
     }
 
-    function focusNextReviewAfterAction(startIndex, actedId) {
-        if (!currentReviews.length) {
-            currentReviewIndex = 0;
-            renderReviews(currentReviews, true);
-            setMessage("Все кандидаты проверены. Вернитесь во вкладку «Распознать» и объедините TXT.");
-            return;
-        }
-        const actedIndex = currentReviews.findIndex(review => review.id === actedId);
-        if (actedIndex >= 0) {
-            currentReviewIndex = currentReviews.length > 1 ? (actedIndex + 1) % currentReviews.length : actedIndex;
-        } else {
-            currentReviewIndex = startIndex % currentReviews.length;
-        }
-        renderReviews(currentReviews, true);
-    }
-
     async function loadReviews(advanceAfter = false) {
         if (!initData) return;
         try {
@@ -998,44 +887,35 @@
         if (withoutTxt.length) parts.push(`${withoutTxt.length} без TXT — будут распознаны моделью напрямую`);
         if (!(await askConfirmation(`Отправить в ИИ (${modelLabel}) ${selected.length} файлов? ${parts.join("; ")}.`))) return;
         processSelectedButton.disabled = true;
-        setMessage(`Отправляю в ИИ: выбрано ${selected.length}; с TXT ${withTxt.length}; без TXT ${withoutTxt.length}; модель ${modelLabel}.`);
         const prompt = (promptInput.value || defaultAiPrompt).trim();
         let completed = 0;
-        let failed = [];
-        if (withTxt.length) {
+        let failedName = null;
+        for (const sourceName of withTxt) {
+            setMessage(`Отправляю в ИИ: ${completed + 1} из ${withTxt.length} · ${sourceName}`);
             try {
-                const response = await fetch("/api/ocr/reviews/candidates", {
+                const response = await fetch("/api/ocr/reviews/candidate", {
                     method: "POST",
                     headers: { ...authHeaders(), "Content-Type": "application/json" },
-                    body: JSON.stringify({ source_names: withTxt, model, prompt })
+                    body: JSON.stringify({ source_name: sourceName, model, prompt })
                 });
                 const body = await response.json().catch(() => ({}));
-                if (!response.ok) throw new Error(body.detail || "Не удалось отправить выбранные файлы в ИИ");
-                completed = Number(body.completed || 0);
-                const queued = Number(body.queued || 0);
-                failed = body.errors || [];
+                if (!response.ok) throw new Error(body.detail || `Не удалось обработать ${sourceName}`);
+                completed += 1;
                 await Promise.all([loadReviews(), loadFiles()]);
-                if (queued && !failed.length) {
-                    setMessage(`Отправлено в ИИ: ${queued} ${queued === 1 ? "файл" : "файлов"}. Кандидаты появятся во вкладке «Проверить» по мере готовности.`);
-                    selectedFiles.clear();
-                    updateSelectionControls();
-                    return;
-                }
             } catch (error) {
-                failed = [{ source_name: "ИИ", detail: error.message }];
-                setMessage(error.message, true);
+                failedName = sourceName;
+                setMessage(`${sourceName}: ${error.message}`, true);
+                break;
             }
         }
-        if (!failed.length && withoutTxt.length) {
+        if (!failedName && withoutTxt.length) {
             await startBatch(withoutTxt, "ai", model, true);
         }
-        if (!failed.length) {
+        if (!failedName) {
             const summary = [];
             if (withTxt.length) summary.push(`кандидаты: ${completed} из ${withTxt.length} — проверьте их во вкладке «Проверить»`);
             if (withoutTxt.length) summary.push(`распознавание ИИ запущено для ${withoutTxt.length} файлов`);
             setMessage(`Готово. ${summary.join("; ")}.`);
-        } else if (completed) {
-            setMessage(`Частично готово: кандидаты ${completed} из ${withTxt.length}. Ошибки: ${failed.map(item => `${item.source_name}: ${item.detail}`).join("; ")}`, true);
         }
         updateSelectionControls();
     }
@@ -1152,7 +1032,7 @@
             window.setTimeout(loadStatus, 800);
         } catch (error) {
             if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
-            setMessage(launchErrorMessage(error), true);
+            setMessage(error.message || "Не удалось запустить OCR", true);
             window.setTimeout(loadStatus, 1500);
         }
     }

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,26 +15,17 @@ import re
 import hashlib
 import asyncio
 import base64
-import logging
-import gzip
-import subprocess
-import tempfile
-import socket
 import telegram_polling
 import invest_logic
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import parse_qs, urlparse
 from telegram_webapp_auth import TelegramInitDataError, verify_telegram_init_data
 from ocr_review import compare_ocr_texts
 
 app = FastAPI(title="bigalexn8n Apps Hub")
-logger = logging.getLogger("apps_hub")
 # telegram_polling.start_bot()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
-OWNER_CHAT_ID = int(os.getenv("OWNER_CHAT_ID", "923741104"))
 
 N8N_WEBHOOK_URL = "https://bigalexn8n.ru/webhook/trigger-translation"
 OCR_BATCH_WEBHOOK_URL = os.getenv(
@@ -57,9 +48,6 @@ AI_OCR_SERVICE_HEALTH_URL = os.getenv(
     "AI_OCR_SERVICE_HEALTH_URL", "http://127.0.0.1:8766/health"
 )
 YANDEX_PUBLIC_RESOURCE_URL = "https://cloud-api.yandex.net/v1/disk/public/resources"
-YANDEX_DISK_API_URL = "https://cloud-api.yandex.net/v1/disk"
-TGS_FOLDER_PATH = os.getenv("TGS_FOLDER_PATH", "/Yulia/+ Test/tgs")
-TGS_CONVERTER_BIN = os.getenv("TGS_CONVERTER_BIN", "lottie_convert.py")
 AI_OCR_MODELS = {
     "gpt-5.6-luna": "Luna — быстрое массовое распознавание",
     "gpt-5.6-terra": "Terra — баланс скорости и качества",
@@ -81,28 +69,17 @@ DB_CONFIG_POSTGRES = {
     "host": os.getenv("DB_HOST", "127.0.0.1"),
     "database": os.getenv("DB_NAME", "postgres"),
     "user": os.getenv("DB_USER", "n8n_user"),
-    "password": os.getenv("DB_PASSWORD", ""),
+    "password": os.getenv("DB_PASSWORD", "n8n_db_password"),
     "port": int(os.getenv("DB_PORT", 5432))
 }
 
 def get_conn_pg(): return psycopg2.connect(**DB_CONFIG_POSTGRES)
 
-
-def telegram_proxy_url() -> Optional[str]:
-    configured = os.getenv("TELEGRAM_PROXY_URL") or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
-    if configured:
-        return configured
-    try:
-        with socket.create_connection(("127.0.0.1", 10809), timeout=0.2):
-            return "http://127.0.0.1:10809/"
-    except OSError:
-        return None
-
 DB_CONFIG_RESEARCH = {
     "host": os.getenv("DB_HOST", "127.0.0.1"),
     "database": "market_research",
-    "user": os.getenv("DB_USER", "n8n_user"),
-    "password": os.getenv("DB_PASSWORD", ""),
+    "user": "n8n_user",
+    "password": os.getenv("DB_PASSWORD", "n8n_db_password"),
     "port": int(os.getenv("DB_PORT", 5432))
 }
 
@@ -154,21 +131,9 @@ class OcrReviewCandidateRequest(BaseModel):
     prompt: Optional[str] = Field(default=None, max_length=12000)
 
 
-class OcrReviewCandidatesRequest(BaseModel):
-    source_names: List[str] = Field(default_factory=list)
-    model: str = Field(default="gpt-5.6-terra", max_length=64)
-    prompt: Optional[str] = Field(default=None, max_length=12000)
-
-
 class OcrReviewActionRequest(BaseModel):
     action: str = Field(min_length=1, max_length=32)
     edited_text: Optional[str] = Field(default=None, max_length=2_000_000)
-    edited_candidate_text: Optional[str] = Field(default=None, max_length=2_000_000)
-
-
-class TgsDeleteRequest(BaseModel):
-    scope: str = Field(min_length=1, max_length=16)
-    confirmation: str = Field(default="", max_length=64)
 
 
 def verified_telegram_user(request: Request) -> dict:
@@ -300,51 +265,15 @@ async def ai_ocr_service_health() -> dict:
             response = await client.get(AI_OCR_SERVICE_HEALTH_URL)
             response.raise_for_status()
             payload = response.json()
-            result = {
+            return {
                 "reachable": True,
                 "ready": bool(payload.get("ready")),
                 "status": payload.get("status", "unknown"),
                 "engine": payload.get("engine", "Codex CLI"),
                 "auth": payload.get("auth", "unknown"),
             }
-            if payload.get("error_code"):
-                result["error_code"] = payload.get("error_code")
-            if payload.get("detail"):
-                result["detail"] = payload.get("detail")
-            if result.get("error_code") == "codex_oauth_unavailable":
-                result["user_message"] = (
-                    "Авторизация AI OCR истекла. Требуется повторный вход Codex."
-                )
-            return result
     except (httpx.HTTPError, ValueError):
         return {"reachable": False, "ready": False, "status": "unavailable"}
-
-
-def ocr_service_unavailable_detail(engine: str, service: dict) -> str:
-    if engine == "ai":
-        if service.get("error_code") == "codex_oauth_unavailable" or service.get("auth") == "missing":
-            return "Авторизация AI OCR истекла. Требуется повторный вход Codex."
-        return service.get("user_message") or "AI OCR сейчас недоступен."
-    return "PaddleOCR сейчас недоступен."
-
-
-def ai_ocr_response_error_detail(response: httpx.Response) -> str:
-    try:
-        body = response.json()
-    except ValueError:
-        body = {}
-    detail = str(body.get("detail") or "")
-    error_code = str(body.get("error_code") or "")
-    if (
-        response.status_code == 503
-        and (
-            error_code == "codex_oauth_unavailable"
-            or "oauth" in detail.lower()
-            or "sign in again" in detail.lower()
-        )
-    ):
-        return "Авторизация AI OCR истекла. Требуется повторный вход Codex."
-    return "AI OCR candidate could not be created"
 
 
 def natural_ocr_name_key(name: str):
@@ -420,156 +349,6 @@ async def current_ocr_source_listing(public_key: str) -> dict:
 
 async def current_ocr_image_names(public_key: str) -> List[str]:
     return (await current_ocr_source_listing(public_key))["images"]
-
-
-def yandex_oauth_token() -> str:
-    token = os.getenv("YANDEX_OAUTH_TOKEN", "").strip()
-    if not token:
-        raise HTTPException(status_code=503, detail="Yandex Disk access is not configured")
-    return token
-
-
-def yandex_auth_headers() -> dict:
-    return {"Authorization": f"OAuth {yandex_oauth_token()}"}
-
-
-def natural_file_name_key(name: str):
-    return [
-        (0, int(part)) if part.isdigit() else (1, part.casefold())
-        for part in re.split(r"(\d+)", name)
-    ]
-
-
-async def current_tgs_folder_listing() -> dict:
-    files = []
-    offset = 0
-    total = None
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            while total is None or offset < total:
-                response = await client.get(
-                    f"{YANDEX_DISK_API_URL}/resources",
-                    headers=yandex_auth_headers(),
-                    params={
-                        "path": TGS_FOLDER_PATH,
-                        "limit": 1000,
-                        "offset": offset,
-                        "fields": "_embedded.total,_embedded.items.name,_embedded.items.path,_embedded.items.type,_embedded.items.size,_embedded.items.mime_type,name,path,type",
-                    },
-                )
-                response.raise_for_status()
-                payload = response.json()
-                if payload.get("type") != "dir":
-                    raise ValueError("TGS source is not a directory")
-                embedded = payload.get("_embedded") or {}
-                items = embedded.get("items") or []
-                for item in items:
-                    if item.get("type") == "file" and item.get("name") and item.get("path"):
-                        files.append(
-                            {
-                                "name": item["name"],
-                                "path": item["path"],
-                                "size": item.get("size"),
-                                "mime_type": item.get("mime_type"),
-                            }
-                        )
-                total = int(embedded.get("total", len(items)))
-                if not items:
-                    break
-                offset += len(items)
-    except (httpx.HTTPError, TypeError, ValueError, KeyError) as exc:
-        raise HTTPException(status_code=503, detail="TGS folder file list is unavailable") from exc
-    files = sorted(files, key=lambda item: natural_file_name_key(item["name"]))
-    return {
-        "folder_path": TGS_FOLDER_PATH,
-        "files": files,
-        "svg": [item for item in files if item["name"].lower().endswith(".svg")],
-        "tgs": [item for item in files if item["name"].lower().endswith(".tgs")],
-    }
-
-
-async def yandex_download_resource(path: str) -> bytes:
-    async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
-        response = await client.get(
-            f"{YANDEX_DISK_API_URL}/resources/download",
-            headers=yandex_auth_headers(),
-            params={"path": path},
-        )
-        response.raise_for_status()
-        href = response.json()["href"]
-        file_response = await client.get(href)
-        file_response.raise_for_status()
-        return file_response.content
-
-
-async def yandex_upload_resource(path: str, content: bytes, content_type: str = "application/gzip") -> None:
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.get(
-            f"{YANDEX_DISK_API_URL}/resources/upload",
-            headers=yandex_auth_headers(),
-            params={"path": path, "overwrite": "true"},
-        )
-        response.raise_for_status()
-        href = response.json()["href"]
-        upload_response = await client.put(
-            href,
-            content=content,
-            headers={"Content-Type": content_type},
-        )
-        upload_response.raise_for_status()
-
-
-async def yandex_trash_resource(path: str) -> None:
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.delete(
-            f"{YANDEX_DISK_API_URL}/resources",
-            headers=yandex_auth_headers(),
-            params={"path": path, "permanently": "false"},
-        )
-        response.raise_for_status()
-
-
-def convert_svg_bytes_to_tgs(svg_content: bytes, source_name: str) -> bytes:
-    with tempfile.TemporaryDirectory(prefix="svg2tgs-") as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        source_path = tmp_path / source_name
-        output_path = tmp_path / f"{Path(source_name).stem}.tgs"
-        source_path.write_bytes(svg_content)
-        proc = subprocess.run(
-            [TGS_CONVERTER_BIN, str(source_path), str(output_path)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=120,
-            check=False,
-        )
-        if proc.returncode != 0 or not output_path.exists():
-            detail = (proc.stderr or proc.stdout or "TGS conversion failed").strip()[:500]
-            raise HTTPException(status_code=502, detail=detail)
-        tgs_content = output_path.read_bytes()
-    validate_tgs_content(tgs_content, source_name)
-    return tgs_content
-
-
-def validate_tgs_content(content: bytes, source_name: str) -> None:
-    if len(content) > 64 * 1024:
-        raise HTTPException(status_code=422, detail=f"{source_name}: TGS is larger than 64 KB")
-    try:
-        payload = json.loads(gzip.decompress(content).decode("utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=422, detail=f"{source_name}: invalid TGS gzip/json") from exc
-    if payload.get("tgs") != 1:
-        raise HTTPException(status_code=422, detail=f"{source_name}: missing tgs=1")
-    if int(payload.get("w") or 0) != 512 or int(payload.get("h") or 0) != 512:
-        raise HTTPException(status_code=422, detail=f"{source_name}: TGS canvas must be 512x512")
-    if int(payload.get("fr") or 0) != 60:
-        raise HTTPException(status_code=422, detail=f"{source_name}: TGS fps must be 60")
-
-
-def tgs_remote_path_for_svg(svg_item: dict) -> str:
-    path = str(svg_item["path"])
-    folder, _, name = path.rpartition("/")
-    return f"{folder}/{Path(name).stem}.tgs"
 
 
 def latest_ocr_job(source_name: str) -> dict:
@@ -791,27 +570,17 @@ async def publish_text_file(output_name: str, text: str) -> dict:
         raise HTTPException(status_code=503, detail="OCR review publishing is not configured")
     encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    last_error: Optional[Exception] = None
-    for attempt, delay in enumerate((0, 3, 8)):
-        if delay:
-            await asyncio.sleep(delay)
-        try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
-                    OCR_REVIEW_PUBLISH_WEBHOOK_URL,
-                    headers={"X-OCR-Token": trigger_token},
-                    json={"output_name": output_name, "content_base64": encoded, "sha256": digest},
-                )
-                response.raise_for_status()
-                return response.json()
-        except (httpx.HTTPError, ValueError) as exc:
-            last_error = exc
-            if attempt == 2:
-                break
-    raise HTTPException(
-        status_code=502,
-        detail="Yandex Disk временно не принял TXT. Нажмите «Принять» ещё раз через несколько секунд.",
-    ) from last_error
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                OCR_REVIEW_PUBLISH_WEBHOOK_URL,
+                headers={"X-OCR-Token": trigger_token},
+                json={"output_name": output_name, "content_base64": encoded, "sha256": digest},
+            )
+            response.raise_for_status()
+            return response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail="Reviewed TXT could not be published") from exc
 
 
 async def publish_review_text(source_name: str, text: str) -> dict:
@@ -829,41 +598,19 @@ async def send_telegram_text_document(
     if not bot_token:
         raise HTTPException(status_code=503, detail="Telegram delivery is not configured")
     content = text.encode("utf-8")
-    proxy_url = telegram_proxy_url()
-    last_error: Optional[Exception] = None
-    for attempt, delay in enumerate((0, 3, 8)):
-        if delay:
-            await asyncio.sleep(delay)
-        try:
-            async with httpx.AsyncClient(timeout=120.0, proxy=proxy_url) as client:
-                response = await client.post(
-                    f"https://api.telegram.org/bot{bot_token}/sendDocument",
-                    data={"chat_id": str(chat_id), "caption": caption},
-                    files={"document": (output_name, content, "text/plain; charset=utf-8")},
-                )
-                response.raise_for_status()
-                payload = response.json()
-                break
-        except httpx.HTTPStatusError as exc:
-            detail = "Merged TXT could not be sent to Telegram"
-            try:
-                error_payload = exc.response.json()
-                detail = error_payload.get("description") or detail
-            except ValueError:
-                pass
-            raise HTTPException(status_code=502, detail=detail) from exc
-        except (httpx.HTTPError, ValueError) as exc:
-            last_error = exc
-            if attempt == 2:
-                raise HTTPException(
-                    status_code=502,
-                    detail="Merged TXT could not be sent to Telegram",
-                ) from last_error
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{bot_token}/sendDocument",
+                data={"chat_id": str(chat_id), "caption": caption},
+                files={"document": (output_name, content, "text/plain; charset=utf-8")},
+            )
+            response.raise_for_status()
+            payload = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail="Merged TXT could not be sent to Telegram") from exc
     if not payload.get("ok"):
-        raise HTTPException(
-            status_code=502,
-            detail=payload.get("description") or "Telegram rejected the merged TXT",
-        )
+        raise HTTPException(status_code=502, detail="Telegram rejected the merged TXT")
     message = payload.get("result") or {}
     document = message.get("document") or {}
     if document.get("file_size") is not None and int(document["file_size"]) != len(content):
@@ -929,7 +676,7 @@ async def start_ocr(request: Request, payload: Optional[OcrStartRequest] = None)
 
     service = await (ai_ocr_service_health() if engine == "ai" else ocr_service_health())
     if not service.get("ready"):
-        raise HTTPException(status_code=503, detail=ocr_service_unavailable_detail(engine, service))
+        raise HTTPException(status_code=503, detail="Selected OCR service is not ready")
 
     force_files = list(dict.fromkeys(payload.force_files))
     if len(force_files) > 1000:
@@ -1265,10 +1012,6 @@ async def create_ocr_review_candidate(request: Request, payload: OcrReviewCandid
     user = verified_telegram_user(request)
     if not is_ocr_operator(user):
         raise HTTPException(status_code=403, detail="Only an OCR operator can run review OCR")
-    return await create_single_ocr_review_candidate(payload)
-
-
-async def create_single_ocr_review_candidate(payload: OcrReviewCandidateRequest):
     if payload.model not in AI_OCR_MODELS:
         raise HTTPException(status_code=400, detail="Unsupported AI OCR model")
     prompt = (payload.prompt or AI_OCR_DEFAULT_PROMPT).strip()
@@ -1277,6 +1020,7 @@ async def create_single_ocr_review_candidate(payload: OcrReviewCandidateRequest)
     batch = latest_ocr_batch()
     if batch and batch.get("status") == "running":
         raise HTTPException(status_code=409, detail="Stop the active OCR batch before review")
+
     job = latest_ocr_job(payload.source_name)
     public_key = job.get("source_public_key")
     listing = await current_ocr_source_listing(public_key)
@@ -1293,10 +1037,6 @@ async def create_single_ocr_review_candidate(payload: OcrReviewCandidateRequest)
     existing = existing_ocr_review(job)
     if existing and existing.get("status") not in {"queued", "processing", "failed"}:
         return {"review": serialize_review(existing), "resumed": True}
-
-    service = await ai_ocr_service_health()
-    if not service.get("ready"):
-        raise HTTPException(status_code=503, detail=ocr_service_unavailable_detail("ai", service))
 
     baseline = await download_public_text(txt["file"])
     write_review_state(job, baseline, payload.model, prompt, status="processing")
@@ -1326,93 +1066,16 @@ async def create_single_ocr_review_candidate(payload: OcrReviewCandidateRequest)
             analysis=analysis,
         )
         return {"review": serialize_review(row)}
-    except httpx.HTTPStatusError as exc:
-        detail = ai_ocr_response_error_detail(exc.response)
-        write_review_state(
-            job,
-            baseline,
-            payload.model,
-            prompt,
-            status="failed",
-            error=detail,
-        )
-        status_code = 503 if "Авторизация AI OCR" in detail else 502
-        raise HTTPException(status_code=status_code, detail=detail) from exc
     except (httpx.HTTPError, ValueError) as exc:
-        detail = "AI OCR candidate could not be created"
         write_review_state(
             job,
             baseline,
             payload.model,
             prompt,
             status="failed",
-            error=detail,
+            error="AI OCR candidate could not be created",
         )
-        raise HTTPException(status_code=502, detail=detail) from exc
-
-
-async def process_ocr_review_candidate_batch(source_names: List[str], model: str, prompt: Optional[str]):
-    for source_name in source_names:
-        try:
-            await create_single_ocr_review_candidate(
-                OcrReviewCandidateRequest(
-                    source_name=source_name,
-                    model=model,
-                    prompt=prompt,
-                )
-            )
-        except HTTPException as exc:
-            logger.warning(
-                "OCR review candidate failed for %s: %s",
-                source_name,
-                exc.detail,
-            )
-        except Exception:
-            logger.exception("OCR review candidate crashed for %s", source_name)
-
-
-@app.post("/api/ocr/reviews/candidates")
-async def create_ocr_review_candidates(
-    request: Request,
-    payload: OcrReviewCandidatesRequest,
-    background_tasks: BackgroundTasks,
-):
-    user = verified_telegram_user(request)
-    if not is_ocr_operator(user):
-        raise HTTPException(status_code=403, detail="Only an OCR operator can run review OCR")
-    if payload.model not in AI_OCR_MODELS:
-        raise HTTPException(status_code=400, detail="Unsupported AI OCR model")
-    prompt = (payload.prompt or AI_OCR_DEFAULT_PROMPT).strip()
-    if len(prompt) < 20:
-        raise HTTPException(status_code=400, detail="AI OCR prompt is too short")
-    ordered_names = []
-    seen = set()
-    for source_name in payload.source_names:
-        clean_name = str(source_name or "").strip()
-        key = clean_name.casefold()
-        if clean_name and key not in seen:
-            ordered_names.append(clean_name)
-            seen.add(key)
-    if not ordered_names:
-        raise HTTPException(status_code=400, detail="No files selected")
-    batch = latest_ocr_batch()
-    if batch and batch.get("status") == "running":
-        raise HTTPException(status_code=409, detail="Stop the active OCR batch before review")
-    service = await ai_ocr_service_health()
-    if not service.get("ready"):
-        raise HTTPException(status_code=503, detail=ocr_service_unavailable_detail("ai", service))
-
-    background_tasks.add_task(process_ocr_review_candidate_batch, ordered_names, payload.model, prompt)
-
-    return {
-        "accepted": True,
-        "requested": len(ordered_names),
-        "queued": len(ordered_names),
-        "completed": 0,
-        "failed": 0,
-        "reviews": [],
-        "errors": [],
-    }
+        raise HTTPException(status_code=502, detail="AI OCR candidate could not be created") from exc
 
 
 @app.post("/api/ocr/reviews/{review_id}/action")
@@ -1437,21 +1100,11 @@ async def act_on_ocr_review(review_id: int, request: Request, payload: OcrReview
                 raise HTTPException(status_code=409, detail="Image changed; this review is stale")
             publish_text = None
             new_baseline = None
-            new_candidate = None
             next_status = {"reject": "rejected", "defer": "deferred"}.get(action)
             if action == "accept":
                 if row.get("status") not in {"candidate_ready", "needs_review", "deferred"}:
                     raise HTTPException(status_code=409, detail="Candidate is not ready")
-                edited_candidate = payload.edited_candidate_text
-                if (
-                    edited_candidate is not None
-                    and edited_candidate.strip()
-                    and edited_candidate != (row.get("candidate_text") or "")
-                ):
-                    publish_text = edited_candidate
-                    new_candidate = edited_candidate
-                else:
-                    publish_text = row.get("candidate_text")
+                publish_text = row.get("candidate_text")
                 next_status = "accepted"
             elif action == "reject":
                 edited = payload.edited_text
@@ -1477,33 +1130,18 @@ async def act_on_ocr_review(review_id: int, request: Request, payload: OcrReview
                 if new_baseline is not None
                 else None
             )
-            new_candidate_hash = (
-                hashlib.sha256(new_candidate.encode("utf-8")).hexdigest()
-                if new_candidate is not None
-                else None
-            )
             cur.execute(
                 """
                 UPDATE ocr_postprocess_reviews
                 SET status = %s,
                     baseline_text = COALESCE(%s, baseline_text),
                     baseline_sha256 = COALESCE(%s, baseline_sha256),
-                    candidate_text = COALESCE(%s, candidate_text),
-                    candidate_sha256 = COALESCE(%s, candidate_sha256),
                     accepted_at = CASE WHEN %s = 'accepted' THEN now() ELSE accepted_at END,
                     updated_at = now()
                 WHERE id = %s
                 RETURNING *
                 """,
-                (
-                    next_status,
-                    new_baseline,
-                    new_baseline_hash,
-                    new_candidate,
-                    new_candidate_hash,
-                    next_status,
-                    review_id,
-                ),
+                (next_status, new_baseline, new_baseline_hash, next_status, review_id),
             )
             updated = dict(cur.fetchone())
             conn.commit()
@@ -1575,48 +1213,38 @@ async def update_invest_offers():
 # --- OTHER API ---
 @app.get("/api/get-form-data")
 async def get_form_data(chat_id: int):
-    if chat_id == 0: chat_id = OWNER_CHAT_ID
+    if chat_id == 0: chat_id = 923741104 # FALLBACK FOR DEV
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        try:
-            cur.execute("""
-                SELECT type, lang, name, file_id
-                FROM (
-                    SELECT DISTINCT ON (message->'document'->>'file_id')
-                        type,
-                        lang,
-                        message->'document'->>'file_name' as name,
-                        message->'document'->>'file_id' as file_id,
-                        date_time
-                    FROM telegram_messages
-                    WHERE (message->'chat'->>'id')::bigint = %s
-                      AND message->'document' IS NOT NULL
-                      AND (is_translate IS NULL OR is_translate = false)
-                    ORDER BY message->'document'->>'file_id', date_time DESC
-                ) latest_files
-                ORDER BY date_time DESC
-            """, (chat_id,))
-            all_items = cur.fetchall()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("""
+        SELECT type, lang, name, file_id
+        FROM (
+            SELECT DISTINCT ON (message->'document'->>'file_id')
+                type,
+                lang,
+                message->'document'->>'file_name' as name,
+                message->'document'->>'file_id' as file_id,
+                date_time
+            FROM telegram_messages
+            WHERE (message->'chat'->>'id')::bigint = %s
+              AND message->'document' IS NOT NULL
+              AND (is_translate IS NULL OR is_translate = false)
+            ORDER BY message->'document'->>'file_id', date_time DESC
+        ) latest_files
+        ORDER BY date_time DESC
+    """, (chat_id,))
+    all_items = cur.fetchall()
+    cur.close(); conn.close()
     return {"files_ko": [f for f in all_items if f['lang'] == 'ko'], "glossaries": [f for f in all_items if f['type'] == 'xlsx'], "prompts_ru": [f for f in all_items if f['lang'] == 'ru']}
 
 @app.post("/api/files/hide")
 async def hide_files(data: dict):
     file_ids = data.get("file_ids", []); chat_id = data.get("chat_id")
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor()
-        try:
-            cur.execute("UPDATE telegram_messages SET is_translate = true WHERE message->'document'->>'file_id' = ANY(%s) AND (message->'chat'->>'id')::bigint = %s", (file_ids, chat_id))
-            conn.commit()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor()
+    cur.execute("UPDATE telegram_messages SET is_translate = true WHERE message->'document'->>'file_id' = ANY(%s) AND (message->'chat'->>'id')::bigint = %s", (file_ids, chat_id))
+    conn.commit()
+    cur.close(); conn.close()
     return {"status": "success"}
 
 @app.post("/api/telegram-callback")
@@ -1634,23 +1262,18 @@ async def save_telegram_callback(data: TelegramCallbackRequest):
         raise HTTPException(status_code=400, detail="callback chat id is missing")
 
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor()
-        try:
-            cur.execute(
-                """
-                INSERT INTO telegram_messages(chat, message, callback_data, date_time, is_translate)
-                VALUES (%s, %s::json, %s, now(), false)
-                RETURNING id
-                """,
-                (str(chat_id), json.dumps(callback, ensure_ascii=False), callback_data),
-            )
-            row_id = cur.fetchone()[0]
-            conn.commit()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO telegram_messages(chat, message, callback_data, date_time, is_translate)
+        VALUES (%s, %s::json, %s, now(), false)
+        RETURNING id
+        """,
+        (str(chat_id), json.dumps(callback, ensure_ascii=False), callback_data),
+    )
+    row_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close(); conn.close()
     return {"status": "success", "id": row_id}
 
 def chat_id_from_request(data: dict, request: Request):
@@ -1664,7 +1287,7 @@ def chat_id_from_request(data: dict, request: Request):
         chat_id = int(chat_id or 0)
     except (TypeError, ValueError):
         chat_id = 0
-    return OWNER_CHAT_ID if chat_id == 0 else chat_id
+    return 923741104 if chat_id == 0 else chat_id
 
 def resolve_translation_file(
     chat_id: int,
@@ -1672,131 +1295,95 @@ def resolve_translation_file(
     file_id: Optional[str] = None,
 ):
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        try:
-            params = [chat_id]
-            file_filters = []
-            if file_name:
-                file_filters.append("message->'document'->>'file_name' = %s")
-                params.append(file_name)
-            if file_id:
-                file_filters.append("message->'document'->>'file_id' = %s")
-                params.append(file_id)
-            file_filter = ""
-            if file_filters:
-                file_filter = "AND (" + " OR ".join(file_filters) + ")"
-            cur.execute(f"""
-                SELECT
-                    message->'document'->>'file_name' AS file_name,
-                    message->'document'->>'file_id' AS file_id
-                FROM telegram_messages
-                WHERE (message->'chat'->>'id')::bigint = %s
-                  AND message->'document' IS NOT NULL
-                  AND type IN ('docx', 'txt')
-                  AND lang = 'ko'
-                  AND (is_translate IS NULL OR is_translate = false)
-                  {file_filter}
-                ORDER BY date_time DESC
-                LIMIT 1
-            """, params)
-            row = cur.fetchone()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    params = [chat_id]
+    file_filters = []
+    if file_name:
+        file_filters.append("message->'document'->>'file_name' = %s")
+        params.append(file_name)
+    if file_id:
+        file_filters.append("message->'document'->>'file_id' = %s")
+        params.append(file_id)
+    file_filter = ""
+    if file_filters:
+        file_filter = "AND (" + " OR ".join(file_filters) + ")"
+    cur.execute(f"""
+        SELECT
+            message->'document'->>'file_name' AS file_name,
+            message->'document'->>'file_id' AS file_id
+        FROM telegram_messages
+        WHERE (message->'chat'->>'id')::bigint = %s
+          AND message->'document' IS NOT NULL
+          AND type IN ('docx', 'txt')
+          AND lang = 'ko'
+          AND (is_translate IS NULL OR is_translate = false)
+          {file_filter}
+        ORDER BY date_time DESC
+        LIMIT 1
+    """, params)
+    row = cur.fetchone()
+    cur.close(); conn.close()
     return row
 
 @app.get("/api/prompts")
 async def get_prompts_db():
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        try:
-            cur.execute("SELECT id, name, prompt FROM translate_prompts ORDER BY name")
-            data = cur.fetchall()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT id, name, prompt FROM translate_prompts ORDER BY name")
+    data = cur.fetchall()
+    cur.close(); conn.close()
     return data
 
 @app.post("/api/prompts")
 async def create_prompt(data: dict):
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor()
-        try:
-            cur.execute("INSERT INTO translate_prompts (name, prompt) VALUES (%s, %s)", (data['name'], data['prompt']))
-            conn.commit()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO translate_prompts (name, prompt) VALUES (%s, %s)", (data['name'], data['prompt']))
+    conn.commit()
+    cur.close(); conn.close()
     return {"status": "success"}
 
 @app.put("/api/prompts/{prompt_id}")
 async def update_prompt(prompt_id: int, data: dict):
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor()
-        try:
-            cur.execute("INSERT INTO translate_prompts_history (prompt_id, name, prompt, version_date) SELECT id, name, prompt, CURRENT_TIMESTAMP FROM translate_prompts WHERE id = %s", (prompt_id,))
-            cur.execute("UPDATE translate_prompts SET name = %s, prompt = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s", (data['name'], data['prompt'], prompt_id))
-            conn.commit()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO translate_prompts_history (prompt_id, name, prompt, version_date) SELECT id, name, prompt, CURRENT_TIMESTAMP FROM translate_prompts WHERE id = %s", (prompt_id,))
+    cur.execute("UPDATE translate_prompts SET name = %s, prompt = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s", (data['name'], data['prompt'], prompt_id))
+    conn.commit()
+    cur.close(); conn.close()
     return {"status": "success"}
 
 @app.delete("/api/prompts/{prompt_id}")
 async def delete_prompt(prompt_id: int):
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor()
-        try:
-            cur.execute("DELETE FROM translate_prompts WHERE id = %s", (prompt_id,))
-            conn.commit()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM translate_prompts WHERE id = %s", (prompt_id,))
+    conn.commit()
+    cur.close(); conn.close()
     return {"status": "success"}
 
 @app.get("/api/prompts/{prompt_id}/history")
 async def get_prompt_history(prompt_id: int):
     conn = get_conn_pg()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        try:
-            cur.execute("SELECT id, prompt_id, name, prompt, version_date FROM translate_prompts_history WHERE prompt_id = %s ORDER BY version_date DESC", (prompt_id,))
-            data = cur.fetchall()
-        finally:
-            cur.close()
-    finally:
-        conn.close()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT id, prompt_id, name, prompt, version_date FROM translate_prompts_history WHERE prompt_id = %s ORDER BY version_date DESC", (prompt_id,))
+    data = cur.fetchall()
+    cur.close(); conn.close()
     return data
 
-LIGHTRAG_URL = os.getenv("LIGHTRAG_URL", "http://localhost:9624/query")
-LIGHTRAG_USER = os.getenv("LIGHTRAG_USER", "")
-LIGHTRAG_PASSWORD = os.getenv("LIGHTRAG_PASSWORD", "")
-
-
 async def get_global_risk():
+    url = "http://localhost:9624/query"
     try:
-        auth = (LIGHTRAG_USER, LIGHTRAG_PASSWORD) if LIGHTRAG_USER else None
         async with httpx.AsyncClient() as client:
-            resp = await client.post(LIGHTRAG_URL, json={"query": "Summary of current global market risk level (GREEN, YELLOW, ORANGE, RED).", "mode": "hybrid"}, 
-                                    auth=auth, timeout=5.0)
+            resp = await client.post(url, json={"query": "Summary of current global market risk level (GREEN, YELLOW, ORANGE, RED).", "mode": "hybrid"}, 
+                                    auth=('bigalex', 'qQ08102003'), timeout=5.0)
             if resp.status_code == 200:
                 text = resp.json().get("response", "GREEN").upper()
                 if "RED" in text: return "RED", True
                 if "ORANGE" in text: return "ORANGE", True
                 if "YELLOW" in text: return "YELLOW", False
                 return "GREEN", False
-    except (httpx.HTTPError, ValueError, KeyError) as exc:
-        logger.warning("get_global_risk failed: %s", exc)
+    except: pass
     return "UNKNOWN", False
 
 @app.get("/api/trade/league")
@@ -1806,18 +1393,13 @@ async def get_trade_league(division: str = "moex"):
         config = DB_CONFIG_RESEARCH.copy()
         config["database"] = db_name
         conn = psycopg2.connect(**config)
-        try:
-            cur = conn.cursor(cursor_factory=RealDictCursor)
-            try:
-                cur.execute("SELECT p.trader_name, p.cash_balance, c.learned_traits as memory FROM trading.portfolio p LEFT JOIN trading.trader_config c ON p.trader_name = c.trader_name ORDER BY p.trader_name")
-                portfolios = cur.fetchall()
-                cur.execute("SELECT trader_name, secid, quantity, avg_entry_price FROM trading.position WHERE quantity != 0")
-                positions = cur.fetchall()
-            finally:
-                cur.close()
-        finally:
-            conn.close()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT p.trader_name, p.cash_balance, c.learned_traits as memory FROM trading.portfolio p LEFT JOIN trading.trader_config c ON p.trader_name = c.trader_name ORDER BY p.trader_name")
+        portfolios = cur.fetchall()
+        cur.execute("SELECT trader_name, secid, quantity, avg_entry_price FROM trading.position WHERE quantity != 0")
+        positions = cur.fetchall()
         risk_level, storm_active = await get_global_risk()
+        cur.close(); conn.close()
         return {"division": division, "traders": portfolios, "positions": positions, "risk": risk_level, "storm_mode": storm_active, "server_time": datetime.now().strftime("%H:%M:%S")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1874,133 +1456,16 @@ async def start_translation(request: Request):
 async def upload_file(file: UploadFile = File(...)):
     try:
         if file.filename.endswith(".docx"):
-            with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
-                shutil.copyfileobj(file.file, tmp)
-                tmp_path = tmp.name
-            try:
-                doc = docx.Document(tmp_path)
-                full_text = "\n".join([para.text for para in doc.paragraphs])
-            finally:
-                os.remove(tmp_path)
+            with open("temp.docx", "wb") as buffer: shutil.copyfileobj(file.file, buffer)
+            doc = docx.Document("temp.docx")
+            full_text = "\n".join([para.text for para in doc.paragraphs])
+            os.remove("temp.docx")
             return {"text": full_text}
         else:
             content = await file.read()
             return {"text": content.decode("utf-8")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint for monitoring."""
-    db_ok = False
-    try:
-        conn = get_conn_pg()
-        try:
-            cur = conn.cursor()
-            try:
-                cur.execute("SELECT 1")
-                db_ok = cur.fetchone() is not None
-            finally:
-                cur.close()
-        finally:
-            conn.close()
-    except Exception:
-        pass
-    status = "healthy" if db_ok else "degraded"
-    code = 200 if db_ok else 503
-    if not db_ok:
-        raise HTTPException(status_code=code, detail={"status": status, "database": db_ok})
-    return {"status": status, "database": db_ok}
-
-
-@app.get("/api/tgs/status")
-async def get_tgs_status(request: Request):
-    user = verified_telegram_user(request)
-    if not is_ocr_operator(user):
-        raise HTTPException(status_code=403, detail="Only an operator can manage TGS files")
-    listing = await current_tgs_folder_listing()
-    return {
-        "folder_path": listing["folder_path"],
-        "svg_count": len(listing["svg"]),
-        "tgs_count": len(listing["tgs"]),
-        "files": [
-            {"name": item["name"], "size": item.get("size")}
-            for item in listing["files"]
-            if item["name"].lower().endswith((".svg", ".tgs"))
-        ],
-    }
-
-
-@app.post("/api/tgs/convert")
-async def convert_tgs_folder(request: Request):
-    user = verified_telegram_user(request)
-    if not is_ocr_operator(user):
-        raise HTTPException(status_code=403, detail="Only an operator can convert TGS files")
-    listing = await current_tgs_folder_listing()
-    converted = []
-    errors = []
-    for item in listing["svg"]:
-        try:
-            svg_content = await yandex_download_resource(item["path"])
-            tgs_content = convert_svg_bytes_to_tgs(svg_content, item["name"])
-            output_path = tgs_remote_path_for_svg(item)
-            await yandex_upload_resource(output_path, tgs_content)
-            converted.append({"source": item["name"], "output": Path(output_path).name})
-        except HTTPException as exc:
-            errors.append({"source": item["name"], "error": str(exc.detail)})
-        except (httpx.HTTPError, OSError, subprocess.SubprocessError, ValueError) as exc:
-            errors.append({"source": item["name"], "error": str(exc)[:500]})
-    if errors:
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "message": f"Converted {len(converted)} SVG, failed {len(errors)}",
-                "converted": converted,
-                "errors": errors,
-            },
-        )
-    return {
-        "converted_count": len(converted),
-        "converted": converted,
-        "message": f"Все SVG сконвертированы в TGS: {len(converted)}",
-    }
-
-
-@app.post("/api/tgs/delete")
-async def delete_tgs_files(request: Request, payload: TgsDeleteRequest):
-    user = verified_telegram_user(request)
-    if not is_ocr_operator(user):
-        raise HTTPException(status_code=403, detail="Only an operator can delete TGS files")
-    confirmations = {
-        "svg": "DELETE_ALL_SVG",
-        "tgs": "DELETE_ALL_TGS",
-        "all": "CLEAR_TGS_FOLDER",
-    }
-    if payload.scope not in confirmations:
-        raise HTTPException(status_code=400, detail="Unsupported delete scope")
-    if payload.confirmation != confirmations[payload.scope]:
-        raise HTTPException(status_code=400, detail="Deletion was not confirmed")
-    listing = await current_tgs_folder_listing()
-    if payload.scope == "svg":
-        targets = listing["svg"]
-    elif payload.scope == "tgs":
-        targets = listing["tgs"]
-    else:
-        targets = [
-            item
-            for item in listing["files"]
-            if item["name"].lower().endswith((".svg", ".tgs"))
-        ]
-    deleted = []
-    for item in targets:
-        await yandex_trash_resource(item["path"])
-        deleted.append(item["name"])
-    return {
-        "deleted_count": len(deleted),
-        "moved_to_trash": True,
-        "deleted": deleted,
-    }
 
 # --- HTML PAGES ---
 @app.get("/", response_class=HTMLResponse)
@@ -2034,9 +1499,5 @@ async def invest_page():
 @app.get("/ocr", response_class=HTMLResponse)
 async def ocr_page():
     with open("static/ocr/index.html", "r", encoding="utf-8") as f: return f.read()
-
-@app.get("/tgs", response_class=HTMLResponse)
-async def tgs_page():
-    with open("static/tgs/index.html", "r", encoding="utf-8") as f: return f.read()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

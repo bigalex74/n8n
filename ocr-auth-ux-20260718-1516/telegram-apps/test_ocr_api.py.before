@@ -3,7 +3,7 @@ import time
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from fastapi import BackgroundTasks, HTTPException
+from fastapi import HTTPException
 from starlette.requests import Request
 
 import main
@@ -218,62 +218,6 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sent["model"], "gpt-5.6-terra")
         self.assertEqual(sent["prompt"], prompt)
 
-    async def test_ai_health_exposes_oauth_failure_for_ui(self):
-        response = MagicMock()
-        response.raise_for_status.return_value = None
-        response.json.return_value = {
-            "ready": False,
-            "status": "unavailable",
-            "engine": "Codex CLI",
-            "auth": "missing",
-            "error_code": "codex_oauth_unavailable",
-            "detail": "Codex OAuth session is unavailable; sign in again",
-        }
-        client = MagicMock()
-        client.get = AsyncMock(return_value=response)
-        context = MagicMock()
-        context.__aenter__ = AsyncMock(return_value=client)
-        context.__aexit__ = AsyncMock(return_value=False)
-
-        with patch.object(main.httpx, "AsyncClient", return_value=context):
-            result = await main.ai_ocr_service_health()
-
-        self.assertFalse(result["ready"])
-        self.assertEqual(result["error_code"], "codex_oauth_unavailable")
-        self.assertIn("Авторизация AI OCR", result["user_message"])
-
-    async def test_ai_start_reports_oauth_failure_in_plain_language(self):
-        with patch.dict(
-            os.environ,
-            {
-                "TELEGRAM_BOT_TOKEN": BOT_TOKEN,
-                "OCR_BATCH_TRIGGER_TOKEN": "ocr-test-secret",
-            },
-            clear=False,
-        ), patch.object(
-            main,
-            "ai_ocr_service_health",
-            AsyncMock(
-                return_value={
-                    "ready": False,
-                    "auth": "missing",
-                    "error_code": "codex_oauth_unavailable",
-                }
-            ),
-        ):
-            with self.assertRaises(HTTPException) as caught:
-                await main.start_ocr(
-                    request_with_init_data(signed_init_data(auth_date=int(time.time()))),
-                    main.OcrStartRequest(
-                        engine="ai",
-                        model="gpt-5.6-luna",
-                        prompt="Распознай весь видимый текст без перевода.",
-                    ),
-                )
-
-        self.assertEqual(caught.exception.status_code, 503)
-        self.assertIn("Авторизация AI OCR", caught.exception.detail)
-
     async def test_ai_start_rejects_unapproved_model(self):
         with patch.dict(
             os.environ,
@@ -482,20 +426,12 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["text"], "one\n\ntwo\n\nten")
         self.assertEqual(result["size"], len(result["text"].encode("utf-8")))
 
-    async def test_merge_txt_sends_verified_content_to_requesting_operator(self):
+    async def test_merge_txt_sends_verified_content_to_telegram_without_publishing(self):
         merged_text = "one\n\ntwo"
         merged_bytes = merged_text.encode("utf-8")
         merged_hash = main.hashlib.sha256(merged_bytes).hexdigest()
         source_listing = {"images": ["1.png", "2.png"], "files": {}}
-        with patch.dict(
-            os.environ,
-            {
-                "TELEGRAM_BOT_TOKEN": BOT_TOKEN,
-                "OCR_OWNER_ID": "923741104",
-                "OCR_OPERATOR_IDS": "1011396552",
-            },
-            clear=False,
-        ), patch.object(
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
             main, "latest_ocr_batch", return_value={"status": "done"}
         ), patch.object(main, "latest_ocr_public_key", return_value="public-key"), patch.object(
             main,
@@ -516,9 +452,7 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
             AsyncMock(return_value={"message_id": 456, "file_size": len(merged_bytes)}),
         ) as send_document:
             result = await main.merge_ocr_txt(
-                request_with_init_data(
-                    signed_init_data(user_id=1011396552, auth_date=int(time.time()))
-                ),
+                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
                 main.OcrMergeTxtRequest(confirmation="MERGE_CURRENT_OCR_TXT"),
             )
 
@@ -528,7 +462,7 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result["delivered_to_telegram"])
         self.assertEqual(result["telegram_message_id"], 456)
         send_document.assert_awaited_once_with(
-            1011396552,
+            923741104,
             main.OCR_MERGED_OUTPUT_NAME,
             merged_text,
             "Объединённый OCR: 2 TXT",
@@ -610,38 +544,6 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result["resumed"])
         self.assertEqual(result["review"]["status"], "needs_review")
         download.assert_not_awaited()
-
-    async def test_review_candidates_processes_all_unique_selected_files(self):
-        async def fake_single(payload):
-            return {"review": {"source_name": payload.source_name, "status": "needs_review"}}
-
-        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
-            main, "create_single_ocr_review_candidate", AsyncMock(side_effect=fake_single)
-        ) as create_single, patch.object(
-            main, "latest_ocr_batch", return_value={"status": "done"}
-        ), patch.object(
-            main, "ai_ocr_service_health", AsyncMock(return_value={"ready": True})
-        ):
-            background_tasks = BackgroundTasks()
-            result = await main.create_ocr_review_candidates(
-                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
-                main.OcrReviewCandidatesRequest(
-                    source_names=["145.png", "146.png", "145.PNG", "147.png"],
-                    model="gpt-5.6-terra",
-                    prompt="Распознай корейский текст точно, без перевода и домыслов.",
-                ),
-                background_tasks,
-            )
-            await background_tasks()
-
-        self.assertEqual(result["requested"], 3)
-        self.assertEqual(result["queued"], 3)
-        self.assertEqual(result["completed"], 0)
-        self.assertEqual(result["failed"], 0)
-        self.assertEqual(
-            [call.args[0].source_name for call in create_single.await_args_list],
-            ["145.png", "146.png", "147.png"],
-        )
 
     async def test_stop_marks_running_batch_for_cooperative_cancellation(self):
         cursor = MagicMock()
@@ -832,100 +734,6 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         publish.assert_not_awaited()
         self.assertEqual(result["review"]["status"], "rejected")
 
-    async def test_accept_with_edited_candidate_publishes_and_saves_candidate(self):
-        review_row = {
-            "id": 8,
-            "source_name": "145.png",
-            "source_md5": "image-md5",
-            "status": "candidate_ready",
-            "baseline_text": "старый текст",
-            "candidate_text": "вариант ИИ",
-            "created_at": None,
-            "updated_at": None,
-            "accepted_at": None,
-        }
-        updated_row = dict(review_row, status="accepted", candidate_text="исправленный вариант ИИ")
-        cursor = MagicMock()
-        cursor.fetchone.side_effect = [review_row, updated_row]
-        connection = MagicMock()
-        connection.cursor.return_value = cursor
-        publish = AsyncMock(
-            return_value={"sha256": main.hashlib.sha256("исправленный вариант ИИ".encode()).hexdigest()}
-        )
-
-        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
-            main, "get_conn_pg", return_value=connection
-        ), patch.object(
-            main, "latest_ocr_job", return_value={"source_md5": "image-md5"}
-        ), patch.object(main, "publish_review_text", publish):
-            result = await main.act_on_ocr_review(
-                8,
-                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
-                main.OcrReviewActionRequest(
-                    action="accept",
-                    edited_candidate_text="исправленный вариант ИИ",
-                ),
-            )
-
-        publish.assert_awaited_once_with("145.png", "исправленный вариант ИИ")
-        self.assertEqual(result["review"]["status"], "accepted")
-        update_sql = cursor.execute.call_args.args[0]
-        self.assertIn("candidate_text = COALESCE", update_sql)
-        update_params = cursor.execute.call_args.args[1]
-        self.assertEqual(update_params[3], "исправленный вариант ИИ")
-
-    async def test_publish_text_file_retries_transient_yandex_publish_failure(self):
-        failed_response = MagicMock()
-        failed_response.raise_for_status.side_effect = main.httpx.HTTPStatusError(
-            "server error",
-            request=main.httpx.Request("POST", main.OCR_REVIEW_PUBLISH_WEBHOOK_URL),
-            response=main.httpx.Response(500),
-        )
-        ok_response = MagicMock()
-        ok_response.raise_for_status.return_value = None
-        ok_response.json.return_value = {"published": True, "sha256": "digest"}
-        client = MagicMock()
-        client.post = AsyncMock(side_effect=[failed_response, ok_response])
-        context = MagicMock()
-        context.__aenter__ = AsyncMock(return_value=client)
-        context.__aexit__ = AsyncMock(return_value=False)
-
-        with patch.dict(
-            os.environ, {"OCR_BATCH_TRIGGER_TOKEN": "ocr-test-secret"}, clear=False
-        ), patch.object(main.httpx, "AsyncClient", return_value=context), patch.object(
-            main.asyncio, "sleep", AsyncMock()
-        ) as sleep:
-            result = await main.publish_text_file("145.txt", "текст")
-
-        self.assertTrue(result["published"])
-        self.assertEqual(client.post.await_count, 2)
-        sleep.assert_awaited_once_with(3)
-
-    async def test_publish_text_file_explains_yandex_publish_failure_after_retries(self):
-        failed_response = MagicMock()
-        failed_response.raise_for_status.side_effect = main.httpx.HTTPStatusError(
-            "server error",
-            request=main.httpx.Request("POST", main.OCR_REVIEW_PUBLISH_WEBHOOK_URL),
-            response=main.httpx.Response(500),
-        )
-        client = MagicMock()
-        client.post = AsyncMock(return_value=failed_response)
-        context = MagicMock()
-        context.__aenter__ = AsyncMock(return_value=client)
-        context.__aexit__ = AsyncMock(return_value=False)
-
-        with patch.dict(
-            os.environ, {"OCR_BATCH_TRIGGER_TOKEN": "ocr-test-secret"}, clear=False
-        ), patch.object(main.httpx, "AsyncClient", return_value=context), patch.object(
-            main.asyncio, "sleep", AsyncMock()
-        ):
-            with self.assertRaises(HTTPException) as caught:
-                await main.publish_text_file("145.txt", "текст")
-
-        self.assertEqual(caught.exception.status_code, 502)
-        self.assertIn("Yandex Disk временно не принял TXT", caught.exception.detail)
-        self.assertEqual(client.post.await_count, 3)
-
     async def test_clear_all_requires_exact_confirmation(self):
         with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False):
             with self.assertRaises(HTTPException) as caught:
@@ -1023,58 +831,6 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.body, b"png-bytes")
         self.assertEqual(response.media_type, "image/png")
         self.assertEqual(caught.exception.status_code, 400)
-
-    async def test_tgs_convert_processes_all_svg_files(self):
-        listing = {
-            "folder_path": "/Yulia/+ Test/tgs",
-            "files": [],
-            "svg": [
-                {"name": "row1-03.svg", "path": "disk:/Yulia/+ Test/tgs/row1-03.svg"},
-                {"name": "row1-04.svg", "path": "disk:/Yulia/+ Test/tgs/row1-04.svg"},
-            ],
-            "tgs": [],
-        }
-        upload = AsyncMock()
-        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
-            main, "current_tgs_folder_listing", AsyncMock(return_value=listing)
-        ), patch.object(
-            main, "yandex_download_resource", AsyncMock(side_effect=[b"<svg/>", b"<svg/>"])
-        ), patch.object(
-            main, "convert_svg_bytes_to_tgs", side_effect=[b"tgs-1", b"tgs-2"]
-        ), patch.object(main, "yandex_upload_resource", upload):
-            result = await main.convert_tgs_folder(
-                request_with_init_data(signed_init_data(auth_date=int(time.time())))
-            )
-
-        self.assertEqual(result["converted_count"], 2)
-        self.assertEqual(upload.await_count, 2)
-        self.assertEqual(upload.await_args_list[0].args[0], "disk:/Yulia/+ Test/tgs/row1-03.tgs")
-        self.assertEqual(upload.await_args_list[1].args[0], "disk:/Yulia/+ Test/tgs/row1-04.tgs")
-
-    async def test_tgs_delete_requires_confirmation_and_moves_selected_scope_to_trash(self):
-        listing = {
-            "folder_path": "/Yulia/+ Test/tgs",
-            "files": [],
-            "svg": [{"name": "row1-03.svg", "path": "disk:/Yulia/+ Test/tgs/row1-03.svg"}],
-            "tgs": [{"name": "row1-03.tgs", "path": "disk:/Yulia/+ Test/tgs/row1-03.tgs"}],
-        }
-        trash = AsyncMock()
-        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": BOT_TOKEN}, clear=False), patch.object(
-            main, "current_tgs_folder_listing", AsyncMock(return_value=listing)
-        ), patch.object(main, "yandex_trash_resource", trash):
-            with self.assertRaises(HTTPException) as caught:
-                await main.delete_tgs_files(
-                    request_with_init_data(signed_init_data(auth_date=int(time.time()))),
-                    main.TgsDeleteRequest(scope="svg", confirmation="WRONG"),
-                )
-            result = await main.delete_tgs_files(
-                request_with_init_data(signed_init_data(auth_date=int(time.time()))),
-                main.TgsDeleteRequest(scope="svg", confirmation="DELETE_ALL_SVG"),
-            )
-
-        self.assertEqual(caught.exception.status_code, 400)
-        self.assertEqual(result["deleted_count"], 1)
-        trash.assert_awaited_once_with("disk:/Yulia/+ Test/tgs/row1-03.svg")
 
 
 if __name__ == "__main__":

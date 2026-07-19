@@ -127,6 +127,32 @@ test('OCR screen reprocesses selected images only', async ({ page }) => {
   await expect.poll(() => requestedFiles).toEqual(['106.png']);
 });
 
+test('OCR screen explains launch network failures', async ({ page }) => {
+  await page.route('https://telegram.org/js/telegram-web-app.js', async route => {
+    await route.fulfill({
+      contentType: 'application/javascript',
+      body: 'window.Telegram = { WebApp: { initData: "signed-test-data", ready() {}, expand() {}, BackButton: { show() {}, onClick() {} }, HapticFeedback: { notificationOccurred() {} }, showConfirm(_text, callback) { callback(true); } } };',
+    });
+  });
+  await page.route('**/api/ocr/status', async route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ source_folder: 'протокол', service: { ready: true }, can_start: true, can_stop: false, batch: { status: 'done' } }),
+  }));
+  await page.route('**/api/ocr/files', async route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ files: [
+      { source_name: '107.png', status: 'done', quality: 'warning', quality_label: 'нужна проверка' },
+    ] }),
+  }));
+  await page.route('**/api/ocr/start', async route => route.abort('failed'));
+
+  await page.goto('/ocr');
+  await page.getByRole('tab', { name: 'Повторно' }).click();
+  await page.locator('#fileList').getByText('107.png').click();
+  await page.getByRole('button', { name: /Повторить OCR: 1/ }).click();
+  await expect(page.locator('#message')).toContainText('Не удалось связаться с сервером OCR');
+});
+
 test('OCR screen selects all, clears selection and requests TXT deletion safely', async ({ page }) => {
   await page.route('https://telegram.org/js/telegram-web-app.js', async route => route.fulfill({
     contentType: 'application/javascript',
@@ -359,14 +385,16 @@ function reviewPageMocks(page, reviewsRef) {
 test('OCR review keeps baseline separate and publishes only after confirmation', async ({ page }) => {
   const reviewsRef = { list: [] };
   await reviewPageMocks(page, reviewsRef);
-  await page.route('**/api/ocr/reviews/candidate', async route => {
+  await page.route('**/api/ocr/reviews/candidates', async route => {
     reviewsRef.list = [{
       id: 1, source_name: '145.png', status: 'candidate_ready', model: 'gpt-5.6-terra',
       baseline_text: '안녕 f1...', candidate_text: '안녕...', decision_reason: 'артефакт устранён',
       source_url: 'https://example.test/145.png',
       diff_json: { diff: ['@@ -1,1 +1,1 @@', '-안녕 f1...', '+안녕...'] },
     }];
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ review: reviewsRef.list[0] }) });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      accepted: true, requested: 1, completed: 1, failed: 0, reviews: reviewsRef.list, errors: [],
+    }) });
   });
   let accepted = false;
   await page.route('**/api/ocr/reviews/1/action', async route => {
@@ -383,7 +411,9 @@ test('OCR review keeps baseline separate and publishes only after confirmation',
   await page.getByRole('tab', { name: /Проверить/ }).click();
   await expect(page.locator('.review-image')).toHaveAttribute('src', 'https://example.test/145.png');
   await expect(page.getByText('Исходный текст (можно править вручную)')).toBeVisible();
-  await expect(page.locator('.baseline-editor')).toHaveValue('안녕 f1...');
+  await expect(page.getByText('Вариант ИИ (можно править вручную)')).toBeVisible();
+  await expect(page.locator('.review-editor').nth(0)).toHaveValue('안녕 f1...');
+  await expect(page.locator('.review-editor').nth(1)).toHaveValue('안녕...');
   await expect(page.locator('.diff-line.remove')).toHaveText('-안녕 f1...');
   await expect(page.locator('.diff-line.add')).toHaveText('+안녕...');
   await expect(page.locator('#reviewList')).not.toContainText('@@');
@@ -393,6 +423,46 @@ test('OCR review keeps baseline separate and publishes only after confirmation',
   await page.getByRole('button', { name: 'Принять' }).click();
   await expect.poll(() => accepted).toBe(true);
   await expect(page.locator('#message')).toContainText('Кандидат опубликован');
+});
+
+test('OCR review sends every selected TXT file to AI in one request', async ({ page }) => {
+  const reviewsRef = { list: [] };
+  await reviewPageMocks(page, reviewsRef);
+  await page.route('**/api/ocr/files', async route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ files: [
+      { source_name: '145.png', status: 'done', quality: 'warning', quality_label: 'нужна проверка', output_exists: true },
+      { source_name: '146.png', status: 'done', quality: 'ok', quality_label: 'распознано', output_exists: true },
+      { source_name: '147.png', status: 'done', quality: 'ok', quality_label: 'распознано', output_exists: true },
+    ] }),
+  }));
+  let sourceNames = null;
+  let releaseCandidates = null;
+  await page.route('**/api/ocr/reviews/candidates', async route => {
+    sourceNames = (await route.request().postDataJSON()).source_names;
+    reviewsRef.list = sourceNames.map((source_name, index) => ({
+      id: index + 10, source_name, status: 'needs_review', model: 'gpt-5.6-terra',
+      baseline_text: `baseline ${source_name}`, candidate_text: `candidate ${source_name}`,
+      decision_reason: 'ручная проверка', diff_json: { diff: [] },
+    }));
+    await new Promise(resolve => { releaseCandidates = resolve; });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      accepted: true, requested: sourceNames.length, completed: sourceNames.length, failed: 0,
+      reviews: reviewsRef.list, errors: [],
+    }) });
+  });
+
+  await page.goto('/ocr');
+  await page.getByRole('tab', { name: 'Повторно' }).click();
+  await page.locator('#fileList').getByText('145.png').click();
+  await page.locator('#fileList').getByText('146.png').click();
+  await page.locator('#fileList').getByText('147.png').click();
+  await page.locator('#repeatEngineSelect').selectOption('ai');
+  await page.getByRole('button', { name: /Отправить в ИИ: 3/ }).click();
+  await expect(page.locator('#message')).toContainText('выбрано 3; с TXT 3; без TXT 0');
+  await expect.poll(() => typeof releaseCandidates).toBe('function');
+  releaseCandidates();
+  await expect.poll(() => sourceNames).toEqual(['145.png', '146.png', '147.png']);
+  await expect(page.locator('#message')).toContainText('кандидаты: 3 из 3');
 });
 
 test('OCR review saves manual edits when keeping the original text', async ({ page }) => {
@@ -412,10 +482,39 @@ test('OCR review saves manual edits when keeping the original text', async ({ pa
 
   await page.goto('/ocr');
   await page.getByRole('tab', { name: /Проверить/ }).click();
-  await page.locator('.baseline-editor').fill('исправленный вручную текст');
+  await page.locator('.review-editor').nth(0).fill('исправленный вручную текст');
   await page.getByRole('button', { name: 'Оставить исходный' }).click();
   await expect.poll(() => actionBody).toEqual({ action: 'reject', edited_text: 'исправленный вручную текст' });
   await expect(page.locator('#message')).toContainText('Все кандидаты проверены');
+});
+
+test('OCR review edits AI variant and can reset manual changes', async ({ page }) => {
+  const reviewsRef = { list: [{
+    id: 3, source_name: '145.png', status: 'candidate_ready', model: 'gpt-5.6-terra',
+    baseline_text: 'исходный текст', candidate_text: 'вариант ИИ', decision_reason: 'ручная проверка',
+    source_url: 'https://example.test/145.png',
+    diff_json: { diff: ['-исходный текст', '+вариант ИИ'] },
+  }] };
+  await reviewPageMocks(page, reviewsRef);
+  let actionBody = null;
+  await page.route('**/api/ocr/reviews/3/action', async route => {
+    actionBody = await route.request().postDataJSON();
+    reviewsRef.list[0].status = 'accepted';
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ review: reviewsRef.list[0] }) });
+  });
+
+  await page.goto('/ocr');
+  await page.getByRole('tab', { name: /Проверить/ }).click();
+  const candidate = page.locator('.review-editor').nth(1);
+  await candidate.fill('ручная правка варианта ИИ');
+  const resetButtons = page.getByRole('button', { name: 'Отменить изменения' });
+  await expect(resetButtons.nth(1)).toBeEnabled();
+  await resetButtons.nth(1).click();
+  await expect(candidate).toHaveValue('вариант ИИ');
+  await expect(resetButtons.nth(1)).toBeDisabled();
+  await candidate.fill('финальный вариант ИИ');
+  await page.getByRole('button', { name: 'Принять' }).click();
+  await expect.poll(() => actionBody).toEqual({ action: 'accept', edited_candidate_text: 'финальный вариант ИИ' });
 });
 
 test('OCR review browse subtab shows any file with image and current text', async ({ page }) => {
@@ -432,4 +531,59 @@ test('OCR review browse subtab shows any file with image and current text', asyn
   await page.locator('#browseSelect').selectOption('145.png');
   await expect(page.locator('#browseContent .review-text')).toHaveText('текущий распознанный текст');
   await expect(page.locator('#browseContent .review-image')).toBeVisible();
+});
+
+test('OCR back arrow handles nested review states before leaving the app', async ({ page }) => {
+  const reviewsRef = { list: [{
+    id: 7, source_name: '145.png', status: 'needs_review', model: 'gpt-5.6-terra',
+    baseline_text: 'исходный текст', candidate_text: 'вариант ИИ', decision_reason: 'ручная проверка',
+    source_url: 'https://example.test/145.png',
+    diff_json: { diff: [] },
+  }] };
+  await Promise.all([
+    page.route('https://telegram.org/js/telegram-web-app.js', async route => route.fulfill({
+      contentType: 'application/javascript',
+      body: 'window.Telegram = { WebApp: { initData: "signed-test-data", ready() {}, expand() {}, BackButton: { show() {}, onClick(callback) { window.__telegramBack = callback; } }, HapticFeedback: { notificationOccurred() {} }, showConfirm(_text, callback) { callback(true); } } };',
+    })),
+    page.route('**/api/ocr/config', async route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({
+        ai_models: [{ id: 'gpt-5.6-terra', label: 'Terra — баланс' }],
+        default_ai_model: 'gpt-5.6-terra',
+        default_ai_prompt: 'Распознай корейский текст точно, без перевода и домыслов.',
+      }),
+    })),
+    page.route('**/api/ocr/status', async route => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({ source_folder: 'протокол', service: { ready: true }, can_start: true, can_stop: false, batch: { status: 'done' } }),
+    })),
+    page.route('**/api/ocr/files', async route => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({ files: [
+        { source_name: '145.png', status: 'done', quality: 'warning', quality_label: 'нужна проверка', output_exists: true },
+      ] }),
+    })),
+    page.route('**/api/ocr/image/**', async route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })),
+    page.route('**/api/ocr/reviews', async route => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ reviews: reviewsRef.list }) });
+        return;
+      }
+      await route.fallback();
+    }),
+  ]);
+  await page.goto('/ocr');
+  await expect.poll(() => page.evaluate(() => typeof window.__telegramBack)).toBe('function');
+
+  await page.getByRole('tab', { name: /Проверить/ }).click();
+  await page.getByRole('button', { name: 'Открыть изображение крупно' }).click();
+  await expect(page.locator('#imageDialog')).toBeVisible();
+  await page.evaluate(() => window.__telegramBack());
+  await expect(page.locator('#imageDialog')).not.toBeVisible();
+
+  await page.getByRole('tab', { name: 'Все файлы' }).click();
+  await expect(page.locator('#browseSubtab')).toBeVisible();
+  await page.evaluate(() => window.__telegramBack());
+  await expect(page.locator('#candidatesSubtab')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Назад' }).click();
+  await expect(page).toHaveURL(/\/$/);
 });

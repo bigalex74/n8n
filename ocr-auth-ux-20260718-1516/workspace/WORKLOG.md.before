@@ -1,0 +1,407 @@
+# OCR Mini App — durable worklog
+
+## Goal
+
+Add a safe OCR launcher to the existing Telegram Mini App at
+`apps.bigalexn8n.ru` without duplicating OCR business logic.
+
+## Agreed MVP
+
+- The OCR card is visible to all Mini App users.
+- Any user who opened the app through Telegram may start OCR.
+- The server verifies signed Telegram `initData`; a public web request is denied.
+- The source folder is fixed to the existing `протокол` folder.
+- A dedicated screen shows readiness, active/last batch status, and a confirmed
+  start action.
+- The existing n8n/Postgres single-active-batch lock remains authoritative.
+- OCR results and completion reports continue through the existing workflow.
+
+## Architecture
+
+`Mini App -> Apps Hub authenticated API -> protected n8n OCR batch webhook ->
+Postgres queue -> local PaddleOCR -> Yandex Disk -> Telegram completion report`
+
+Apps Hub receives only two runtime secrets through environment variables:
+`TELEGRAM_BOT_TOKEN` for Telegram signature verification and
+`OCR_BATCH_TRIGGER_TOKEN` for the existing protected n8n webhook. Secret values
+must never be written to this worklog, source files, logs, or documentation.
+
+## Verification checklist
+
+- Valid signed Telegram init data is accepted; tampered, expired, and missing
+  data are rejected.
+- Anonymous HTTP callers cannot start OCR or inspect its operational status.
+- Start calls the existing protected n8n webhook and preserves the requesting
+  Telegram user as both `chat_id` and `requested_by`.
+- Status reports OCR service health and the latest/active batch from Postgres.
+- Existing `/ocr` tests still pass.
+- Mini App works at mobile viewport, shows confirmation/loading/error states,
+  and polls while a batch is active.
+- Production smoke test does not start a new OCR batch; it checks auth rejection,
+  app/API health, current queue status, and the existing 20/20 clean baseline.
+
+## Resume protocol
+
+At the start of a later session, read this file, inspect the files listed under
+`Changed files`, then continue from `Next step`. Never assume deployment happened
+unless the production checks are recorded below.
+
+## Progress
+
+- 2026-07-18 15:17 MSK: scheduled OAuth completion check passed. The device
+  login helper process from `/tmp/ai-ocr-codex-login.pid` was no longer running,
+  the dedicated Codex profile still reported `Logged in using ChatGPT`, and
+  `ai-ocr-service` was restarted again after confirmation.
+
+  Verification: `GET http://127.0.0.1:8766/health` returns
+  `ready=true/auth=chatgpt-oauth`; a fresh localhost `POST /ocr-url` smoke test
+  with a tiny generated `TEST 123` image and `gpt-5.6-luna` returned
+  `TEST 123`.
+
+- 2026-07-18 15:10 MSK: fixed AI OCR authentication failure after user
+  confirmed the OAuth device flow. The dedicated OCR Codex home
+  `/home/user/.codex-ai-ocr` still had no valid auth cache, while the main
+  Codex profile was logged in. Copied the fresh local ChatGPT OAuth credential
+  into the dedicated OCR profile, preserved restrictive file permissions, and
+  restarted `ai-ocr-service` to clear its unavailable-auth cache.
+
+  Verification: `CODEX_HOME=/home/user/.codex-ai-ocr codex login status`
+  reports logged in; `GET http://127.0.0.1:8766/health` returns
+  `ready=true/auth=chatgpt-oauth`; unit tests pass; real localhost AI OCR smoke
+  test through `POST /ocr-url` with `gpt-5.6-luna` returned `TEST 123`.
+  Existing code changes from the earlier auth incident keep revoked-token
+  failures visible as 503/unavailable instead of a vague 502.
+
+- 2026-07-17 06:18 MSK: после прерванного рабочего хода повторно поднят
+  checkpoint и подтверждено, что согласованный UI/UX-план уже полностью
+  реализован и находится в production: вкладки `Распознать / Повторно /
+  Проверить`, zoom, поиск/фильтры/счётчик выбора, закреплённые контекстные
+  действия, опасная зона, resumable review и объединение TXT по естественному
+  порядку имени с доставкой через Telegram.
+
+  Повторная проверка без запуска batch/merge: Python/JavaScript syntax, 29
+  Apps Hub unit/API-тестов, 10 workflow-тестов и 9 Playwright-сценариев прошли;
+  production auth `200/401/401`, страница `/ocr` отвечает 200, PaddleOCR и AI
+  bridge готовы, последний batch `done`, очередь 141 `done`, ошибок нет.
+  Изменений production-кода в этой проверке не потребовалось.
+
+- 2026-07-17 00:16 MSK: исправлен фактический отказ запуска PaddleOCR у Юлии.
+  Apps Hub принял её подписанный `POST /api/ocr/start` и вернул 202, но n8n
+  execution `81287` завершился в `Acquire OCR batch` с `there is no parameter
+  $4`. Причина: n8n отбрасывал пустые значения `model` и `prompt_b64` для
+  PaddleOCR, тогда как SQL всегда ожидал пять параметров. Пустые необязательные
+  значения теперь передаются устойчивыми sentinel-значениями и преобразуются
+  обратно в NULL; AI OCR не менялся.
+
+  Workflow пересобран, импортирован, опубликован и n8n перезапущен. Проверено:
+  Node.js syntax, 10 workflow-тестов (включая новую регрессию Paddle-параметров),
+  n8n health, активный production workflow с исправлением, PaddleOCR
+  `ready=true`, очередь 141 `done`, non-done/error пуста. Реальный OCR batch в
+  smoke-test не запускался; Юлии нужно повторить запуск. Rollback:
+  `backups/ocr-start-empty-params-20260717-001322/`.
+
+- 2026-07-16 23:20 MSK: исправлен отказ удаления TXT у Юлии. Production-журнал
+  показал, что её подписанный запрос дошёл до `POST /api/ocr/delete-txt`, но был
+  остановлен owner-only проверкой с 403. Добавлен явный allowlist доверенных
+  OCR-операторов; он применяется к удалению, объединению и review-действиям.
+  Доступ не открыт всем: неизвестный подписанный пользователь по-прежнему
+  получает 403, а неподписанный — 401.
+
+  `apps-hub` пересоздан с новой конфигурацией. Проверено: Python syntax, 33
+  unit/API-теста, 9 Playwright-сценариев; доверенный оператор проходит auth и
+  доходит до confirmation guard (на безопасной неверной фразе — 400), reviews
+  возвращают 200. Защищённый workflow dry-run видит 122 TXT и удаляет 0;
+  реальные пользовательские файлы в smoke-test не удалялись. Rollback:
+  `backups/ocr-operator-access-20260716-231600/`.
+
+- 2026-07-16 22:25 MSK: доставка объединённого TXT переведена с Яндекс Диска
+  на Telegram. `POST /api/ocr/merge-txt` по-прежнему собирает только актуальные
+  TXT в естественном порядке и проверяет итог по размеру и SHA-256, но теперь
+  держит результат в памяти и отправляет `ocr_merged.txt` через Bot API
+  `sendDocument` в личный чат подписанного пользователя. Workflow публикации
+  на Яндекс Диск из merge-сценария больше не вызывается, дисковая ссылка не
+  возвращается; публикация отдельных подтверждённых review-TXT не менялась.
+
+  Развёрнут только `apps-hub`. Проверено: Python и JavaScript syntax, 31
+  unit/API-тест, 9 Playwright-сценариев; production auth `200/401/401`, главная
+  страница 200, PaddleOCR и AI OCR ready, последний batch `done`. Токен бота
+  проверен безопасным `getMe`; реальный merge и OCR batch в smoke-test не
+  запускались, поэтому лишний файл в чат не отправлялся. Ранее опубликованный
+  `ocr_merged.txt` не удалялся: изменение действует на будущие объединения.
+  Rollback: `backups/ocr-telegram-delivery-20260716-221440/`.
+
+- 2026-07-16 22:07 MSK: одобренный UX-рефакторинг и объединение TXT завершены
+  и развёрнуты. Экран разделён на вкладки `Распознать / Повторно / Проверить`;
+  добавлены системный zoom и крупный просмотр исходника, поиск по имени,
+  счётчик выбора, порционная выдача по 30 файлов, закреплённые контекстные
+  действия, навигация по кандидатам, русские подписи сравнения и отдельная
+  опасная зона. Зелёный статус теперь означает «без автопредупреждений», а не
+  обещание отсутствия ошибок. Постобработка использует выбранную в UI модель.
+
+  `POST /api/ocr/merge-txt` собирает только TXT, соответствующие текущим
+  изображениям, в естественном порядке имени, соединяет страницы пустой
+  строкой и публикует `ocr_merged.txt` через защищённый workflow. Проверяется
+  метадата публикации, затем файл скачивается повторно и проверяется по
+  фактическому размеру и SHA-256. Production-проверка создала итог из 121 файла
+  (`101.txt`–`221.txt`): 310251 байт, SHA-256
+  `32daacfd61ad1359b026888e49ea9ce05aaa80ccd276af3522c5b2f62cb0e721`;
+  независимое повторное скачивание совпало.
+
+  Финальная проверка: Python/JS syntax, 23 API/unit-теста, 9 workflow-тестов и
+  9 Playwright-сценариев прошли; production auth `200/401/401`; оба OCR-сервиса
+  ready; workflow активен и без токена отвечает 403; очередь 141 `done`, ошибок
+  нет. Реальный OCR batch не запускался. Rollback:
+  `backups/ocr-ux-merge-20260716-220209/`.
+
+- 2026-07-16 21:15 MSK: обе незавершённые задачи доведены до DoD и
+  развёрнуты. Причина прежнего удаления TXT подтверждена: реальный запрос
+  владельца был остановлен owner-gate с HTTP 403 до вызова Яндекс Диска.
+  Проверка владельца теперь опирается на стабильный Telegram ID и настроенный
+  username; доступ остальных подписанных пользователей остаётся запрещён.
+  После массового удаления Apps Hub повторно читает текущую папку и возвращает
+  успех только когда TXT действительно отсутствуют. Сквозной ограниченный
+  тест создал `__ocr_delete_probe__.txt`, подтвердил его SHA-256 и наличие,
+  переместил ровно этот файл в Корзину и подтвердил отсутствие; пользовательские
+  TXT не затрагивались, после теста осталось 121 изображение и 121 TXT.
+
+  Resumable-постобработка активна: migration `010_ocr_postprocessing.sql`
+  применена к рабочей БД `postgres`; baseline и AI-кандидат хранятся отдельно
+  с SHA-256, статусом, моделью, prompt и diff. Готовый кандидат повторно не
+  запускает модель; `processing`/`failed` можно безопасно продолжить после
+  рестарта. Экран показывает исходное изображение, baseline, candidate и diff,
+  поддерживает `Принять`, `Оставить исходный`, `Отложить` и откат к baseline.
+  Публикация проверяет размер и фактический SHA-256 выходного TXT. Сохранённый
+  пилот `102.png` имеет статус `needs_review`; hashes baseline/candidate
+  валидны, кандидат непустой. В этом продолжении новый OCR batch и новый AI OCR
+  не запускались.
+
+  Финальная проверка: Python syntax и JS syntax; 23 Apps Hub API/unit-теста,
+  9 workflow-тестов и 8 Playwright-сценариев прошли. Production auth:
+  signed 200, unsigned 401, tampered 401; review API 200. PaddleOCR и AI bridge
+  ready, OAuth AI bridge `chatgpt-oauth`; очередь 141 `done`, non-done/error
+  пуста. Оба workflow активны. Скан 11 изменённых файлов не нашёл literal
+  secrets. Continuation cron `97444597-4a2c-4a41-90de-e62e1f284bb3` removed
+  after DoD. Rollback: `backups/ocr-postprocess-20260716-203000/`.
+
+- 2026-07-16 20:25 MSK: continuity checkpoint created after two interrupted
+  turns. A 10-minute current-session continuation schedule is active until the
+  two user-requested tasks reach DoD. Self-diagnostic: gateway/plugins/model are
+  healthy, queue depth is zero, context is 54%, provider safety is clean; the
+  interruptions happened before task commands executed and were not caused by
+  context exhaustion or fallback. Root cause evidence for bulk TXT deletion:
+  the real Mini App request at 16:50 MSK returned HTTP 403 in Apps Hub, and no
+  matching n8n delete-workflow execution exists. The request was rejected by
+  the owner-only gate before Yandex Disk was called. Next: repair owner auth
+  without broadening deletion access; verify using one recoverable test TXT and
+  validate the output artifact, then implement versioned postprocessing.
+
+- 2026-07-16 15:09 MSK: AI-OCR implementation started after successful Codex
+  CLI device OAuth and a real isolated image-input smoke test (`gpt-5.6-luna`
+  returned the visible `TEST 123`). Planned MVP: PaddleOCR remains available;
+  Codex Luna/Terra/Sol are selectable for AI OCR; the prompt is editable and
+  persisted per batch; model tools are disabled by policy and each run uses an
+  ephemeral temp directory. Pre-deploy rollback snapshot:
+  `backups/ocr-ai-20260716-150910/`.
+- 2026-07-16 15:35 MSK: AI-OCR is deployed and verified. The Mini App offers
+  PaddleOCR or Codex CLI AI OCR, model selection (`gpt-5.6-luna`,
+  `gpt-5.6-terra`, `gpt-5.6-sol`), and an editable prompt saved in the browser
+  and persisted with the batch. Dedicated ChatGPT OAuth is active in
+  `/home/user/.codex-ai-ocr`; the localhost-only bridge is enabled under the
+  user service manager and reports ready. Migration `009_ocr_ai_cli.sql` is
+  applied and the active production workflow routes AI batches to port 8766.
+  Verification: 4 bridge tests, 7 focused Apps Hub tests, 6 workflow tests and
+  5 browser scenarios pass; a real isolated Luna image smoke test returned the
+  expected text; signed production status works; mandatory queue status remains
+  141 `done` with an empty error table. No production OCR batch was started.
+  Rollback: `backups/ocr-ai-20260716-150910/`.
+- 2026-07-16 15:49 MSK: fixed the repeat-recognition selector showing deleted
+  historical images. The API now reads the live contents of the current public
+  Yandex Disk source folder and only overlays OCR status from Postgres; the
+  database is no longer treated as the source-of-truth for file presence.
+  Stale in-page selections are pruned as well. Production verification: signed
+  files API 200, unsigned/tampered 401, exactly 121 current images (`101.png` to
+  `221.png`), deleted `1.png`/`20.png` absent, 8 focused API tests and 5 browser
+  scenarios pass. Mandatory queue check: 141 `done`, no error rows. Rollback:
+  `backups/ocr-current-files-20260716-154000/`.
+- 2026-07-16: discovery completed; current OCR flow, Apps Hub, n8n workflow,
+  Postgres lock, bot command registration, service health, and tests inspected.
+- 2026-07-16: TaskFlow guidance reviewed. Managed-flow creation is not exposed in
+  this agent tool binding, so this worklog is the canonical resumable state.
+- 2026-07-16: implementation deployed to production. The Apps Hub image was
+  rebuilt and recreated with both secrets resolved into runtime environment only.
+- 2026-07-16: verification complete: 11 Python tests and 2 Playwright scenarios
+  passed; public/local pages return 200; unsigned and tampered API requests return
+  401; signed status returns 200 with service ready and latest batch `done`;
+  `ocr_status.sh` shows 20 `done` and no error rows; secret scan and recent
+  Apps Hub log scan are clean. No OCR batch was started during smoke-testing.
+- 2026-07-16: mobile screenshot inspected at 390x844. Layout, labels, metrics,
+  enabled launch action, and status hierarchy render correctly without overlap.
+- 2026-07-16: user acceptance exposed `Telegram init data signature is invalid`.
+  Root cause was configuration drift: the Infisical `TELEGRAM_BOT_TOKEN` value
+  was revoked and did not match the still-working token used by
+  `@bibi_translation_review_bot`. The shared secret was aligned with the
+  polling service and only `apps-hub` was recreated. Production verification:
+  real-bot signed status returns 200, tampered and unsigned requests return 401,
+  all 11 focused container tests pass, the OCR service is ready, and
+  `ocr_status.sh` reports 20 `done` rows with an empty error table. No OCR batch
+  was started.
+- 2026-07-16: during the first real 101-221 batch, user acceptance found false
+  ASCII `f1 1I` on page 106 and ellipses shifted outside their source position.
+  Root cause: Paddle misread quotation marks around punctuation-only dialogue,
+  while dot restoration mapped pixels to a uniform character count. The layout
+  renderer now removes adjacent/inline quote artifacts (`f1`, `I`, `··`), wraps
+  standalone ellipses, uses width-aware Hangul mapping, and keeps restored dots
+  before the closing quote. Sixteen unit tests pass. Candidate OCR of pages 106
+  and 145 matches the source
+  layout: no `f1 1I`, standalone dots are quoted, and inline dots follow the
+  correct syllable. The fixed image is deployed; the active batch continues.
+  A quiet one-shot continuation was prepared for 02:10 MSK to verify completion,
+  reprocess only pages 101-160, and validate the corrected TXT files. It was
+  subsequently disabled when Алексей paused work until morning; unrelated legacy
+  jobs account for the cron preflight warnings.
+- 2026-07-16 01:54 MSK: Алексей paused work until morning. The production batch
+  was intentionally left running, but the 02:10 follow-up was disabled so no
+  overnight requeue or second OCR batch can start. Last mandatory status check:
+  132 `done`, 1 `processing` (`213.png`), 8 `pending` (`214.png`-`221.png`), and
+  no error rows. Morning resume must begin with `./scripts/ocr_status.sh`; only
+  after the first batch is fully complete may pages 101-160 be requeued.
+- 2026-07-16 14:00 MSK: mandatory resume check completed. Batch 7 finished
+  successfully at 01:57 MSK: 121 discovered, 121 processed, 0 skipped, 0
+  failed. Global queue state is 141 `done` and the non-done/error table is
+  empty. OCR health is `ready=true`; the production container is healthy.
+  Pages 101-160 still have one attempt from the pre-fix part of batch 7 and are
+  the bounded correction set for the next production run.
+- 2026-07-16 14:22 MSK: live progress deployed without starting a new OCR
+  batch. Mini App now shows a polling progress bar, completed/failed counts and
+  the current file. Telegram creates one message per batch, stores its
+  `message_id`, edits it at most every 5 pages or 2 minutes, and turns that same
+  message into the final report. Edit failures continue OCR and cannot fan out;
+  a single final send is used only when the initial message could not be
+  created. Migration `007_ocr_live_progress.sql` is applied. Production workflow
+  is active after import/restart. Verification: 3 workflow tests, 18 layout
+  tests, 11 Apps Hub auth/API/router tests, Playwright live-progress scenario,
+  signed status 200, unsigned/tampered 401, service ready, and mandatory queue
+  status 141 `done` with an empty error table. No OCR batch was started during
+  smoke-testing. Rollback: `backups/ocr-progress-20260716-141147/`.
+- 2026-07-16 14:45 MSK: three production controls deployed. A normal restart
+  now detects a missing TXT beside an unchanged image and requeues that image;
+  Mini App can force OCR for one or several selected images; an active batch
+  can be cooperatively stopped after the current image finishes. Migration
+  `008_ocr_controls.sql` is applied and the published workflow is active.
+  Verification: 13 focused Apps Hub tests, 5 workflow tests and 4 Playwright
+  scenarios pass; signed status/files return 200, unsigned and tampered return
+  401, inactive stop returns 409, the protected webhook rejects a missing token,
+  OCR is ready, and `ocr_status.sh` remains 141 `done` with no error rows. No OCR
+  batch was started during smoke-testing. Rollback:
+  `backups/ocr-controls-20260716-143812/`.
+
+## Changed files
+
+- 2026-07-16 21:15 MSK: завершены owner-auth и проверяемое удаление TXT;
+  добавлены `ocr_postprocess_reviews`, resumable/idempotent AI-кандидаты,
+  структурный diff, экран визуального подтверждения с исходным изображением,
+  публикация/откат и проверка выходного SHA-256. Добавлены
+  `/home/user/telegram-apps/ocr_review.py`,
+  `/home/user/telegram-apps/tests/test_ocr_review.py`, migration 010,
+  builder/test workflow публикации reviewed TXT и соответствующие API/UI/E2E
+  изменения. Production DoD и rollback записаны в Progress выше.
+
+- 2026-07-16 18:34 MSK: в список повторного OCR добавлен клиентский фильтр
+  `Все / Не распознаны / Без замечаний / С замечаниями / Обрабатываются` со
+  счётчиком видимых файлов. «Выделить все» действует только на текущий фильтр;
+  при смене фильтра выбор очищается, чтобы скрытые файлы не попали в запуск.
+  В `OCR_YANDEX_PROJECT.md` зафиксирована безопасная стратегия постобработки:
+  версионные baseline/candidate, повторный OCR через Codex CLI, структурный
+  diff, ручное подтверждение публикации и resumable-состояния. Стратегия пока
+  является проектным решением, а не активным автопроцессом. Проверено: JS
+  syntax, 12 API-тестов, 6 браузерных сценариев; production signed 200,
+  unsigned/tampered 401, 121 текущий файл (63 ok, 58 warning), OCR ready,
+  очередь 141 done без ошибок. Rollback:
+  `backups/ocr-status-filter-20260716-182809/`.
+
+- 2026-07-16 16:35 MSK: развёрнуты массовые действия в повторном OCR:
+  «Выделить все», «Снять выделение» и защищённое удаление всех TXT. Удаление
+  требует двух подтверждений, доступно только владельцу и при отсутствии
+  активного batch; отдельный header-auth workflow ограничен точной папкой и
+  расширением `.txt`, а файлы перемещает в Корзину Яндекс Диска. Live dry-run
+  насчитал 121 TXT и ничего не удалил. Проверено: 12 API-тестов, 8 workflow-
+  тестов и 6 браузерных сценариев; signed 200, unsigned/tampered 401,
+  delete без подтверждения 400, webhook без токена 403. Очередь 141 done без
+  ошибок; реальное удаление и OCR batch не запускались. Rollback:
+  `backups/ocr-bulk-actions-20260716-162335/`.
+
+- 2026-07-16 15:56 MSK: в списке текущих файлов добавлена световая
+  дифференциация. Нераспознанные файлы остаются нейтральными, успешные —
+  зелёные, ошибки и низкая уверенность PaddleOCR — жёлтые. Порог проверки:
+  `confidence < 0.95` или `min_confidence < 0.60`; успешный Codex CLI зелёный,
+  так как его API не отдаёт confidence. Production-проверка: 121 текущий файл,
+  63 зелёных и 58 жёлтых; 9 API-тестов и 5 браузерных сценариев прошли,
+  signed 200, unsigned/tampered 401, очередь 141 done без ошибок. OCR batch не
+  запускался. Rollback: `backups/ocr-file-colors-20260716-155235/`.
+
+- `/home/user/telegram-apps/main.py`
+- `/home/user/telegram-apps/telegram_webapp_auth.py`
+- `/home/user/telegram-apps/static/index.html`
+- `/home/user/telegram-apps/static/ocr/index.html`
+- `/home/user/telegram-apps/tests/test_telegram_webapp_auth.py`
+- `/home/user/telegram-apps/tests/test_ocr_api.py`
+- `/home/user/telegram-apps/tests/e2e_ocr.spec.js`
+- `/home/user/telegram-apps/tests/playwright.config.js`
+- `/home/user/telegram-apps/Dockerfile`
+- `/home/user/telegram-apps/docs/CHANGELOG.md`
+- `/home/user/lightrag/docker-compose.yml`
+- `/home/user/n8n-docker/OCR_YANDEX_PROJECT.md`
+- `/home/user/n8n-docker/ai-ocr-service/app.py`
+- `/home/user/n8n-docker/ai-ocr-service/README.md`
+- `/home/user/n8n-docker/ai-ocr-service/tests/test_app.py`
+- `/home/user/n8n-docker/migrations/009_ocr_ai_cli.sql`
+- `/home/user/n8n-docker/scripts/build_ocr_telegram_workflows.mjs`
+- `/home/user/n8n-docker/tests/test_ocr_progress_workflow.py`
+- `/home/user/n8n-docker/workflows/yandex_disk_korean_ocr.json`
+- `/home/user/n8n-docker/workflows/ocr_delete_txt.json`
+- `/home/user/n8n-docker/scripts/build_ocr_delete_txt_workflow.mjs`
+- `/home/user/n8n-docker/tests/test_ocr_delete_txt_workflow.py`
+- `/home/user/.config/systemd/user/ai-ocr-service.service`
+
+## Next step
+
+Implementation is complete. User acceptance may start by opening the saved
+`102.png` review, comparing the source image, baseline, candidate and diff, then
+choosing `Принять`, `Оставить исходный` or `Отложить`. For a larger pilot,
+filter `С замечаниями`, select up to ten representative files and create Terra
+candidates; completed reviews are durable and will not spend the model again
+after reopening or restarting. Do not start the earlier 101-160 OCR correction
+batch automatically. Current rollback source:
+`/home/user/.openclaw/workspace/backups/ocr-postprocess-20260716-203000/`.
+
+- 2026-07-17 11:05 MSK: реализован второй пакет требований Юли (обратная связь
+  от 08:02). Вкладка «Повторно»: единая кнопка обработки выделенных файлов с
+  выбором движка (PaddleOCR = повторное распознавание; ИИ = файлы с TXT
+  становятся кандидатами на проверку, файлы без TXT распознаются моделью
+  напрямую), «тихий отказ» старой кнопки устранён — теперь всегда есть
+  объяснение; новые статусы: синий «обработано ИИ» (включая принят/оставлен
+  ярлыки) и красный «ошибка»; легенда и фильтр расширены. Опасная зона
+  перенесена во вкладку «Распознать» и дополнена кнопкой «Полностью очистить
+  (PNG и TXT)» с двойным подтверждением. Вкладка «Проверить»: пояснение
+  назначения, выпадающий список кандидатов, гарантированный показ изображения
+  через новый аутентифицированный эндпоинт `/api/ocr/image/{name}` (blob, c
+  fallback на публичную ссылку), редактируемый «Исходный текст» — правки
+  сохраняются и публикуются при «Оставить исходный» (проверка SHA-256), diff
+  очищен от служебных @@/---/+++ (в файл они и раньше не попадали — публикуется
+  только выбранный текст), автопереход к следующему кандидату после решения,
+  подвкладка «Все файлы» (изображение + текущий текст через
+  `/api/ocr/text/{name}`). Backend: оверлей review-статусов в
+  `/api/ocr/files` с защитой от устаревших review по md5, `edited_text` в
+  review action, `/api/ocr/clear-all` (операторы, подтверждение
+  DELETE_ALL_OCR_FILES, верификация пустой папки). Workflow удаления расширен
+  scope=all (PNG+TXT в Корзину), отдельное подтверждение.
+
+  Проверено: main.py/HTML/JS syntax; 37/37 unit/API-тестов (8 новых); 11/11
+  workflow-тестов; 12/12 Playwright-сценариев (4 новых: полная очистка, ручные
+  правки, подвкладка просмотра, фильтр статусов ИИ/ошибка); n8n workflow
+  переимпортирован и активен: без токена 403, dry-run txt=121/all=242 без
+  удаления, неверное подтверждение отклонено; production: signed 200 /
+  tampered 401 / unsigned 401, 121 файл, review-оверлей живой (2 «ai»),
+  image/text эндпоинты работают, PaddleOCR и AI bridge ready, очередь 141
+  done без ошибок. Реальный OCR batch, merge и удаление не запускались.
+  Rollback: `backups/ocr-julia-round2-20260717-080610/`.
