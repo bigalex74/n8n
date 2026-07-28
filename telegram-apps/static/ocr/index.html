@@ -198,6 +198,7 @@
                     <div class="metric"><strong id="skippedCount">0</strong><span>без изменений</span></div>
                     <div class="metric"><strong id="failedCount">0</strong><span>ошибок</span></div>
                 </div>
+                <p class="progress-detail" id="resultDetail"></p>
             </section>
         </section>
 
@@ -475,10 +476,11 @@
             failed: "Ошибка",
             cancelled: "Остановлен"
         };
+        const review = batch.run_type === "review";
         const engine = batch.ocr_engine === "ai"
             ? ` · ${batch.ai_model || "ИИ"}`
             : " · PaddleOCR";
-        return `${labels[batch.status] || batch.status} · ${formatDate(batch.started_at)}${engine}`;
+        return `${review ? "ИИ-проверка: " : ""}${labels[batch.status] || batch.status} · ${formatDate(batch.started_at)}${engine}`;
     }
 
     function selectedService(data) {
@@ -501,7 +503,8 @@
         const total = Number(batch && batch.progress_total || 0);
         const completed = Number(batch && batch.progress_completed || 0);
         const failed = Number(batch && batch.progress_failed || 0);
-        const finished = completed + failed;
+        const skipped = Number(batch && batch.skipped_count || 0);
+        const finished = completed + failed + skipped;
         const percent = total > 0 ? Math.min(100, Math.floor(finished * 100 / total)) : 0;
         panel.classList.toggle("hidden", !(batch && batch.status === "running"));
         document.getElementById("progressPercent").textContent = `${percent}%`;
@@ -510,7 +513,7 @@
         track.setAttribute("aria-valuenow", String(percent));
         const current = batch && batch.progress_current_file ? ` · сейчас ${batch.progress_current_file}` : "";
         document.getElementById("progressDetail").textContent = total > 0
-            ? `Готово ${finished} из ${total} · ошибок ${failed}${current}`
+            ? `Готово ${finished} из ${total} · ошибок ${failed}${skipped ? ` · не запускалось ${skipped}` : ""}${current}`
             : "Подготавливаю список изображений…";
     }
 
@@ -522,15 +525,27 @@
         serviceStatus.className = `status ${service.ready ? "ok" : "error"}`;
         serviceStatus.innerHTML = `<span class="dot"></span><span>${service.ready ? "OCR готов" : (engine === "ai" ? "AI OCR недоступен" : "OCR недоступен")}</span>`;
         document.getElementById("sourceFolder").textContent = data.source_folder;
-        document.getElementById("batchStatus").textContent = batchLabel(data.batch);
-        renderProgress(data.batch);
+        const visibleBatch = data.batch && data.batch.status === "running"
+            ? data.batch
+            : (data.review_batch && data.review_batch.status === "running" ? data.review_batch : (data.review_batch || data.batch));
+        document.getElementById("batchStatus").textContent = batchLabel(visibleBatch);
+        renderProgress(visibleBatch);
 
-        if (data.batch && data.batch.status !== "running") {
+        if (visibleBatch && visibleBatch.status !== "running") {
             document.getElementById("resultPanel").classList.remove("hidden");
-            document.getElementById("totalCount").textContent = data.batch.total_discovered || 0;
-            document.getElementById("processedCount").textContent = data.batch.processed_count || 0;
-            document.getElementById("skippedCount").textContent = data.batch.skipped_count || 0;
-            document.getElementById("failedCount").textContent = data.batch.failed_count || 0;
+            document.getElementById("totalCount").textContent = visibleBatch.total_discovered || 0;
+            document.getElementById("processedCount").textContent = visibleBatch.processed_count || 0;
+            document.getElementById("skippedCount").textContent = visibleBatch.skipped_count || visibleBatch.skipped_ocr_count || 0;
+            document.getElementById("failedCount").textContent = visibleBatch.failed_count || 0;
+            const resultDetail = document.getElementById("resultDetail");
+            if (visibleBatch.run_type === "review") {
+                const skipped = Number(visibleBatch.skipped_count || 0);
+                resultDetail.textContent = visibleBatch.last_error
+                    ? `Последняя причина: ${visibleBatch.last_error}${skipped ? `. Не запускалось: ${skipped}.` : ""}`
+                    : "ИИ-проверка завершена. Готовые кандидаты доступны во вкладке «Проверить».";
+            } else {
+                resultDetail.textContent = "";
+            }
         } else {
             document.getElementById("resultPanel").classList.add("hidden");
         }
