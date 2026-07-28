@@ -276,6 +276,121 @@ def latest_ocr_batch() -> Optional[dict]:
         conn.close()
 
 
+def latest_ocr_review_batch() -> Optional[dict]:
+    """Return the latest AI-review run in the same shape as an OCR batch."""
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            cur.execute(
+                """
+                SELECT id, status, requested_by, ai_model, started_at, finished_at,
+                       total_count AS progress_total,
+                       completed_count AS progress_completed,
+                       failed_count AS progress_failed,
+                       skipped_count,
+                       current_file AS progress_current_file,
+                       total_count AS total_discovered,
+                       completed_count AS processed_count,
+                       0::integer AS skipped_ocr_count,
+                       failed_count,
+                       last_error,
+                       updated_at,
+                       'review'::text AS run_type,
+                       'ai'::text AS ocr_engine
+                FROM ocr_review_batch_runs
+                ORDER BY started_at DESC
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+
+
+def create_ocr_review_batch(requested_by: int, total_count: int, model: str) -> dict:
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            cur.execute(
+                """
+                INSERT INTO ocr_review_batch_runs (requested_by, total_count, ai_model)
+                VALUES (%s, %s, %s)
+                RETURNING *
+                """,
+                (requested_by, total_count, model),
+            )
+            row = dict(cur.fetchone())
+            conn.commit()
+            return row
+        except psycopg2.IntegrityError as exc:
+            conn.rollback()
+            raise HTTPException(status_code=409, detail="AI review batch is already running") from exc
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+
+
+def update_ocr_review_batch(run_id: int, *, current_file: Optional[str] = None,
+                            completed: bool = False, failed: bool = False,
+                            last_error: Optional[str] = None, stop_remaining: bool = False) -> None:
+    """Persist every completed file so a restart never turns a batch into silence."""
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                UPDATE ocr_review_batch_runs
+                SET current_file = %s,
+                    completed_count = completed_count + %s,
+                    failed_count = failed_count + %s,
+                    skipped_count = skipped_count + CASE
+                        WHEN %s THEN GREATEST(0, total_count - completed_count - failed_count - 1)
+                        ELSE 0 END,
+                    last_error = COALESCE(%s, last_error),
+                    updated_at = now()
+                WHERE id = %s AND status = 'running'
+                """,
+                (current_file, int(completed), int(failed), stop_remaining, last_error, run_id),
+            )
+            conn.commit()
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+
+
+def finish_ocr_review_batch(run_id: int) -> None:
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                UPDATE ocr_review_batch_runs
+                SET status = CASE
+                        WHEN completed_count = total_count THEN 'done'
+                        WHEN completed_count = 0 THEN 'failed'
+                        ELSE 'partial'
+                    END,
+                    current_file = NULL, finished_at = now(), updated_at = now()
+                WHERE id = %s AND status = 'running'
+                """,
+                (run_id,),
+            )
+            conn.commit()
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+
+
 async def ocr_service_health() -> dict:
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -879,15 +994,18 @@ async def send_telegram_text_document(
 async def get_ocr_status(request: Request):
     verified_telegram_user(request)
     batch = latest_ocr_batch()
+    review_batch = latest_ocr_review_batch()
     service = await ocr_service_health()
     ai_service = await ai_ocr_service_health()
     is_running = bool(batch and batch.get("status") == "running")
+    review_running = bool(review_batch and review_batch.get("status") == "running")
     return {
         "source_folder": "протокол",
         "service": service,
         "services": {"paddle": service, "ai": ai_service},
         "batch": batch,
-        "can_start": bool(service.get("ready") or ai_service.get("ready")) and not is_running,
+        "review_batch": review_batch,
+        "can_start": bool(service.get("ready") or ai_service.get("ready")) and not is_running and not review_running,
         "can_stop": is_running and not bool(batch.get("cancel_requested")),
     }
 
@@ -930,6 +1048,9 @@ async def start_ocr(request: Request, payload: Optional[OcrStartRequest] = None)
     service = await (ai_ocr_service_health() if engine == "ai" else ocr_service_health())
     if not service.get("ready"):
         raise HTTPException(status_code=503, detail=ocr_service_unavailable_detail(engine, service))
+    review_batch = latest_ocr_review_batch()
+    if review_batch and review_batch.get("status") == "running":
+        raise HTTPException(status_code=409, detail="AI review batch is already running")
 
     force_files = list(dict.fromkeys(payload.force_files))
     if len(force_files) > 1000:
@@ -1265,6 +1386,9 @@ async def create_ocr_review_candidate(request: Request, payload: OcrReviewCandid
     user = verified_telegram_user(request)
     if not is_ocr_operator(user):
         raise HTTPException(status_code=403, detail="Only an OCR operator can run review OCR")
+    review_batch = latest_ocr_review_batch()
+    if review_batch and review_batch.get("status") == "running":
+        raise HTTPException(status_code=409, detail="AI review batch is already running")
     return await create_single_ocr_review_candidate(payload)
 
 
@@ -1351,9 +1475,10 @@ async def create_single_ocr_review_candidate(payload: OcrReviewCandidateRequest)
         raise HTTPException(status_code=502, detail=detail) from exc
 
 
-async def process_ocr_review_candidate_batch(source_names: List[str], model: str, prompt: Optional[str]):
+async def process_ocr_review_candidate_batch(run_id: int, source_names: List[str], model: str, prompt: Optional[str]):
     for source_name in source_names:
         try:
+            update_ocr_review_batch(run_id, current_file=source_name)
             await create_single_ocr_review_candidate(
                 OcrReviewCandidateRequest(
                     source_name=source_name,
@@ -1361,14 +1486,26 @@ async def process_ocr_review_candidate_batch(source_names: List[str], model: str
                     prompt=prompt,
                 )
             )
+            update_ocr_review_batch(run_id, completed=True)
         except HTTPException as exc:
+            auth_failed = exc.status_code == 503 and "Авторизация AI OCR" in str(exc.detail)
+            update_ocr_review_batch(
+                run_id,
+                failed=True,
+                last_error=str(exc.detail),
+                stop_remaining=auth_failed,
+            )
             logger.warning(
                 "OCR review candidate failed for %s: %s",
                 source_name,
                 exc.detail,
             )
+            if auth_failed:
+                break
         except Exception:
+            update_ocr_review_batch(run_id, failed=True, last_error="Неожиданная ошибка AI OCR")
             logger.exception("OCR review candidate crashed for %s", source_name)
+    finish_ocr_review_batch(run_id)
 
 
 @app.post("/api/ocr/reviews/candidates")
@@ -1398,11 +1535,15 @@ async def create_ocr_review_candidates(
     batch = latest_ocr_batch()
     if batch and batch.get("status") == "running":
         raise HTTPException(status_code=409, detail="Stop the active OCR batch before review")
+    review_batch = latest_ocr_review_batch()
+    if review_batch and review_batch.get("status") == "running":
+        raise HTTPException(status_code=409, detail="AI review batch is already running")
     service = await ai_ocr_service_health()
     if not service.get("ready"):
         raise HTTPException(status_code=503, detail=ocr_service_unavailable_detail("ai", service))
 
-    background_tasks.add_task(process_ocr_review_candidate_batch, ordered_names, payload.model, prompt)
+    run = create_ocr_review_batch(int(user["id"]), len(ordered_names), payload.model)
+    background_tasks.add_task(process_ocr_review_candidate_batch, run["id"], ordered_names, payload.model, prompt)
 
     return {
         "accepted": True,
@@ -1412,6 +1553,7 @@ async def create_ocr_review_candidates(
         "failed": 0,
         "reviews": [],
         "errors": [],
+        "run_id": run["id"],
     }
 
 

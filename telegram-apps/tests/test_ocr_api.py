@@ -620,6 +620,14 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         ) as create_single, patch.object(
             main, "latest_ocr_batch", return_value={"status": "done"}
         ), patch.object(
+            main, "latest_ocr_review_batch", return_value=None
+        ), patch.object(
+            main, "create_ocr_review_batch", return_value={"id": 77}
+        ), patch.object(
+            main, "update_ocr_review_batch"
+        ), patch.object(
+            main, "finish_ocr_review_batch"
+        ), patch.object(
             main, "ai_ocr_service_health", AsyncMock(return_value={"ready": True})
         ):
             background_tasks = BackgroundTasks()
@@ -638,6 +646,7 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["queued"], 3)
         self.assertEqual(result["completed"], 0)
         self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["run_id"], 77)
         self.assertEqual(
             [call.args[0].source_name for call in create_single.await_args_list],
             ["145.png", "146.png", "147.png"],
