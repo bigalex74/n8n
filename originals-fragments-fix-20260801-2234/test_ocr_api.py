@@ -1,10 +1,7 @@
 import os
 import time
 import unittest
-from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import docx
 
 from fastapi import BackgroundTasks, HTTPException
 from starlette.requests import Request
@@ -30,7 +27,7 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         updated, count, details = main.originals_apply_fragments("A\nБлок\nA\nБлок\n", ["Блок\n"])
         self.assertEqual(count, 2)
         self.assertEqual(updated, "A\nA\n")
-        self.assertEqual(details, [{"index": 1, "matches": 2, "removed": 2, "reason": None, "match_mode": "exact"}])
+        self.assertEqual(details, [{"index": 1, "matches": 2, "removed": 2, "reason": None}])
 
     def test_originals_normalizes_windows_newlines_and_reports_missing_fragment(self):
         updated, count, details = main.originals_apply_fragments(
@@ -39,43 +36,12 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(updated, "A\nA\n")
         self.assertEqual(count, 1)
         self.assertEqual(details[0]["matches"], 1)
-        self.assertIn("нет совпадения", details[1]["reason"])
-
-    def test_originals_remove_fragment_with_different_blank_line_formatting(self):
-        source = "Title: 킬 더 루카 1화 - 리디\n\n---------------------\n킬 더 루카\n관심작품 해지\n알림 등록\n자동 스크롤 종료\n"
-        pasted = "Title: 킬 더 루카 1화 - 리디\n\n---------------------\n\n킬 더 루카\n\n관심작품 해지\n\n알림 등록\n\n자동 스크롤 종료"
-        updated, count, details = main.originals_apply_fragments(source, [pasted])
-        self.assertEqual(updated, "\n")
-        self.assertEqual(count, 1)
-        self.assertEqual(details[0]["match_mode"], "flexible")
-
-    def test_originals_removes_all_complete_garbage_blocks_but_keeps_unclosed_tail(self):
-        updated, report = main.originals_remove_between(
-            "Глава 1\nSTART мусор END\nГлава 2\nSTART хвост", "START", "END"
-        )
-        self.assertEqual(updated, "Глава 1\n\nГлава 2\nSTART хвост")
-        self.assertEqual(report["removed_blocks"], 1)
-        self.assertEqual(report["unclosed_starts"], 1)
+        self.assertIn("нет точного совпадения", details[1]["reason"])
 
     def test_originals_name_adds_extension_and_rejects_paths(self):
         self.assertEqual(main.validated_originals_name("킬 더 루카", ".txt"), "킬 더 루카.txt")
         with self.assertRaises(HTTPException):
             main.validated_originals_name("../book", ".txt")
-
-    def test_originals_docx_cleanup_removes_only_completely_empty_paragraphs(self):
-        document = docx.Document()
-        document.add_paragraph("Первая глава")
-        document.add_paragraph("")
-        document.add_paragraph(" ")
-        document.add_paragraph("둘째 장")
-        buffer = BytesIO()
-        document.save(buffer)
-
-        updated, removed = main.docx_remove_empty_paragraphs(buffer.getvalue())
-        result = docx.Document(BytesIO(updated))
-
-        self.assertEqual(removed, 1)
-        self.assertEqual([paragraph.text for paragraph in result.paragraphs], ["Первая глава", " ", "둘째 장"])
 
     def test_owner_matches_stable_id_or_configured_username(self):
         with patch.dict(

@@ -8,20 +8,15 @@
     <style>
         :root { --tg-theme-bg-color: #f0f2f5; --tg-theme-secondary-bg-color: #ffffff; --tg-theme-text-color: #222; --tg-theme-button-color: #3390ec; }
         body { background-color: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); font-family: -apple-system, sans-serif; margin: 0; padding: 16px; }
-        .header { text-align: center; margin-bottom: 24px; }
         .app-card { display: flex; align-items: center; background: var(--tg-theme-secondary-bg-color); padding: 16px; border-radius: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-decoration: none; color: inherit; }
         .app-icon { font-size: 32px; margin-right: 16px; }
         .app-title { font-weight: 600; font-size: 16px; display: block; }
         .app-desc { font-size: 13px; color: #888; }
         .btn-cancel { width: 100%; padding: 14px; border-radius: 12px; border: none; background-color: #ff3b30; color: white; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .footer-link { display: block; width: fit-content; margin: 12px 0 0 auto; color: var(--tg-theme-button-color); font-size: 15px; text-decoration: none; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div style="font-size: 60px; margin-bottom: 10px;">📚</div>
-        <h1>Панель управления</h1>
-    </div>
-
     <div class="apps-grid">
         <a href="/files" class="app-card" id="link-files">
             <span class="app-icon">📁</span>
@@ -55,6 +50,14 @@
             </div>
         </a>
 
+        <a href="/originals" class="app-card">
+            <span class="app-icon">📄</span>
+            <div class="app-info">
+                <span class="app-title">Объединить файлы оригинала</span>
+                <span class="app-desc">TXT → единый текст → DOCX</span>
+            </div>
+        </a>
+
         <a href="/tgs" class="app-card">
             <span class="app-icon">🎨</span>
             <div class="app-info">
@@ -63,17 +66,11 @@
             </div>
         </a>
 
-        <a href="/invest" class="app-card">
-            <span class="app-icon">📈</span>
-            <div class="app-info">
-                <span class="app-title">Инвест-Навигатор</span>
-                <span class="app-desc">Лучшие инвестиционные предложения РФ</span>
-            </div>
-        </a>
     </div>
 
     <div style="margin-top: 40px; padding: 0 16px;">
         <button class="btn-cancel" onclick="window.Telegram.WebApp.close()" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background-color: #6c757d; color: white; font-size: 16px; font-weight: 600; cursor: pointer;">🚪 Выход</button>
+        <a href="/batya" class="footer-link">Батя</a>
     </div>
 
     <script>
