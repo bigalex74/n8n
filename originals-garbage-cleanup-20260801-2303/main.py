@@ -15,7 +15,6 @@ import re
 import hashlib
 import asyncio
 import base64
-import io
 import logging
 import gzip
 import subprocess
@@ -189,11 +188,6 @@ class OriginalsGarbageRequest(BaseModel):
 class OriginalsConvertRequest(BaseModel):
     name: str = Field(min_length=1, max_length=180)
     overwrite: bool = False
-
-
-class OriginalsDocxCleanupRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=180)
-    expected_sha256: Optional[str] = Field(default=None, max_length=64)
 
 
 class OriginalsDeleteRequest(BaseModel):
@@ -918,11 +912,7 @@ async def current_originals_listing() -> dict:
         (item for item in files if item["name"].casefold().endswith(".txt") and originals_source_key(item["name"]) is None),
         key=lambda item: natural_file_name_key(item["name"]),
     )
-    documents = sorted(
-        (item for item in files if item["name"].casefold().endswith(".docx")),
-        key=lambda item: natural_file_name_key(item["name"]),
-    )
-    return {"files": files, "sources": sources, "merged": merged, "documents": documents}
+    return {"files": files, "sources": sources, "merged": merged}
 
 
 async def originals_download_text(item: dict) -> str:
@@ -940,16 +930,8 @@ def normalize_originals_newlines(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
-def flexible_originals_fragment_pattern(fragment: str) -> re.Pattern:
-    """Keep text exact while allowing pasted text to have different blank lines."""
-    words = re.split(r"\s+", normalize_originals_newlines(fragment).strip())
-    if not words or not any(words):
-        raise HTTPException(status_code=400, detail="Добавьте хотя бы один непустой фрагмент")
-    return re.compile(r"\s+".join(re.escape(word) for word in words))
-
-
 def originals_apply_fragments(text: str, fragments: List[str]) -> tuple[str, int, list[dict]]:
-    if not fragments or any(not fragment.strip() for fragment in fragments):
+    if not fragments or any(not fragment for fragment in fragments):
         raise HTTPException(status_code=400, detail="Добавьте хотя бы один непустой фрагмент")
     source = normalize_originals_newlines(text)
     updated = source
@@ -957,25 +939,18 @@ def originals_apply_fragments(text: str, fragments: List[str]) -> tuple[str, int
     details = []
     for index, fragment in enumerate(fragments, start=1):
         normalized_fragment = normalize_originals_newlines(fragment)
-        exact_fragment = normalized_fragment
-        found = updated.count(exact_fragment)
-        match_mode = "exact"
-        if not found:
-            flexible_pattern = flexible_originals_fragment_pattern(normalized_fragment)
-            found = len(flexible_pattern.findall(updated))
-            match_mode = "flexible" if found else None
+        found = updated.count(fragment)
+        if normalized_fragment != fragment:
+            found = updated.count(normalized_fragment)
         count += found
         if found:
-            if match_mode == "exact":
-                updated = updated.replace(exact_fragment, "")
-            else:
-                updated = flexible_pattern.sub("", updated)
+            updated = updated.replace(normalized_fragment, "")
             reason = None
-        elif source.count(exact_fragment) or flexible_originals_fragment_pattern(normalized_fragment).search(source):
+        elif source.count(normalized_fragment):
             reason = "совпадение перекрывается с предыдущим фрагментом"
         else:
-            reason = "в файле нет совпадения: проверьте текст и символы"
-        details.append({"index": index, "matches": found, "removed": found, "reason": reason, "match_mode": match_mode})
+            reason = "в файле нет точного совпадения: проверьте текст, пробелы и переносы строк"
+        details.append({"index": index, "matches": found, "removed": found, "reason": reason})
     return updated, count, details
 
 
@@ -1018,32 +993,6 @@ def original_merged_item(listing: dict, name: str) -> dict:
     if not item:
         raise HTTPException(status_code=404, detail="Объединённый TXT не найден")
     return item
-
-
-def original_docx_item(listing: dict, name: str) -> dict:
-    normalized = validated_originals_name(name, ".docx")
-    item = next((candidate for candidate in listing["documents"] if candidate["name"].casefold() == normalized.casefold()), None)
-    if not item:
-        raise HTTPException(status_code=404, detail="Документ Word не найден")
-    return item
-
-
-def docx_remove_empty_paragraphs(content: bytes) -> tuple[bytes, int]:
-    """Remove only paragraphs without any text; spaces and line breaks are preserved."""
-    try:
-        document = docx.Document(io.BytesIO(content))
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail="Не удалось открыть документ Word") from exc
-    removed = 0
-    for paragraph in list(document.paragraphs):
-        if paragraph.text != "":
-            continue
-        element = paragraph._element
-        element.getparent().remove(element)
-        removed += 1
-    buffer = io.BytesIO()
-    document.save(buffer)
-    return buffer.getvalue(), removed
 
 
 def serialize_review(row: dict) -> dict:
@@ -1578,7 +1527,6 @@ async def get_originals_files(request: Request):
         "source_count": len(listing["sources"]),
         "sources": [item["name"] for item in listing["sources"]],
         "merged": [item["name"] for item in listing["merged"]],
-        "documents": [item["name"] for item in listing["documents"]],
     }
 
 
@@ -1675,37 +1623,6 @@ async def convert_originals_docx(request: Request, payload: OriginalsConvertRequ
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
     return {"created": True, "name": output_name}
-
-
-@app.post("/api/originals/docx/remove-empty-paragraphs/preview")
-async def preview_originals_docx_empty_paragraphs(request: Request, payload: OriginalsDocxCleanupRequest):
-    originals_operator(request)
-    item = original_docx_item(await current_originals_listing(), payload.name)
-    content = await yandex_download_resource(item["path"])
-    _, removed_count = docx_remove_empty_paragraphs(content)
-    return {
-        "name": item["name"],
-        "empty_paragraph_count": removed_count,
-        "sha256": hashlib.sha256(content).hexdigest(),
-    }
-
-
-@app.post("/api/originals/docx/remove-empty-paragraphs/apply")
-async def apply_originals_docx_empty_paragraphs(request: Request, payload: OriginalsDocxCleanupRequest):
-    originals_operator(request)
-    item = original_docx_item(await current_originals_listing(), payload.name)
-    content = await yandex_download_resource(item["path"])
-    sha256 = hashlib.sha256(content).hexdigest()
-    if not payload.expected_sha256 or payload.expected_sha256 != sha256:
-        raise HTTPException(status_code=409, detail="Документ изменился. Повторите проверку пустых строк")
-    updated, removed_count = docx_remove_empty_paragraphs(content)
-    if not removed_count:
-        raise HTTPException(status_code=409, detail="Пустые строки не найдены")
-    await yandex_upload_resource(
-        item["path"], updated,
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
-    return {"updated": True, "name": item["name"], "removed_count": removed_count}
 
 
 @app.post("/api/originals/delete-sources")
@@ -2541,10 +2458,6 @@ async def trade_page():
 @app.get("/invest", response_class=HTMLResponse)
 async def invest_page():
     with open("static/invest/index.html", "r", encoding="utf-8") as f: return f.read()
-
-@app.get("/batya", response_class=HTMLResponse)
-async def batya_page():
-    with open("static/batya/index.html", "r", encoding="utf-8") as f: return f.read()
 
 @app.get("/ocr", response_class=HTMLResponse)
 async def ocr_page():

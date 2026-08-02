@@ -1,10 +1,7 @@
 import os
 import time
 import unittest
-from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import docx
 
 from fastapi import BackgroundTasks, HTTPException
 from starlette.requests import Request
@@ -61,21 +58,6 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(main.validated_originals_name("킬 더 루카", ".txt"), "킬 더 루카.txt")
         with self.assertRaises(HTTPException):
             main.validated_originals_name("../book", ".txt")
-
-    def test_originals_docx_cleanup_removes_only_completely_empty_paragraphs(self):
-        document = docx.Document()
-        document.add_paragraph("Первая глава")
-        document.add_paragraph("")
-        document.add_paragraph(" ")
-        document.add_paragraph("둘째 장")
-        buffer = BytesIO()
-        document.save(buffer)
-
-        updated, removed = main.docx_remove_empty_paragraphs(buffer.getvalue())
-        result = docx.Document(BytesIO(updated))
-
-        self.assertEqual(removed, 1)
-        self.assertEqual([paragraph.text for paragraph in result.paragraphs], ["Первая глава", " ", "둘째 장"])
 
     def test_owner_matches_stable_id_or_configured_username(self):
         with patch.dict(
