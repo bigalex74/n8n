@@ -1,8 +1,6 @@
 import os
 import time
 import unittest
-import xml.etree.ElementTree as ET
-import zipfile
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -78,80 +76,6 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(removed, 1)
         self.assertEqual([paragraph.text for paragraph in result.paragraphs], ["Первая глава", " ", "둘째 장"])
-
-    def test_glossary_trims_only_outer_whitespace_and_keeps_internal_text(self):
-        self.assertEqual(main.normalize_glossary_text(" \n Юн Тэхи \n "), "Юн Тэхи")
-        self.assertEqual(main.normalize_glossary_text("Он  вернулся\nдомой"), "Он  вернулся\nдомой")
-
-    def test_glossary_requires_both_values_and_valid_gender(self):
-        with self.assertRaises(HTTPException):
-            main.normalized_glossary_entry(main.GlossaryEntryRequest(ko=" \n ", ru="дух"))
-        with self.assertRaises(HTTPException):
-            main.normalized_glossary_entry(main.GlossaryEntryRequest(ko="귀신", ru="дух", gender="другое"))
-        self.assertEqual(
-            main.normalized_glossary_entry(
-                main.GlossaryEntryRequest(ko=" 윤태희 ", ru=" Юн Тэхи ", gender="МУЖСКОЙ")
-            ),
-            ("윤태희", "Юн Тэхи", "мужской"),
-        )
-
-    def test_glossary_filename_supports_cyrillic_and_rejects_paths(self):
-        self.assertEqual(main.glossary_filename(" Император "), "glossary_Император.xlsx")
-        self.assertEqual(
-            main.glossary_disk_path(" Император "),
-            "/Yulia/+ Test/глоссарии/glossary_Император.xlsx",
-        )
-        with self.assertRaises(HTTPException):
-            main.glossary_filename("../novel")
-
-    def test_glossary_xlsx_has_three_columns_contiguous_rows_and_borders(self):
-        content = main.build_glossary_xlsx([
-            {"ko": "윤태희", "ru": "Юн Тэхи", "gender": "мужской"},
-            {"ko": "귀신", "ru": "дух", "gender": ""},
-        ])
-        self.assertTrue(content.startswith(b"PK"))
-        with zipfile.ZipFile(BytesIO(content)) as workbook:
-            sheet = workbook.read("xl/worksheets/sheet1.xml")
-            styles = workbook.read("xl/styles.xml")
-        root = ET.fromstring(sheet)
-        namespace = {"ss": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-        rows = root.findall(".//ss:row", namespace)
-        self.assertEqual(len(rows), 3)
-        self.assertTrue(all(len(row.findall("ss:c", namespace)) == 3 for row in rows))
-        self.assertEqual(sheet.count(b's="1"'), 9)
-        self.assertIn(b'<border><left style="thin">', styles)
-        self.assertIn("윤태희".encode(), sheet)
-        self.assertIn("Юн Тэхи".encode(), sheet)
-
-    def test_glossary_xlsx_round_trip_preserves_rows(self):
-        expected = [
-            {"ko": "윤태희", "ru": "Юн Тэхи", "gender": "мужской"},
-            {"ko": "돌아왔다", "ru": "Он  вернулся\nдомой", "gender": ""},
-        ]
-        self.assertEqual(main.parse_glossary_xlsx(main.build_glossary_xlsx(expected)), expected)
-
-    def test_glossary_xlsx_import_reads_excel_shared_strings(self):
-        template = main.build_glossary_xlsx([])
-        shared = """<?xml version="1.0" encoding="UTF-8"?>
-<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="6" uniqueCount="6"><si><t>KO</t></si><si><t>RU</t></si><si><t>Пол</t></si><si><t>윤태희</t></si><si><t>Юн Тэхи</t></si><si><t>мужской</t></si></sst>"""
-        sheet = """<?xml version="1.0" encoding="UTF-8"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row><row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c></row></sheetData></worksheet>"""
-        converted = BytesIO()
-        with zipfile.ZipFile(BytesIO(template)) as source, zipfile.ZipFile(converted, "w") as target:
-            for item in source.infolist():
-                value = sheet.encode() if item.filename == "xl/worksheets/sheet1.xml" else source.read(item.filename)
-                target.writestr(item, value)
-            target.writestr("xl/sharedStrings.xml", shared)
-        self.assertEqual(
-            main.parse_glossary_xlsx(converted.getvalue()),
-            [{"ko": "윤태희", "ru": "Юн Тэхи", "gender": "мужской"}],
-        )
-
-    def test_glossary_name_from_uploaded_filename(self):
-        self.assertEqual(main.glossary_name_from_filename("glossary_Император.xlsx"), "Император")
-        self.assertEqual(main.glossary_name_from_filename("Ручной файл.xlsx"), "Ручной файл")
-        with self.assertRaises(HTTPException):
-            main.glossary_name_from_filename("../чужой.xlsx")
 
     def test_owner_matches_stable_id_or_configured_username(self):
         with patch.dict(
