@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <title>Глоссарий</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root{--bg:var(--tg-theme-bg-color,#f3f4f6);--card:var(--tg-theme-secondary-bg-color,#fff);--text:var(--tg-theme-text-color,#222);--button:var(--tg-theme-button-color,#3390ec);--muted:#70757d;--danger:#c0392b;--line:#d8dbe0}*{box-sizing:border-box}body{margin:0;padding:16px;background:var(--bg);color:var(--text);font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.back{color:var(--button);text-decoration:none;font-weight:600}h1{font-size:24px;margin:16px 0 4px}.hint,.status{font-size:14px;line-height:1.45;color:var(--muted)}.status.error,.conflict-note{color:var(--danger)}.card{margin:14px 0;padding:16px;border-radius:14px;background:var(--card);box-shadow:0 1px 3px #0001}label{display:block;font-size:13px;font-weight:700;margin:10px 0 5px}input,textarea,select,button{font:inherit}input,textarea,select{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}textarea{min-height:78px;resize:vertical}button{border:0;border-radius:10px;padding:12px 14px;background:var(--button);color:#fff;font-weight:700;cursor:pointer}button.secondary{background:#78808a}button.danger{background:var(--danger)}button:disabled{opacity:.55;cursor:wait}.wide{width:100%}.actions,.gender,.file-actions{display:flex;gap:8px;margin-top:10px}.actions button,.gender button{flex:1}.file-actions select{flex:1}.file-actions button{flex:0 0 auto}.gender button{background:#e6e9ed;color:#333}.gender button.selected{background:var(--button);color:#fff}.editor{position:relative;margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:#00000005}.editor h2{font-size:17px;margin:0 42px 8px 0}.close{position:absolute;right:10px;top:8px;width:36px;height:36px;padding:0;border-radius:50%;background:#78808a;font-size:24px}.hidden{display:none}.entry{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding:11px 0}.entry:first-child{border-top:0}.entry.conflict{border-left:4px solid var(--danger);padding-left:9px}.entry-text{min-width:0;flex:1;line-height:1.35;overflow-wrap:anywhere;cursor:pointer}.conflict-note{font-size:13px;font-weight:700;margin-top:4px}.entry button{width:auto;flex:0 0 auto;padding:9px 11px}.empty{font-style:italic;color:var(--muted);padding:6px 0}details summary{cursor:pointer;font-weight:700}code{overflow-wrap:anywhere}
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← В меню</a>
+  <h1>Глоссарий</h1>
+  <p class="hint">Добавляйте корейский и русский текст. Черновик сохраняется в приложении.</p>
+  <p id="status" class="status">Загружаю глоссарий…</p>
+
+  <section class="card">
+    <label for="glossaryFile">Файл Excel из папки «глоссарии»</label>
+    <div class="file-actions"><select id="glossaryFile"><option value="">Загрузка списка…</option></select><button id="loadFile">Открыть</button></div>
+    <p class="hint">Поддерживаются файлы .xlsx со столбцами KO, RU и Пол.</p>
+  </section>
+
+  <section class="card">
+    <label for="glossaryName">Название глоссария</label>
+    <input id="glossaryName" maxlength="120" placeholder="Например: Император">
+    <p id="filename" class="hint">Итоговый файл: укажите название</p>
+  </section>
+
+  <section class="card">
+    <button id="addWord" class="wide">Добавить слово</button>
+    <div id="editor" class="editor hidden">
+      <button id="closeEditor" class="close" aria-label="Закрыть">×</button>
+      <h2 id="editorTitle">Новая запись</h2>
+      <div id="conflictChooser" class="hidden"><label for="conflictVariants">Варианты пересечения</label><select id="conflictVariants"></select><p class="conflict-note">После добавления остальные повторяющиеся записи будут перемещены в «Удалённые».</p></div>
+      <label for="ko">KO</label><textarea id="ko" placeholder="Корейское слово, фраза или предложение"></textarea>
+      <label for="ru">RU</label><textarea id="ru" placeholder="Русский вариант"></textarea>
+      <label>Пол</label>
+      <div class="gender"><button type="button" data-gender="">Пусто</button><button type="button" data-gender="мужской">Мужской</button><button type="button" data-gender="женский">Женский</button></div>
+      <div class="actions"><button id="saveEntry">Добавить</button><button id="clearEditor" class="secondary">Очистить</button></div>
+    </div>
+    <div id="activeList"></div>
+  </section>
+
+  <section class="card">
+    <details id="deletedDetails"><summary>Удалённые (<span id="deletedCount">0</span>)</summary><div id="deletedList"></div></details>
+  </section>
+
+  <button id="exportButton" class="wide">Сформировать глоссарий</button>
+
+<script>
+const tg=window.Telegram?.WebApp;tg?.expand();
+const statusEl=document.getElementById('status');const editor=document.getElementById('editor');
+let state={name:'',source_filename:'',active:[],deleted:[]},editingId=null,gender='',resolvingConflict=false;
+const headers=()=>({'Content-Type':'application/json','X-Telegram-Init-Data':tg?.initData||''});
+function status(text,error=false){statusEl.textContent=text;statusEl.className='status'+(error?' error':'')}
+async function api(path,{method='GET',body}={}){const response=await fetch(path,{method,headers:headers(),body:body===undefined?undefined:JSON.stringify(body)});let value={};try{value=await response.json()}catch{}if(!response.ok){const detail=typeof value.detail==='string'?value.detail:(value.detail?.message||'Операция не выполнена');throw new Error(detail)}return value}
+function clean(value){return String(value||'').trim()}
+function entryLabel(entry){return [entry.ko,entry.ru,entry.gender].filter(Boolean).join(' — ')}
+function filename(){const name=clean(document.getElementById('glossaryName').value);const result=state.source_filename||`glossary_${name}.xlsx`;document.getElementById('filename').textContent=name?`Итоговый файл: ${result}`:'Итоговый файл: укажите название'}
+function selectGender(value){gender=value;document.querySelectorAll('[data-gender]').forEach(button=>button.classList.toggle('selected',button.dataset.gender===value))}
+function clearEditor(){document.getElementById('ko').value='';document.getElementById('ru').value='';selectGender('');document.getElementById('ko').focus()}
+function closeEditor(){editor.classList.add('hidden');document.getElementById('conflictChooser').classList.add('hidden');editingId=null;resolvingConflict=false;clearEditor()}
+function openCreate(){editingId=null;resolvingConflict=false;document.getElementById('conflictChooser').classList.add('hidden');document.getElementById('editorTitle').textContent='Новая запись';document.getElementById('saveEntry').textContent='Добавить';document.getElementById('addWord').after(editor);editor.classList.remove('hidden');clearEditor()}
+function fillFromVariant(entry){document.getElementById('ko').value=entry.ko;document.getElementById('ru').value=entry.ru;selectGender(entry.gender||'')}
+function openEdit(entry,row){editingId=entry.id;resolvingConflict=Boolean(entry.conflict);document.getElementById('editorTitle').textContent=entry.conflict?'Устранение повторения':'Редактирование записи';document.getElementById('saveEntry').textContent='Добавить';fillFromVariant(entry);const chooser=document.getElementById('conflictChooser');const select=document.getElementById('conflictVariants');select.replaceChildren();if(entry.conflict){for(const variant of entry.conflict_variants){const option=document.createElement('option');option.value=variant.id;option.textContent=entryLabel(variant);select.append(option)}select.value=String(entry.id);select.onchange=()=>fillFromVariant(entry.conflict_variants.find(item=>String(item.id)===select.value));chooser.classList.remove('hidden')}else{chooser.classList.add('hidden')}row.after(editor);editor.classList.remove('hidden');document.getElementById('ko').focus()}
+function renderList(container,items,deleted){container.replaceChildren();if(!items.length){const empty=document.createElement('p');empty.className='empty';empty.textContent=deleted?'Удалённых записей нет.':'Записей пока нет.';container.append(empty);return}for(const entry of items){const row=document.createElement('div');row.className='entry'+(entry.conflict?' conflict':'');const text=document.createElement('div');text.className='entry-text';const value=document.createElement('div');value.textContent=entryLabel(entry);text.append(value);if(entry.conflict){const note=document.createElement('div');note.className='conflict-note';note.textContent='Повторяющаяся запись';text.append(note)}const action=document.createElement('button');action.className=deleted?'secondary':'danger';action.textContent=deleted?'Вернуть':'Убрать';if(!deleted)text.onclick=()=>openEdit(entry,row);action.onclick=async event=>{event.stopPropagation();try{await api(`/api/glossary/entries/${entry.id}/${deleted?'restore':'remove'}`,{method:'POST',body:{}});if(editingId===entry.id)closeEditor();await refresh();status(deleted?'Запись возвращена.':'Запись перемещена в «Удалённые».')}catch(error){status(error.message,true)}};row.append(text,action);container.append(row)}}
+function render(){document.getElementById('glossaryName').value=state.name||'';filename();renderList(document.getElementById('activeList'),state.active,false);renderList(document.getElementById('deletedList'),state.deleted,true);document.getElementById('deletedCount').textContent=state.deleted.length}
+async function refresh(){state=await api('/api/glossary');render();const conflicts=state.active.filter(item=>item.conflict).length;status(`Активных записей: ${state.active.length}${conflicts?`. Повторяющихся: ${conflicts}.`:'.'}`)}
+async function refreshFiles(){const result=await api('/api/glossary/files');const select=document.getElementById('glossaryFile');select.replaceChildren();const empty=document.createElement('option');empty.value='';empty.textContent=result.files.length?'Выберите файл':'Файлы .xlsx не найдены';select.append(empty);for(const file of result.files){const option=document.createElement('option');option.value=file.name;option.textContent=file.name;select.append(option)}if(state.source_filename)select.value=state.source_filename}
+async function saveName(){const name=clean(document.getElementById('glossaryName').value);if(!name)throw new Error('Укажите название глоссария');const result=await api('/api/glossary/name',{method:'POST',body:{name}});state.name=result.name;filename();return result}
+document.getElementById('glossaryName').oninput=filename;document.getElementById('glossaryName').onchange=async()=>{try{const result=await saveName();status(`Название сохранено. Итоговый файл: ${result.filename}`)}catch(error){status(error.message,true)}};
+document.getElementById('loadFile').onclick=async()=>{const button=document.getElementById('loadFile');const filename=document.getElementById('glossaryFile').value;if(!filename){status('Выберите файл XLSX.',true);return}button.disabled=true;try{const result=await api('/api/glossary/load',{method:'POST',body:{filename}});state=result.state;closeEditor();render();status(`Файл ${filename} открыт: ${result.entry_count} записей${result.conflict_count?`, повторяющихся — ${result.conflict_count}`:''}.`)}catch(error){status(error.message,true)}finally{button.disabled=false}};
+document.getElementById('addWord').onclick=openCreate;document.getElementById('closeEditor').onclick=closeEditor;document.getElementById('clearEditor').onclick=clearEditor;document.querySelectorAll('[data-gender]').forEach(button=>button.onclick=()=>selectGender(button.dataset.gender));selectGender('');
+document.getElementById('saveEntry').onclick=async()=>{const button=document.getElementById('saveEntry');button.disabled=true;try{const body={ko:document.getElementById('ko').value,ru:document.getElementById('ru').value,gender};if(editingId===null){await api('/api/glossary/entries',{method:'POST',body});clearEditor();await refresh();document.getElementById('addWord').after(editor);editor.classList.remove('hidden');status('Запись добавлена. Форма готова для следующей.')}else{const wasResolving=resolvingConflict;const result=await api(`/api/glossary/entries/${editingId}${wasResolving?'/resolve':''}`,{method:'PUT',body});closeEditor();await refresh();status(wasResolving?`Повторение устранено. В «Удалённые» перемещено: ${result.removed_count}.`:'Запись обновлена.')}}catch(error){status(error.message,true)}finally{button.disabled=false}};
+document.getElementById('exportButton').onclick=async()=>{const button=document.getElementById('exportButton');button.disabled=true;try{const saved=await saveName();const response=await fetch('/api/glossary/export',{headers:headers()});let error={};if(!response.ok){try{error=await response.json()}catch{}throw new Error(error.detail||'Не удалось сформировать глоссарий')}const blob=await response.blob();const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=saved.filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);state.source_filename=saved.filename;await refreshFiles();status(`Файл ${saved.filename} перезаписан в папке «глоссарии» и скачан: ${state.active.length} записей.`)}catch(error){status(error.message,true)}finally{button.disabled=false}};
+refresh().then(refreshFiles).catch(error=>status(error.message,true));
+</script>
+</body></html>
