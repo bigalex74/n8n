@@ -147,6 +147,44 @@ class OcrApiTests(unittest.IsolatedAsyncioTestCase):
             [{"ko": "윤태희", "ru": "Юн Тэхи", "gender": "мужской"}],
         )
 
+    def _glossary_xlsx_with_sheet(self, sheet_xml, shared_xml):
+        template = main.build_glossary_xlsx([])
+        converted = BytesIO()
+        with zipfile.ZipFile(BytesIO(template)) as source, zipfile.ZipFile(converted, "w") as target:
+            for item in source.infolist():
+                value = sheet_xml.encode() if item.filename == "xl/worksheets/sheet1.xml" else source.read(item.filename)
+                target.writestr(item, value)
+            target.writestr("xl/sharedStrings.xml", shared_xml)
+        return converted.getvalue()
+
+    def test_glossary_import_skips_leading_title_rows_before_header(self):
+        shared = """<?xml version="1.0" encoding="UTF-8"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="7" uniqueCount="7"><si><t>Глоссарий книги</t></si><si><t>KO</t></si><si><t>RU</t></si><si><t>Пол</t></si><si><t>귀신</t></si><si><t>дух</t></si><si><t>женский</t></si></sst>"""
+        sheet = """<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2" t="s"><v>1</v></c><c r="B2" t="s"><v>2</v></c><c r="C2" t="s"><v>3</v></c></row><row r="3"><c r="A3" t="s"><v>4</v></c><c r="B3" t="s"><v>5</v></c><c r="C3" t="s"><v>6</v></c></row></sheetData></worksheet>"""
+        self.assertEqual(
+            main.parse_glossary_xlsx(self._glossary_xlsx_with_sheet(sheet, shared)),
+            [{"ko": "귀신", "ru": "дух", "gender": "женский"}],
+        )
+
+    def test_glossary_import_handles_cells_without_r_attribute(self):
+        shared = """<?xml version="1.0" encoding="UTF-8"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="6" uniqueCount="6"><si><t>KO</t></si><si><t>RU</t></si><si><t>Пол</t></si><si><t>귀신</t></si><si><t>дух</t></si><si><t>мужской</t></si></sst>"""
+        sheet = """<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row><c t="s"><v>0</v></c><c t="s"><v>1</v></c><c t="s"><v>2</v></c></row><row><c t="s"><v>3</v></c><c t="s"><v>4</v></c><c t="s"><v>5</v></c></row></sheetData></worksheet>"""
+        self.assertEqual(
+            main.parse_glossary_xlsx(self._glossary_xlsx_with_sheet(sheet, shared)),
+            [{"ko": "귀신", "ru": "дух", "gender": "мужской"}],
+        )
+
+    def test_glossary_import_rejects_table_without_ko_ru_header(self):
+        shared = """<?xml version="1.0" encoding="UTF-8"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="6" uniqueCount="6"><si><t>Корейский</t></si><si><t>Русский</t></si><si><t>Пол</t></si><si><t>귀신</t></si><si><t>дух</t></si><si><t>мужской</t></si></sst>"""
+        sheet = """<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row><row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c></row></sheetData></worksheet>"""
+        with self.assertRaises(HTTPException):
+            main.parse_glossary_xlsx(self._glossary_xlsx_with_sheet(sheet, shared))
+
     def test_glossary_name_from_uploaded_filename(self):
         self.assertEqual(main.glossary_name_from_filename("glossary_Император.xlsx"), "Император")
         self.assertEqual(main.glossary_name_from_filename("Ручной файл.xlsx"), "Ручной файл")

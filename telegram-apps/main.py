@@ -1208,13 +1208,23 @@ def parse_glossary_xlsx(content: bytes) -> List[dict]:
     except (zipfile.BadZipFile, IndexError, KeyError, ET.ParseError, StopIteration, ValueError) as exc:
         raise HTTPException(status_code=400, detail="Файл повреждён или не является корректным XLSX") from exc
 
+    columns = {"A": 0, "B": 1, "C": 2}
     parsed_rows = []
     for row in root.findall(".//s:sheetData/s:row", namespace):
-        values = {"A": "", "B": "", "C": ""}
+        values = ["", "", ""]
+        auto_index = 0
         for cell in row.findall("s:c", namespace):
             reference = cell.attrib.get("r", "")
             column_match = re.match(r"([A-Z]+)", reference)
-            if not column_match or column_match.group(1) not in values:
+            if column_match and column_match.group(1) in columns:
+                target = columns[column_match.group(1)]
+            elif not reference:
+                # Some generators omit the r attribute: fall back to cell order.
+                target = auto_index
+            else:
+                continue
+            auto_index = target + 1
+            if target > 2:
                 continue
             cell_type = cell.attrib.get("t")
             if cell_type == "inlineStr":
@@ -1224,12 +1234,21 @@ def parse_glossary_xlsx(content: bytes) -> List[dict]:
                 value = node.text if node is not None and node.text is not None else ""
                 if cell_type == "s" and value:
                     value = shared[int(value)]
-            values[column_match.group(1)] = value
-        parsed_rows.append([values["A"], values["B"], values["C"]])
-    if not parsed_rows or [normalize_glossary_text(value).casefold() for value in parsed_rows[0]] != ["ko", "ru", "пол"]:
-        raise HTTPException(status_code=400, detail="В первой строке XLSX должны быть столбцы KO, RU, Пол")
+            values[target] = value
+        parsed_rows.append(values)
+    # Locate the KO/RU/Пол header, tolerating leading title/blank rows.
+    header_index = next(
+        (
+            index
+            for index, row in enumerate(parsed_rows)
+            if [normalize_glossary_text(value).casefold() for value in row] == ["ko", "ru", "пол"]
+        ),
+        None,
+    )
+    if header_index is None:
+        raise HTTPException(status_code=400, detail="В таблице должна быть строка со столбцами KO, RU, Пол")
     entries = []
-    for row_number, (ko, ru, gender) in enumerate(parsed_rows[1:], start=2):
+    for row_number, (ko, ru, gender) in enumerate(parsed_rows[header_index + 1:], start=header_index + 2):
         ko, ru, gender = normalize_glossary_text(ko), normalize_glossary_text(ru), normalize_glossary_text(gender).casefold()
         if not ko and not ru and not gender:
             continue
@@ -1252,6 +1271,7 @@ def ensure_glossary_schema() -> None:
                     owner_id bigint PRIMARY KEY,
                     name text NOT NULL DEFAULT '',
                     source_filename text,
+                    dirty boolean NOT NULL DEFAULT false,
                     updated_at timestamptz NOT NULL DEFAULT now()
                 );
                 CREATE TABLE IF NOT EXISTS glossary_entries (
@@ -1266,6 +1286,7 @@ def ensure_glossary_schema() -> None:
                     updated_at timestamptz NOT NULL DEFAULT now()
                 );
                 ALTER TABLE glossary_workspaces ADD COLUMN IF NOT EXISTS source_filename text;
+                ALTER TABLE glossary_workspaces ADD COLUMN IF NOT EXISTS dirty boolean NOT NULL DEFAULT false;
                 DROP INDEX IF EXISTS glossary_entries_owner_ko_unique;
                 DROP INDEX IF EXISTS glossary_entries_owner_ru_unique;
                 CREATE INDEX IF NOT EXISTS glossary_entries_owner_ko_idx ON glossary_entries(owner_id, ko);
@@ -1298,13 +1319,21 @@ def ensure_glossary_workspace(owner_id: int) -> None:
         conn.close()
 
 
+def mark_glossary_dirty(cur, owner_id: int, dirty: bool = True) -> None:
+    """Flag whether the workspace has term changes not yet written to the .xlsx file."""
+    cur.execute(
+        "UPDATE glossary_workspaces SET dirty = %s, updated_at = now() WHERE owner_id = %s",
+        (dirty, owner_id),
+    )
+
+
 def glossary_state(owner_id: int) -> dict:
     ensure_glossary_workspace(owner_id)
     conn = get_conn_pg()
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
         try:
-            cur.execute("SELECT name, source_filename FROM glossary_workspaces WHERE owner_id = %s", (owner_id,))
+            cur.execute("SELECT name, source_filename, dirty FROM glossary_workspaces WHERE owner_id = %s", (owner_id,))
             workspace = cur.fetchone()
             cur.execute(
                 """
@@ -1347,6 +1376,7 @@ def glossary_state(owner_id: int) -> dict:
     return {
         "name": str(workspace["name"] or "") if workspace else "",
         "source_filename": str(workspace["source_filename"] or "") if workspace else "",
+        "dirty": bool(workspace["dirty"]) if workspace else False,
         "active": [row for row in rows if row["active"]],
         "deleted": [row for row in rows if not row["active"]],
     }
@@ -2119,7 +2149,7 @@ async def load_glossary_file(request: Request, payload: GlossaryFileRequest):
             cur.execute(
                 """
                 UPDATE glossary_workspaces
-                SET name = %s, source_filename = %s, updated_at = now()
+                SET name = %s, source_filename = %s, dirty = false, updated_at = now()
                 WHERE owner_id = %s
                 """,
                 (glossary_name_from_filename(filename), filename, owner_id),
@@ -2165,6 +2195,38 @@ async def save_glossary_name(request: Request, payload: GlossaryNameRequest):
     return {"saved": True, "name": name, "filename": (workspace[0] if workspace and workspace[0] else glossary_filename(name))}
 
 
+@app.post("/api/glossary/new")
+async def create_glossary(request: Request, payload: GlossaryNameRequest):
+    """Start a fresh empty glossary. Clears the current workspace terms and
+    detaches the source file so a new .xlsx is created on export."""
+    user = glossary_operator(request)
+    owner_id = int(user["id"])
+    name = validated_glossary_name(payload.name)
+    ensure_glossary_workspace(owner_id)
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor()
+        try:
+            cur.execute("DELETE FROM glossary_entries WHERE owner_id = %s", (owner_id,))
+            cur.execute(
+                """
+                UPDATE glossary_workspaces
+                SET name = %s, source_filename = NULL, dirty = false, updated_at = now()
+                WHERE owner_id = %s
+                """,
+                (name, owner_id),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+    return {"created": True, "name": name, "state": glossary_state(owner_id)}
+
+
 @app.post("/api/glossary/entries")
 async def add_glossary_entry(request: Request, payload: GlossaryEntryRequest):
     user = glossary_operator(request)
@@ -2189,6 +2251,7 @@ async def add_glossary_entry(request: Request, payload: GlossaryEntryRequest):
                 (owner_id, ko, ru, gender, owner_id),
             )
             row = dict(cur.fetchone())
+            mark_glossary_dirty(cur, owner_id)
             conn.commit()
         except psycopg2.IntegrityError as exc:
             conn.rollback()
@@ -2226,6 +2289,7 @@ async def update_glossary_entry(request: Request, entry_id: int, payload: Glossa
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Активная запись не найдена")
+            mark_glossary_dirty(cur, owner_id)
             conn.commit()
         except psycopg2.IntegrityError as exc:
             conn.rollback()
@@ -2282,6 +2346,7 @@ def resolve_glossary_conflict(owner_id: int, entry_id: int, payload: GlossaryEnt
                 (ko, ru, gender, owner_id, entry_id),
             )
             row = cur.fetchone()
+            mark_glossary_dirty(cur, owner_id)
             conn.commit()
         except HTTPException:
             conn.rollback()
@@ -2320,6 +2385,7 @@ def set_glossary_entry_active(owner_id: int, entry_id: int, active: bool) -> dic
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Запись не найдена или уже перемещена")
+            mark_glossary_dirty(cur, owner_id)
             conn.commit()
             return dict(row)
         finally:
@@ -2340,6 +2406,31 @@ async def restore_glossary_entry(request: Request, entry_id: int):
     return {"restored": True, "entry": set_glossary_entry_active(int(user["id"]), entry_id, True)}
 
 
+@app.post("/api/glossary/deleted/clear")
+async def clear_deleted_glossary_entries(request: Request):
+    """Permanently remove all entries currently in the «Удалённые» tab.
+    Active entries and the exported .xlsx are untouched, so the workspace
+    dirty flag is left as-is (deleted rows are never part of the file)."""
+    user = glossary_operator(request)
+    owner_id = int(user["id"])
+    ensure_glossary_workspace(owner_id)
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "DELETE FROM glossary_entries WHERE owner_id = %s AND active IS FALSE",
+                (owner_id,),
+            )
+            removed_count = cur.rowcount
+            conn.commit()
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+    return {"cleared": True, "removed_count": removed_count, "state": glossary_state(owner_id)}
+
+
 @app.get("/api/glossary/export")
 async def export_glossary(request: Request):
     user = glossary_operator(request)
@@ -2358,20 +2449,24 @@ async def export_glossary(request: Request):
     except httpx.HTTPError as exc:
         logger.exception("Failed to save glossary XLSX to Yandex Disk")
         raise HTTPException(status_code=502, detail="Не удалось сохранить глоссарий в папку на Яндекс Диске") from exc
-    if not state.get("source_filename"):
-        conn = get_conn_pg()
+    conn = get_conn_pg()
+    try:
+        cur = conn.cursor()
         try:
-            cur = conn.cursor()
-            try:
-                cur.execute(
-                    "UPDATE glossary_workspaces SET source_filename = %s, updated_at = now() WHERE owner_id = %s",
-                    (filename, int(user["id"])),
-                )
-                conn.commit()
-            finally:
-                cur.close()
+            cur.execute(
+                """
+                UPDATE glossary_workspaces
+                SET source_filename = COALESCE(NULLIF(source_filename, ''), %s),
+                    dirty = false, updated_at = now()
+                WHERE owner_id = %s
+                """,
+                (filename, int(user["id"])),
+            )
+            conn.commit()
         finally:
-            conn.close()
+            cur.close()
+    finally:
+        conn.close()
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
