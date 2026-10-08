@@ -38,7 +38,10 @@ services:
       - HTTPS_PROXY=http://127.0.0.1:10808
       - ALL_PROXY=http://127.0.0.1:10808
       - GLOBAL_AGENT_HTTP_PROXY=http://127.0.0.1:10808
-      - NO_PROXY=localhost,127.0.0.1,::1
+      # 2026-10-07: RU LLM providers go direct — via xray ~50% of requests hung (Request timed out)
+      - NO_PROXY=localhost,127.0.0.1,::1,polza.ai,.polza.ai,neuroapi.host,.neuroapi.host
+      - no_proxy=localhost,127.0.0.1,::1,polza.ai,.polza.ai,neuroapi.host,.neuroapi.host
+      - GLOBAL_AGENT_NO_PROXY=localhost,127.0.0.1,::1,polza.ai,.polza.ai,neuroapi.host,.neuroapi.host
       - EXECUTIONS_DATA_PRUNE=true
       - EXECUTIONS_DATA_MAX_AGE=168
       # === Phase G optimization (2026-05-28): runner concurrency + timeouts + DB pool ===
